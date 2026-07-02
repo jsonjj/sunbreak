@@ -22,9 +22,30 @@ export default defineConfig({
       "/colyseus": { target: `ws://localhost:${SERVER_PORT}`, ws: true },
     },
   },
+  resolve: {
+    // One copy of each — prevents R3F "hooks must be used inside <Canvas>" from duplicate instances,
+    // which is the real reason the old config excluded fiber from pre-bundling.
+    dedupe: ["react", "react-dom", "@react-three/fiber", "three"],
+  },
   optimizeDeps: {
-    // R3F reconciler shouldn't be pre-bundled; rapier ships inlined base64 WASM (compat build)
-    exclude: ["@react-three/fiber", "@react-three/rapier"],
+    // Only rapier stays un-prebundled (it ships inlined base64 WASM in the compat build).
+    // Excluding @react-three/fiber was the ROOT cause of the cascading
+    // "does not provide an export named 'default'" errors: its CommonJS deps
+    // (scheduler, use-sync-external-store) weren't interop-wrapped on the dev server.
+    exclude: ["@react-three/rapier"],
+    include: [
+      "react",
+      "react-dom",
+      "react-dom/client",
+      "scheduler",
+      "use-sync-external-store",
+      "use-sync-external-store/shim/with-selector",
+      "zustand",
+      "zustand/traditional",
+      "zundo",
+      "@react-three/fiber",
+      "@react-three/drei",
+    ],
   },
   build: {
     target: "es2022",
