@@ -258,6 +258,25 @@ export function districtGround(key: DistrictKey): GroundKind {
   return "none";
 }
 
+/** Full district record for a key (style/zone/floors), or undefined. */
+export function districtByKey(key: DistrictKey): DistrictRegion | undefined {
+  return DISTRICTS.find((d) => d.key === key);
+}
+
+/** Acquisition points that get hero SIGNAGE in the 3D world (gun store, car dealership). Coords
+ *  mirror the integrator's worldContent placements so the signs sit on the actual shop plots. */
+export interface AcquisitionSign {
+  id: string;
+  kind: "gun" | "car";
+  x: number;
+  z: number;
+  label: string;
+}
+export const ACQUISITION_SIGNS: AcquisitionSign[] = [
+  { id: "gunstore", kind: "gun", x: 235, z: 40, label: "GUNS" },
+  { id: "dealership", kind: "car", x: -45, z: 70, label: "AUTOS" },
+];
+
 /**
  * Ground surface the CITY should paint at a point: urban slab, park lawn, airfield apron,
  * or "none" (open lots / beach / water → let the environment terrain show through). Water

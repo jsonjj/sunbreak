@@ -16,6 +16,7 @@ export {
 } from "./prng";
 export { generateCity } from "./generate";
 export { cityStore, ensureCityMap, regenerateCity, useCityStore } from "./store";
+export { isBuildingAt, resolveOutOfBuildings, setBuildingIndex } from "./occupancy";
 export { buildWalkGraph, nearestRoadNode, roadAdjacency, toMapData } from "./graph";
 export { makeTileGrid, tileCenter, tileIdAt, tilesNear } from "./tiling";
 export type * from "./types";

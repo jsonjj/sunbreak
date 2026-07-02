@@ -6,7 +6,8 @@
 // Building variety comes from per-vertex color, so a whole family shares a single material.
 import * as THREE from "three";
 import type { CityMaterials } from "./materials";
-import { groundKindAt } from "./geography";
+import { FACADE_TILE_H, FACADE_TILE_W, ROOF_M } from "./materials";
+import { ACQUISITION_SIGNS, districtByKey, groundKindAt } from "./geography";
 import type { BuildingSpec, CityMapDoc, Landmark, PropType, RoadNode } from "./types";
 
 export interface CityBuild {
@@ -173,31 +174,64 @@ interface FamilyCounts {
 const BOX_VERTS = 24;
 const BOX_INDICES = 36;
 
-function familyOf(b: BuildingSpec): "glass" | "neon" | "opaque" {
-  if (b.glass) return "glass";
+type BuildingFamily = "office" | "commercial" | "resid" | "industrial" | "neon";
+const FAMILY_KEYS: readonly BuildingFamily[] = ["office", "commercial", "resid", "industrial", "neon"];
+
+/** Map a building to its TYPE family so each district reads distinctly (downtown glass office
+ *  towers, commercial storefronts, residential low-rises, industrial warehouses, neon strips). */
+function familyOf(b: BuildingSpec): BuildingFamily {
+  if (b.glass) return "office";
   if (b.emissive) return "neon";
-  return "opaque";
+  const zone = districtByKey(b.district)?.zone;
+  if (zone === "residential") return "resid";
+  if (zone === "industrial") return "industrial";
+  return "commercial";
+}
+
+/** Scale a BoxGeometry's per-face UVs so the facade window texture tiles by REAL size (≈1 window
+ *  bay + 1 storey per grid cell), which is what makes the mass read as a windowed building. */
+function tileFacadeUVs(geo: THREE.BufferGeometry, w: number, h: number, d: number): void {
+  const uv = geo.getAttribute("uv") as THREE.BufferAttribute;
+  const scaleFace = (start: number, ru: number, rv: number): void => {
+    for (let i = start; i < start + 4; i++) uv.setXY(i, uv.getX(i) * ru, uv.getY(i) * rv);
+  };
+  const rvH = h / FACADE_TILE_H;
+  scaleFace(0, d / FACADE_TILE_W, rvH); // +X wall
+  scaleFace(4, d / FACADE_TILE_W, rvH); // -X wall
+  scaleFace(8, w / ROOF_M, d / ROOF_M); // +Y roof
+  scaleFace(12, w / ROOF_M, d / ROOF_M); // -Y underside
+  scaleFace(16, w / FACADE_TILE_W, rvH); // +Z wall
+  scaleFace(20, w / FACADE_TILE_W, rvH); // -Z wall
+  uv.needsUpdate = true;
 }
 
 function buildBuildings(doc: CityMapDoc, mats: CityMaterials, root: THREE.Group): number {
-  const counts: Record<string, FamilyCounts> = {
-    glass: { instances: 0, verts: 0, indices: 0 },
+  const counts: Record<BuildingFamily, FamilyCounts> = {
+    office: { instances: 0, verts: 0, indices: 0 },
+    commercial: { instances: 0, verts: 0, indices: 0 },
+    resid: { instances: 0, verts: 0, indices: 0 },
+    industrial: { instances: 0, verts: 0, indices: 0 },
     neon: { instances: 0, verts: 0, indices: 0 },
-    opaque: { instances: 0, verts: 0, indices: 0 },
   };
   for (const b of doc.buildings) {
     const parts = b.setbackTop ? 2 : 1;
-    const c = counts[familyOf(b)]!;
+    const c = counts[familyOf(b)];
     c.instances += parts;
     c.verts += parts * BOX_VERTS;
     c.indices += parts * BOX_INDICES;
   }
 
-  const materialFor = { glass: mats.buildingGlass, neon: mats.buildingNeon, opaque: mats.buildingOpaque };
-  const batched: Partial<Record<string, THREE.BatchedMesh>> = {};
+  const materialFor: Record<BuildingFamily, THREE.Material> = {
+    office: mats.buildingOffice,
+    commercial: mats.buildingCommercial,
+    resid: mats.buildingResid,
+    industrial: mats.buildingIndustrial,
+    neon: mats.buildingNeon,
+  };
+  const batched: Partial<Record<BuildingFamily, THREE.BatchedMesh>> = {};
   let drawGroups = 0;
-  for (const key of ["opaque", "glass", "neon"] as const) {
-    const c = counts[key]!;
+  for (const key of FAMILY_KEYS) {
+    const c = counts[key];
     if (c.instances === 0) continue;
     const bm = new THREE.BatchedMesh(c.instances, c.verts, c.indices, materialFor[key]);
     bm.name = `city:buildings:${key}`;
@@ -219,7 +253,9 @@ function buildBuildings(doc: CityMapDoc, mats: CityMaterials, root: THREE.Group)
     cy: number,
     cz: number,
   ) => {
-    const geo = applyVertexColor(new THREE.BoxGeometry(w, h, d), color);
+    const geo = new THREE.BoxGeometry(w, h, d);
+    tileFacadeUVs(geo, w, h, d);
+    applyVertexColor(geo, color);
     const gid = bm.addGeometry(geo);
     const iid = bm.addInstance(gid);
     bm.setMatrixAt(iid, mtx.makeTranslation(cx, cy, cz));
@@ -240,6 +276,80 @@ function buildBuildings(doc: CityMapDoc, mats: CityMaterials, root: THREE.Group)
   }
 
   return drawGroups;
+}
+
+// ── signage (storefront signs on shops + hero markers on acquisition points) ───────────────────
+
+function buildSigns(doc: CityMapDoc, mats: CityMaterials, root: THREE.Group): number {
+  let draws = 0;
+
+  // Rooftop storefront signs on commercial + neon shops (a deterministic subset so it isn't spammy).
+  const shops = doc.buildings.filter((b) => {
+    const f = familyOf(b);
+    return f === "commercial" || f === "neon";
+  });
+  const signW = 6;
+  const signH = 2.2;
+  const geo = new THREE.PlaneGeometry(signW, signH);
+  const picked: BuildingSpec[] = [];
+  for (let i = 0; i < shops.length; i++) {
+    const b = shops[i]!;
+    // ~55% of shops, and only ones wide enough to carry a sign.
+    if (b.width < 8) continue;
+    if (((i * 2654435761) >>> 0) % 100 > 55) continue;
+    picked.push(b);
+  }
+  if (picked.length > 0) {
+    const im = new THREE.InstancedMesh(geo, mats.sign, picked.length);
+    im.name = "city:signs";
+    im.frustumCulled = false;
+    const mtx = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const pos = new THREE.Vector3();
+    const scl = new THREE.Vector3(1, 1, 1);
+    const col = new THREE.Color();
+    for (let i = 0; i < picked.length; i++) {
+      const b = picked[i]!;
+      // Alternate facing so signs on both street orientations are legible; sit just above the roof.
+      const faceZ = (i & 1) === 0;
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), faceZ ? 0 : Math.PI / 2);
+      const off = (faceZ ? b.depth : b.width) / 2 + 0.15;
+      pos.set(b.center.x + (faceZ ? 0 : off), b.height + signH * 0.6, b.center.z + (faceZ ? off : 0));
+      mtx.compose(pos, q, scl);
+      im.setMatrixAt(i, mtx);
+      // Bright, varied sign tint.
+      col.setHSL(((i * 47) % 360) / 360, 0.7, 0.6);
+      im.setColorAt(i, col);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    root.add(im);
+    draws++;
+  } else {
+    geo.dispose();
+  }
+
+  // Hero acquisition markers: a tall glowing pylon + billboard at the gun store + dealership.
+  for (const s of ACQUISITION_SIGNS) {
+    const g = new THREE.Group();
+    g.name = `city:acqSign:${s.id}`;
+    g.position.set(s.x, 0, s.z);
+    const panelMat = s.kind === "gun" ? mats.signGun : mats.signCar;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 12, 8), mats.prop);
+    pole.position.y = 6;
+    g.add(pole);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(8, 3, 0.4), panelMat);
+    panel.position.y = 12.5;
+    g.add(panel);
+    // A lit sign face on the front of the panel.
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.2), mats.sign);
+    face.position.set(0, 12.5, 0.25);
+    g.add(face);
+    root.add(g);
+    draws++;
+  }
+
+  return draws;
 }
 
 // ── props (InstancedMesh per type) ────────────────────────────────────────────
@@ -483,6 +593,7 @@ export function buildCity(doc: CityMapDoc, mats: CityMaterials): CityBuild {
 
   buildRoads(doc, mats, root);
   const buildingDraws = buildBuildings(doc, mats, root);
+  const signDraws = buildSigns(doc, mats, root);
   const propDraws = buildProps(doc, mats, root);
   for (const l of doc.landmarks) root.add(buildLandmark(l, mats));
 
@@ -499,7 +610,7 @@ export function buildCity(doc: CityMapDoc, mats: CityMaterials): CityBuild {
     root,
     neonMaterials: [mats.buildingNeon, mats.landmarkNeon],
     buildingCount: doc.buildings.length,
-    drawGroups: buildingDraws + propDraws + 3 + doc.landmarks.length,
+    drawGroups: buildingDraws + signDraws + propDraws + 3 + doc.landmarks.length,
     dispose,
   };
 }

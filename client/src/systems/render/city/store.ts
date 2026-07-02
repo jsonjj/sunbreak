@@ -7,6 +7,7 @@ import { create } from "zustand";
 import { CITY_SEED } from "./config";
 import { generateCity } from "./generate";
 import { buildWalkGraph, nearestRoadNode, roadAdjacency, toMapData } from "./graph";
+import { setBuildingIndex } from "./occupancy";
 import { tilesNear } from "./tiling";
 import type { CityMapDoc, MapData, RoadGraph, RoadNode, WalkGraph } from "./types";
 
@@ -31,14 +32,18 @@ export const useCityStore = create<CityStoreState>((set) => ({
   walkGraph: null,
   seed: CITY_SEED,
   status: "empty",
-  setDoc: (doc) =>
+  setDoc: (doc) => {
+    // Rebuild the building-footprint index so peds/traffic can reject spawns + steer around
+    // buildings (kept in sync with the doc the renderer + colliders use).
+    setBuildingIndex(doc);
     set({
       doc,
       mapData: toMapData(doc),
       walkGraph: buildWalkGraph(doc),
       seed: doc.seed,
       status: "ready",
-    }),
+    });
+  },
 }));
 
 /** Ensure a doc exists, generating it lazily from the default seed if needed. */
