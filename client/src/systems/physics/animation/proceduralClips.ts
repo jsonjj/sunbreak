@@ -1,34 +1,41 @@
-// Procedural, in-place locomotion clips authored on the Mixamo skeleton (`mixamorig:*`).
+// Procedural, in-place locomotion clips authored on the (sanitized) Mixamo skeleton (`mixamorig*`).
 //
 // WHY: the real Mixamo clip packs are binary .glb assets fetched offline via an Adobe account
 // (royalty-free, not CC0) and are not committed to the repo. Until those are registered via
 // `registerLocomotionClips`, these synthesized clips give the driver a real, testable end-to-end
 // path (idle/walk/run/sprint) that binds to the shared rig by bone name — completely free and
-// with zero binary assets. They are deliberately simple; real clips supersede them at load.
+// with zero binary assets. Real clips supersede them at load.
+//
+// MOTION: contralateral limb swing sampled from smooth sinusoidal drivers (not linear "robot"
+// keys), a heel-strike→toe-off ankle roll, knee flex biased into the swing phase, and spine
+// counter-rotation. Rotation-only (no Hips translation) so the clips are inherently in-place and
+// rig-agnostic — the Rapier capsule owns world position, and the driver's timeScale sync matches
+// cadence to ground speed. Each gait's duration is solved (forward-kinematics on the shared rig's
+// standard segment lengths) so its baked stride ≈ the gait's nominal ground speed → no foot slide.
 
-import { AnimationClip, Euler, Quaternion, QuaternionKeyframeTrack } from "three";
+import { AnimationClip, Euler, Matrix4, Quaternion, QuaternionKeyframeTrack, Vector3 } from "three";
+import { RUN_SPEED, SPRINT_SPEED, WALK_SPEED } from "@sunbreak/shared";
 import { CLIP, MIXAMO_PREFIX } from "./constants";
 
+const D2R = Math.PI / 180;
 const TAU = Math.PI * 2;
-const SAMPLES = 16; // per cycle; +1 closing keyframe makes the loop seamless
+const SAMPLES = 24; // per cycle; +1 closing keyframe makes the loop seamless
 
-// Module-scope scratch — clip construction runs once at load, but stay allocation-lean anyway.
 const _euler = new Euler();
 const _quat = new Quaternion();
 
-type EulerFn = (phase: number) => readonly [number, number, number];
+type DegFn = (phase: number) => readonly [number, number, number];
+type NumFn = (phase: number) => number;
 
-interface BoneSpec {
-  bone: string;
-  euler: EulerFn;
-}
-
-function quatTrack(bone: string, times: number[], euler: EulerFn): QuaternionKeyframeTrack {
-  const values = new Float32Array(times.length * 4);
-  for (let i = 0; i < times.length; i++) {
-    const phase = i / SAMPLES; // 0..1 across the cycle (i === SAMPLES closes the loop)
-    const [x, y, z] = euler(phase);
-    _euler.set(x, y, z);
+/** Seamless-looping quaternion track from a per-phase Euler (degrees) driver, on a sanitized bone. */
+function track(bone: string, dur: number, fn: DegFn): QuaternionKeyframeTrack {
+  const times = new Float32Array(SAMPLES + 1);
+  const values = new Float32Array((SAMPLES + 1) * 4);
+  for (let i = 0; i <= SAMPLES; i++) {
+    const p = i / SAMPLES;
+    times[i] = p * dur;
+    const [x, y, z] = fn(p);
+    _euler.set(x * D2R, y * D2R, z * D2R, "XYZ");
     _quat.setFromEuler(_euler);
     const o = i * 4;
     values[o] = _quat.x;
@@ -36,97 +43,132 @@ function quatTrack(bone: string, times: number[], euler: EulerFn): QuaternionKey
     values[o + 2] = _quat.z;
     values[o + 3] = _quat.w;
   }
-  return new QuaternionKeyframeTrack(`${MIXAMO_PREFIX}${bone}.quaternion`, times, values);
+  return new QuaternionKeyframeTrack(`${MIXAMO_PREFIX}${bone}.quaternion`, Array.from(times), values);
 }
 
-function buildCyclicClip(name: string, duration: number, specs: readonly BoneSpec[]): AnimationClip {
-  const times: number[] = [];
-  for (let i = 0; i <= SAMPLES; i++) times.push((i / SAMPLES) * duration);
-  const tracks = specs.map((s) => quatTrack(s.bone, times, s.euler));
-  // No Hips position track → the clip is inherently in-place (Rapier owns world translation).
-  return new AnimationClip(name, duration, tracks);
-}
+// Phase convention matches the character-content library: LEFT leg drives phase p (heel-strike at
+// p=0), a down-hanging limb rotated by +X pitches toward −Z (forward), so +thigh swings forward.
+const legThigh = (A: number): NumFn => (p) => A * Math.cos(TAU * p);
+const legKnee = (base: number, swing: number): NumFn => (p) =>
+  base + swing * Math.max(0, Math.sin(TAU * (p - 0.5))) ** 1.3;
+const ankle = (A: number): NumFn => (p) => A * Math.sin(TAU * (p + 0.25));
+const shoulder = (A: number): NumFn => (p) => -A * Math.cos(TAU * p);
+const elbow = (base: number, swing: number): NumFn => (p) =>
+  -(base + swing * Math.max(0, Math.sin(TAU * p)));
 
 interface GaitShape {
-  duration: number;
-  legAmp: number;
-  kneeAmp: number;
-  armAmp: number;
-  foreArmAmp: number;
-  spineAmp: number;
+  targetSpeed: number;
+  thigh: number;
+  kneeBase: number;
+  kneeSwing: number;
+  foot: number;
+  arm: number;
+  foreArmBase: number;
+  foreArmSwing: number;
+  lean: number;
+  pelvisYaw: number;
+}
+
+// ── Stride measurement (forward kinematics on the shared rig's standard segment lengths) ───────────
+// Matches character-content/rig/skeleton.ts so procedural clips and that rig agree on cadence.
+const HIP = new Vector3(0, 0.98, 0);
+const OFF_UPLEG = new Vector3(0.1, -0.07, 0);
+const OFF_LEG = new Vector3(0, -0.42, 0);
+const OFF_FOOT = new Vector3(0, -0.41, 0);
+const OFF_TOE = new Vector3(0, -0.06, -0.12);
+
+function rotX(deg: number): Matrix4 {
+  _euler.set(deg * D2R, 0, 0, "XYZ");
+  _quat.setFromEuler(_euler);
+  return new Matrix4().makeRotationFromQuaternion(_quat);
+}
+function toeZ(p: number, thigh: NumFn, knee: NumFn, foot: NumFn): number {
+  const m = new Matrix4()
+    .setPosition(HIP)
+    .multiply(new Matrix4().setPosition(OFF_UPLEG)).multiply(rotX(thigh(p)))
+    .multiply(new Matrix4().setPosition(OFF_LEG)).multiply(rotX(knee(p)))
+    .multiply(new Matrix4().setPosition(OFF_FOOT)).multiply(rotX(foot(p)))
+    .multiply(new Matrix4().setPosition(OFF_TOE));
+  return new Vector3().setFromMatrixPosition(m).z;
+}
+
+/** Cycle duration (s) so the baked stride advances the body at `targetSpeed` with planted feet. */
+function strideDuration(s: GaitShape): number {
+  const thigh = legThigh(s.thigh);
+  const knee = legKnee(s.kneeBase, s.kneeSwing);
+  const foot = ankle(s.foot);
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < 64; i++) {
+    const z = toeZ(i / 64, thigh, knee, foot);
+    if (z < min) min = z;
+    if (z > max) max = z;
+  }
+  const peakToPeak = max - min; // one foot's fore/aft excursion; body advances ≈ 2×pp per cycle
+  return (2 * peakToPeak) / s.targetSpeed;
 }
 
 function gaitClip(name: string, s: GaitShape): AnimationClip {
-  const leg = (off: number): EulerFn => (p) => [s.legAmp * Math.sin(TAU * (p + off)), 0, 0];
-  const knee = (off: number): EulerFn => (p) => [
-    s.kneeAmp * (0.5 - 0.5 * Math.cos(TAU * (p + off))),
-    0,
-    0,
-  ];
-  const arm = (off: number): EulerFn => (p) => [-s.armAmp * Math.sin(TAU * (p + off)), 0, 0];
-  const foreArm = (off: number): EulerFn => (p) => [
-    s.foreArmAmp * (0.5 - 0.5 * Math.cos(TAU * (p + off))),
-    0,
-    0,
-  ];
+  const dur = strideDuration(s);
+  const R = 0.5;
+  const lThigh = legThigh(s.thigh);
+  const lKnee = legKnee(s.kneeBase, s.kneeSwing);
+  const lFoot = ankle(s.foot);
+  const lArm = shoulder(s.arm);
+  const lElbow = elbow(s.foreArmBase, s.foreArmSwing);
+  const off = (f: NumFn): NumFn => (p) => f(p + R);
 
-  return buildCyclicClip(name, s.duration, [
-    { bone: "LeftUpLeg", euler: leg(0) },
-    { bone: "RightUpLeg", euler: leg(0.5) },
-    { bone: "LeftLeg", euler: knee(0.5) },
-    { bone: "RightLeg", euler: knee(0) },
-    { bone: "LeftArm", euler: arm(0) },
-    { bone: "RightArm", euler: arm(0.5) },
-    { bone: "LeftForeArm", euler: foreArm(0) },
-    { bone: "RightForeArm", euler: foreArm(0.5) },
-    // Slight vertical bounce (double frequency) + counter-twist through the spine.
-    {
-      bone: "Spine1",
-      euler: (p) => [s.spineAmp * Math.sin(TAU * 2 * p), s.spineAmp * 0.6 * Math.sin(TAU * p), 0],
-    },
-  ]);
+  const tracks = [
+    track("LeftUpLeg", dur, (p) => [lThigh(p), 0, 0]),
+    track("RightUpLeg", dur, (p) => [off(lThigh)(p), 0, 0]),
+    track("LeftLeg", dur, (p) => [lKnee(p), 0, 0]),
+    track("RightLeg", dur, (p) => [off(lKnee)(p), 0, 0]),
+    track("LeftFoot", dur, (p) => [lFoot(p), 0, 0]),
+    track("RightFoot", dur, (p) => [off(lFoot)(p), 0, 0]),
+    track("LeftArm", dur, (p) => [lArm(p), 0, 4]),
+    track("RightArm", dur, (p) => [off(lArm)(p), 0, -4]),
+    track("LeftForeArm", dur, (p) => [lElbow(p), 0, 0]),
+    track("RightForeArm", dur, (p) => [off(lElbow)(p), 0, 0]),
+    track("Spine", dur, (p) => [s.lean * 0.55, -s.pelvisYaw * 0.7 * Math.sin(TAU * p), 0]),
+    track("Spine1", dur, (p) => [s.lean * 0.3, -s.pelvisYaw * 0.4 * Math.sin(TAU * p), 0]),
+    track("Head", dur, (p) => [-s.lean * 0.25, -s.pelvisYaw * 0.15 * Math.sin(TAU * p), 0]),
+    // Pelvis rotation only (no translation → inherently in-place / rig-agnostic).
+    track("Hips", dur, (p) => [-s.lean * 0.15, s.pelvisYaw * Math.sin(TAU * p), -2 * Math.sin(TAU * p)]),
+  ];
+  return new AnimationClip(name, dur, tracks);
 }
 
 function idleClip(): AnimationClip {
-  return buildCyclicClip(CLIP.idle, 4, [
-    { bone: "Spine1", euler: (p) => [0.03 * Math.sin(TAU * p), 0, 0] },
-    { bone: "Spine2", euler: (p) => [0.02 * Math.sin(TAU * p), 0, 0] },
-    { bone: "Head", euler: (p) => [0.015 * Math.sin(TAU * p), 0.02 * Math.sin(TAU * 0.5 * p), 0] },
-    { bone: "LeftArm", euler: (p) => [0.02 * Math.sin(TAU * p), 0, 0] },
-    { bone: "RightArm", euler: (p) => [0.02 * Math.sin(TAU * (p + 0.5)), 0, 0] },
+  const dur = 4;
+  return new AnimationClip(CLIP.idle, dur, [
+    track("Spine", dur, (p) => [1.5 + 0.5 * Math.sin(TAU * p), 0, 0]),
+    track("Spine1", dur, (p) => [0.8 * Math.sin(TAU * p), 0, 0.5 * Math.sin(TAU * p)]),
+    track("Head", dur, (p) => [-1, 3 * Math.sin(TAU * 0.5 * p), 0]),
+    track("LeftArm", dur, () => [4, 0, 7]),
+    track("RightArm", dur, () => [4, 0, -7]),
+    track("LeftForeArm", dur, () => [-11, 0, 0]),
+    track("RightForeArm", dur, () => [-11, 0, 0]),
   ]);
 }
 
 /**
- * Build the full procedural locomotion set (idle/walk/run/sprint). Cadence rises and stride
- * shortens per gait; the driver's timeScale sync then matches cadence to actual ground speed.
+ * Build the full procedural locomotion set (idle/walk/run/sprint). Stride and cadence scale per
+ * gait; the driver's timeScale sync then matches cadence to actual ground speed.
  */
 export function buildProceduralLocomotionClips(): AnimationClip[] {
   return [
     idleClip(),
     gaitClip(CLIP.walk, {
-      duration: 1.05,
-      legAmp: 0.35,
-      kneeAmp: 0.45,
-      armAmp: 0.2,
-      foreArmAmp: 0.15,
-      spineAmp: 0.03,
+      targetSpeed: WALK_SPEED, thigh: 25, kneeBase: 6, kneeSwing: 52, foot: 16,
+      arm: 22, foreArmBase: 12, foreArmSwing: 8, lean: 4, pelvisYaw: 6,
     }),
     gaitClip(CLIP.run, {
-      duration: 0.72,
-      legAmp: 0.6,
-      kneeAmp: 0.8,
-      armAmp: 0.42,
-      foreArmAmp: 0.5,
-      spineAmp: 0.05,
+      targetSpeed: RUN_SPEED, thigh: 42, kneeBase: 12, kneeSwing: 88, foot: 26,
+      arm: 48, foreArmBase: 58, foreArmSwing: 20, lean: 13, pelvisYaw: 8,
     }),
     gaitClip(CLIP.sprint, {
-      duration: 0.55,
-      legAmp: 0.78,
-      kneeAmp: 1.05,
-      armAmp: 0.55,
-      foreArmAmp: 0.7,
-      spineAmp: 0.07,
+      targetSpeed: SPRINT_SPEED, thigh: 55, kneeBase: 16, kneeSwing: 104, foot: 30,
+      arm: 62, foreArmBase: 74, foreArmSwing: 22, lean: 21, pelvisYaw: 9,
     }),
   ];
 }

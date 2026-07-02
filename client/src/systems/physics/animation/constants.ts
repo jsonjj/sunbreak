@@ -4,8 +4,14 @@
 import { RUN_SPEED, SPRINT_SPEED, WALK_SPEED } from "@sunbreak/shared";
 import type { AnimLocomotionConfig, GaitNode } from "./types";
 
-/** Every retargeted humanoid shares the Mixamo skeleton; all clips bind by these bone names. */
-export const MIXAMO_PREFIX = "mixamorig:";
+/**
+ * Every retargeted humanoid shares the Mixamo skeleton; all clips bind by these bone names.
+ * NOTE: this is the *sanitized* prefix (no colon). three's GLTFLoader runs
+ * `PropertyBinding.sanitizeNodeName()` on every node, stripping the reserved ':' — so a conformed
+ * Mixamo/Quaternius GLB exposes bones like `mixamorigHips` at runtime. Hand-authored track names
+ * must match that exactly (a `mixamorig:Hips` track silently fails to bind — "No target node found").
+ */
+export const MIXAMO_PREFIX = "mixamorig";
 
 /**
  * Upper-body bone matcher for v2 upper/lower layering (aim-while-move). Kept here so the

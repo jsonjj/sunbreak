@@ -30,3 +30,6 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# large / non-CC0 rigged character binaries — fetched for the ?realrig=1 opt-in; kept local so the tree stays CC0-clean
+client/public/assets/characters/*.glb

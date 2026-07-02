@@ -5,6 +5,17 @@ import * as THREE from "three";
 import type { Palette, PaletteChannel } from "../types";
 import { materialKey, resolveColor } from "./palette";
 
+// Per-channel surface response so a body doesn't read as one uniform plastic: skin is soft and
+// slightly glossy, fabric is matte, leather (shoes) has a low sheen, hair catches a highlight.
+const SURFACE: Readonly<Record<PaletteChannel, { roughness: number; metalness: number }>> = {
+  skin: { roughness: 0.58, metalness: 0.0 },
+  hair: { roughness: 0.62, metalness: 0.08 },
+  clothing: { roughness: 0.86, metalness: 0.02 },
+  clothingDark: { roughness: 0.84, metalness: 0.02 },
+  shoe: { roughness: 0.42, metalness: 0.12 },
+  accent: { roughness: 0.7, metalness: 0.05 },
+};
+
 export class MaterialCache {
   private readonly cache = new Map<string, THREE.MeshStandardMaterial>();
 
@@ -12,10 +23,11 @@ export class MaterialCache {
     const key = materialKey(channel, palette);
     let mat = this.cache.get(key);
     if (!mat) {
+      const surface = SURFACE[channel] ?? SURFACE.clothing;
       mat = new THREE.MeshStandardMaterial({
         color: new THREE.Color(resolveColor(channel, palette)),
-        roughness: channel === "skin" ? 0.72 : 0.9,
-        metalness: 0.02,
+        roughness: surface.roughness,
+        metalness: surface.metalness,
       });
       mat.name = key;
       this.cache.set(key, mat);

@@ -18,8 +18,17 @@ import { applyDriverStep, readVehicleState } from "./handling";
 
 // Suspension ray direction + axle axis (chassis-local); copied into WASM by addWheel, so the
 // same shared objects are safe to reuse for every wheel.
+//
+// AXLE is the wheel's spin axis. Rapier derives each wheel's *traction/forward* direction from
+// `up × axle`, so with up = +Y the axle sign decides which way a positive engine force pushes.
+// Our chassis is modelled nose-forward along +Z (headlights + the steered front wheels sit at
+// +Z), so the axle must be -X to make forward throttle drive the car toward its nose. With the
+// old +X axle, positive engine force accelerated the chassis toward -Z (tail-first) and
+// `currentVehicleSpeed()` reported negative while driving forward — which made the gameplay
+// reverse-resolution assist think the car was reversing and slam the brakes (capping it at the
+// ~3 km/h reverse-engage threshold). Keep this -X.
 const DOWN = { x: 0, y: -1, z: 0 };
-const AXLE = { x: 1, y: 0, z: 0 };
+const AXLE = { x: -1, y: 0, z: 0 };
 
 interface Ref<T> {
   readonly current: T;

@@ -50,6 +50,59 @@ export function capsule(
   return skinRigid(geo, BONE_INDEX[bone]);
 }
 
+/**
+ * Tapered limb spanning bone `a`..`b`: a truncated cone (radius `rA` at `a`, `rB` at `b`) with
+ * rounded joint caps, skinned rigidly to `bone`. This is the anatomical building block — real limbs
+ * are thicker at the proximal joint and taper toward the distal one (thigh→knee, bicep→wrist), which
+ * is the single biggest thing that separates a believable body from a stack of uniform capsules.
+ */
+export function taperedLimb(
+  a: BoneName,
+  b: BoneName,
+  rA: number,
+  rB: number,
+  bone: BoneName,
+): THREE.BufferGeometry {
+  const pa = restWorld(a);
+  const pb = restWorld(b);
+  const dir = new THREE.Vector3().subVectors(pb, pa);
+  const len = dir.length() || 0.001;
+  dir.multiplyScalar(1 / len);
+
+  // Shaft along +Y (a at −len/2, b at +len/2) + a sphere cap at each joint for a smooth blend.
+  const shaft = new THREE.CylinderGeometry(rB, rA, len, 12, 1, false);
+  const capA = new THREE.SphereGeometry(rA, 12, 8);
+  capA.translate(0, -len / 2, 0);
+  const capB = new THREE.SphereGeometry(rB, 12, 8);
+  capB.translate(0, len / 2, 0);
+  const merged = mergeGeometries([shaft, capA, capB], false);
+  shaft.dispose();
+  capA.dispose();
+  capB.dispose();
+  if (!merged) throw new Error("char: failed to build tapered limb");
+
+  const q = new THREE.Quaternion().setFromUnitVectors(UP, dir);
+  const mid = new THREE.Vector3().addVectors(pa, pb).multiplyScalar(0.5);
+  merged.applyMatrix4(new THREE.Matrix4().compose(mid, q, new THREE.Vector3(1, 1, 1)));
+  return skinRigid(merged, BONE_INDEX[bone]);
+}
+
+/** Ellipsoid centered at bone `at`, skinned rigidly to `bone`. Like `sphere` but always scaled. */
+export function ellipsoid(
+  at: BoneName,
+  radius: readonly [number, number, number],
+  bone: BoneName,
+  opts?: { offset?: readonly [number, number, number] },
+): THREE.BufferGeometry {
+  const geo = new THREE.SphereGeometry(1, 16, 12);
+  geo.scale(radius[0], radius[1], radius[2]);
+  const p = restWorld(at);
+  const o = opts?.offset;
+  if (o) p.add(new THREE.Vector3(o[0], o[1], o[2]));
+  geo.translate(p.x, p.y, p.z);
+  return skinRigid(geo, BONE_INDEX[bone]);
+}
+
 /** Sphere/ellipsoid centered near a bone, skinned rigidly to it. */
 export function sphere(
   at: BoneName,

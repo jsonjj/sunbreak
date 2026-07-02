@@ -2,9 +2,9 @@
 // 0..1 speed scalar. This is the "shared animator" every character (lead, ped, police) uses.
 
 import * as THREE from "three";
-import type { LocomotionMode } from "@sunbreak/shared";
+import { SPRINT_SPEED, type LocomotionMode } from "@sunbreak/shared";
 import type { AbilityId, AnimState } from "../types";
-import { ONE_SHOT_STATES } from "./proceduralClips";
+import { GAIT_NOMINAL_SPEED, ONE_SHOT_STATES } from "./proceduralClips";
 
 export interface Animator {
   readonly mixer: THREE.AnimationMixer;
@@ -56,23 +56,25 @@ export function createAnimator(root: THREE.Object3D, clips: readonly THREE.Anima
       play("Jump", 0.1);
       return;
     }
+    // Pick a gait, then sync its playback rate to the ground speed so the feet don't slide.
+    // `n` is speed / SPRINT_SPEED (see movement.normalizedSpeed), so recover the real m/s and divide
+    // by the clip's measured stride speed (GAIT_NOMINAL_SPEED). timeScale ≈ 1 near each gait's
+    // natural pace; the clamp keeps extremes sane at crawl / over-speed.
     let state: AnimState;
-    let ts = 1;
-    if (n < 0.06) {
-      state = "Idle";
-    } else if (n < 0.5) {
-      state = "Walk";
-      ts = THREE.MathUtils.clamp(n / 0.33, 0.6, 1.4);
-    } else if (n < 0.82) {
-      state = "Run";
-      ts = THREE.MathUtils.clamp(n / 0.66, 0.8, 1.25);
-    } else {
-      state = "Sprint";
-      ts = THREE.MathUtils.clamp(n / 0.95, 0.85, 1.3);
-    }
+    if (n < 0.06) state = "Idle";
+    else if (n < 0.45) state = "Walk";
+    else if (n < 0.8) state = "Run";
+    else state = "Sprint";
     play(state, 0.2);
-    const a = actions[state];
-    if (a) a.setEffectiveTimeScale(ts * abilityRate);
+    if (state !== "Idle") {
+      const a = actions[state];
+      if (a) {
+        const speed = n * SPRINT_SPEED;
+        const nominal = GAIT_NOMINAL_SPEED[state] ?? speed;
+        const ts = THREE.MathUtils.clamp(speed / nominal, 0.55, 1.7);
+        a.setEffectiveTimeScale(ts * abilityRate);
+      }
+    }
   }
 
   function setAbilityActive(active: boolean, _abilityId?: AbilityId): void {

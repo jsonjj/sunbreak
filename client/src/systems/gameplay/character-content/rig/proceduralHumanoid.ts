@@ -9,7 +9,7 @@
 import * as THREE from "three";
 import type { BodyId, PaletteChannel, Slot } from "../types";
 import { eachVariant, partName } from "../modular/wardrobe";
-import { box, capsule, mergeParts, sphere } from "./geometryKit";
+import { box, capsule, ellipsoid, mergeParts, sphere, taperedLimb } from "./geometryKit";
 import { BONE, buildBones, buildSkeleton } from "./skeleton";
 
 interface Proportion {
@@ -34,33 +34,54 @@ export interface PartUserData {
 
 const PLACEHOLDER = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9 });
 
-// ── Full-body skin mannequin (clothing shells layer on top of this) ─────────────────────────────
+// A single anatomically-shaped foot (heel pad + tapered sole + rounded toe), skinned to one ankle.
+function foot(bone: typeof BONE.LFoot | typeof BONE.RFoot, L: number): THREE.BufferGeometry[] {
+  return [
+    // sole/instep: sits flat on the ground and runs forward from the ankle
+    box(bone, [0.083 * L, 0.05 * L, 0.19], bone, { offset: [0, -0.045, -0.055] }),
+    // rounded heel behind the ankle
+    ellipsoid(bone, [0.042 * L, 0.03 * L, 0.045], bone, { offset: [0, -0.04, 0.025] }),
+    // rounded toe box front
+    ellipsoid(bone, [0.045 * L, 0.028 * L, 0.05], bone, { offset: [0, -0.05, -0.145] }),
+  ];
+}
+
+// ── Full-body skin mesh (clothing shells layer on top of this) ───────────────────────────────────
+// Real proportions: limbs taper toward their distal joints, the torso narrows at the waist, the
+// head carries a jaw, and the hands/feet are shaped — so the base body reads as a person even nude,
+// and clothing draped over it sits naturally.
 function buildSkinBody(p: Proportion): THREE.BufferGeometry {
   const L = p.limb;
+  const T = p.torso;
+  const H = p.head;
   const parts: THREE.BufferGeometry[] = [
-    // head + neck
-    sphere(BONE.Head, 0.115 * p.head, BONE.Head, { scale: [1, 1.12, 1.05], offset: [0, 0.04, 0] }),
-    capsule(BONE.Neck, BONE.Head, 0.05 * p.head, BONE.Neck),
-    // torso core + pelvis
-    capsule(BONE.Spine, BONE.Spine2, 0.132 * p.torso, BONE.Spine1),
-    capsule(BONE.Hips, BONE.Spine, 0.12 * p.torso, BONE.Hips),
-    // shoulders (bridge the gap between chest and arms)
-    sphere(BONE.LArm, 0.07 * L, BONE.LShoulder),
-    sphere(BONE.RArm, 0.07 * L, BONE.RShoulder),
-    // arms
-    capsule(BONE.LArm, BONE.LForeArm, 0.05 * L, BONE.LArm),
-    capsule(BONE.RArm, BONE.RForeArm, 0.05 * L, BONE.RArm),
-    capsule(BONE.LForeArm, BONE.LHand, 0.045 * L, BONE.LForeArm),
-    capsule(BONE.RForeArm, BONE.RHand, 0.045 * L, BONE.RForeArm),
-    box(BONE.LHand, [0.06, 0.1, 0.045], BONE.LHand, { offset: [0, -0.04, 0] }),
-    box(BONE.RHand, [0.06, 0.1, 0.045], BONE.RHand, { offset: [0, -0.04, 0] }),
-    // legs
-    capsule(BONE.LUpLeg, BONE.LLeg, 0.085 * L, BONE.LUpLeg),
-    capsule(BONE.RUpLeg, BONE.RLeg, 0.085 * L, BONE.RUpLeg),
-    capsule(BONE.LLeg, BONE.LFoot, 0.065 * L, BONE.LLeg),
-    capsule(BONE.RLeg, BONE.RFoot, 0.065 * L, BONE.RLeg),
-    box(BONE.LFoot, [0.09, 0.06, 0.2], BONE.LFoot, { offset: [0, -0.02, -0.05] }),
-    box(BONE.RFoot, [0.09, 0.06, 0.2], BONE.RFoot, { offset: [0, -0.02, -0.05] }),
+    // head: cranium ellipsoid + a jaw/cheek mass for a face-forward silhouette
+    ellipsoid(BONE.Head, [0.089 * H, 0.108 * H, 0.096 * H], BONE.Head, { offset: [0, 0.05, 0] }),
+    ellipsoid(BONE.Head, [0.07 * H, 0.06 * H, 0.082 * H], BONE.Head, { offset: [0, -0.012, 0.012] }),
+    // neck taper into the skull
+    taperedLimb(BONE.Neck, BONE.Head, 0.052 * H, 0.044 * H, BONE.Neck),
+    // torso: chest (broad) → waist (narrow) → pelvis (flare)
+    taperedLimb(BONE.Spine, BONE.Spine2, 0.118 * T, 0.146 * T, BONE.Spine1),
+    taperedLimb(BONE.Hips, BONE.Spine, 0.138 * T, 0.118 * T, BONE.Hips),
+    // deltoids bridge chest → arm
+    ellipsoid(BONE.LArm, [0.063 * L, 0.06 * L, 0.063 * L], BONE.LArm, { offset: [0.01, 0.01, 0] }),
+    ellipsoid(BONE.RArm, [0.063 * L, 0.06 * L, 0.063 * L], BONE.RArm, { offset: [-0.01, 0.01, 0] }),
+    // arms: upper arm + forearm, each tapering to the joint below
+    taperedLimb(BONE.LArm, BONE.LForeArm, 0.053 * L, 0.041 * L, BONE.LArm),
+    taperedLimb(BONE.RArm, BONE.RForeArm, 0.053 * L, 0.041 * L, BONE.RArm),
+    taperedLimb(BONE.LForeArm, BONE.LHand, 0.041 * L, 0.03 * L, BONE.LForeArm),
+    taperedLimb(BONE.RForeArm, BONE.RHand, 0.041 * L, 0.03 * L, BONE.RForeArm),
+    // hands: relaxed fists (rounded, slightly flattened)
+    ellipsoid(BONE.LHand, [0.033 * L, 0.052 * L, 0.022 * L], BONE.LHand, { offset: [0, -0.045, 0] }),
+    ellipsoid(BONE.RHand, [0.033 * L, 0.052 * L, 0.022 * L], BONE.RHand, { offset: [0, -0.045, 0] }),
+    // legs: thigh + calf, tapering to knee / ankle
+    taperedLimb(BONE.LUpLeg, BONE.LLeg, 0.097 * L, 0.062 * L, BONE.LUpLeg),
+    taperedLimb(BONE.RUpLeg, BONE.RLeg, 0.097 * L, 0.062 * L, BONE.RUpLeg),
+    taperedLimb(BONE.LLeg, BONE.LFoot, 0.063 * L, 0.038 * L, BONE.LLeg),
+    taperedLimb(BONE.RLeg, BONE.RFoot, 0.063 * L, 0.038 * L, BONE.RLeg),
+    // feet
+    ...foot(BONE.LFoot, L),
+    ...foot(BONE.RFoot, L),
   ];
   return mergeParts(parts);
 }
@@ -75,6 +96,22 @@ function sleeves(r: number): THREE.BufferGeometry[] {
   ];
 }
 
+// A shoe/boot shell that fully encloses the shaped foot (sole + rounded toe + heel). `riseExtra`
+// thickens it for boots.
+function shoe(
+  bone: typeof BONE.LFoot | typeof BONE.RFoot,
+  L: number,
+  riseExtra = 0,
+): THREE.BufferGeometry[] {
+  const h = 0.066 + riseExtra;
+  const offY = h / 2 - 0.074; // keep the sole ≈ on the ground regardless of thickness
+  return [
+    box(bone, [0.1 * L, h, 0.27], bone, { offset: [0, offY, -0.05] }),
+    ellipsoid(bone, [0.05 * L, h * 0.5, 0.055], bone, { offset: [0, offY + 0.006, -0.15] }),
+    ellipsoid(bone, [0.05 * L, h * 0.5, 0.05], bone, { offset: [0, offY + 0.01, 0.03] }),
+  ];
+}
+
 function buildVariantGeometry(slot: Slot, id: string, p: Proportion): THREE.BufferGeometry | null {
   const T = p.torso;
   const L = p.limb;
@@ -82,51 +119,52 @@ function buildVariantGeometry(slot: Slot, id: string, p: Proportion): THREE.Buff
     // torso ---------------------------------------------------------------------------------------
     case "torso_tee":
       return mergeParts([
-        capsule(BONE.Spine, BONE.Spine2, 0.148 * T, BONE.Spine1),
-        capsule(BONE.LArm, BONE.LForeArm, 0.06 * L, BONE.LArm),
-        capsule(BONE.RArm, BONE.RForeArm, 0.06 * L, BONE.RArm),
+        taperedLimb(BONE.Spine, BONE.Spine2, 0.128 * T, 0.156 * T, BONE.Spine1),
+        taperedLimb(BONE.Hips, BONE.Spine, 0.132 * T, 0.128 * T, BONE.Hips),
+        taperedLimb(BONE.LArm, BONE.LForeArm, 0.062 * L, 0.05 * L, BONE.LArm),
+        taperedLimb(BONE.RArm, BONE.RForeArm, 0.062 * L, 0.05 * L, BONE.RArm),
       ]);
     case "torso_jacket":
       return mergeParts([
-        capsule(BONE.Spine, BONE.Spine2, 0.164 * T, BONE.Spine1),
-        capsule(BONE.Hips, BONE.Spine, 0.14 * T, BONE.Hips),
-        ...sleeves(0.062 * L),
+        taperedLimb(BONE.Spine, BONE.Spine2, 0.15 * T, 0.166 * T, BONE.Spine1),
+        taperedLimb(BONE.Hips, BONE.Spine, 0.152 * T, 0.15 * T, BONE.Hips),
+        ...sleeves(0.064 * L),
         sphere(BONE.Neck, 0.09 * p.head, BONE.Neck, { scale: [1.2, 0.6, 1.2], offset: [0, 0.02, 0] }),
       ]);
     case "torso_tank":
-      return mergeParts([capsule(BONE.Spine, BONE.Spine2, 0.146 * T, BONE.Spine1)]);
+      return mergeParts([taperedLimb(BONE.Spine, BONE.Spine2, 0.128 * T, 0.154 * T, BONE.Spine1)]);
     // legs ----------------------------------------------------------------------------------------
     case "legs_pants":
       return mergeParts([
-        capsule(BONE.Hips, BONE.Spine, 0.132 * T, BONE.Hips),
-        capsule(BONE.LUpLeg, BONE.LLeg, 0.094 * L, BONE.LUpLeg),
-        capsule(BONE.RUpLeg, BONE.RLeg, 0.094 * L, BONE.RUpLeg),
-        capsule(BONE.LLeg, BONE.LFoot, 0.074 * L, BONE.LLeg),
-        capsule(BONE.RLeg, BONE.RFoot, 0.074 * L, BONE.RLeg),
+        taperedLimb(BONE.Hips, BONE.Spine, 0.146 * T, 0.126 * T, BONE.Hips),
+        taperedLimb(BONE.LUpLeg, BONE.LLeg, 0.106 * L, 0.072 * L, BONE.LUpLeg),
+        taperedLimb(BONE.RUpLeg, BONE.RLeg, 0.106 * L, 0.072 * L, BONE.RUpLeg),
+        taperedLimb(BONE.LLeg, BONE.LFoot, 0.072 * L, 0.05 * L, BONE.LLeg),
+        taperedLimb(BONE.RLeg, BONE.RFoot, 0.072 * L, 0.05 * L, BONE.RLeg),
       ]);
     case "legs_shorts":
       return mergeParts([
-        capsule(BONE.Hips, BONE.Spine, 0.134 * T, BONE.Hips),
-        capsule(BONE.LUpLeg, BONE.LLeg, 0.096 * L, BONE.LUpLeg, 1),
-        capsule(BONE.RUpLeg, BONE.RLeg, 0.096 * L, BONE.RUpLeg, 1),
+        taperedLimb(BONE.Hips, BONE.Spine, 0.146 * T, 0.126 * T, BONE.Hips),
+        taperedLimb(BONE.LUpLeg, BONE.LLeg, 0.108 * L, 0.086 * L, BONE.LUpLeg),
+        taperedLimb(BONE.RUpLeg, BONE.RLeg, 0.108 * L, 0.086 * L, BONE.RUpLeg),
       ]);
     case "legs_skirt":
       return mergeParts([
-        capsule(BONE.Hips, BONE.Spine, 0.134 * T, BONE.Hips),
+        capsule(BONE.Hips, BONE.Spine, 0.146 * T, BONE.Hips),
         box(BONE.Hips, [0.36, 0.34, 0.24], BONE.Hips, { offset: [0, -0.2, 0] }),
       ]);
     // feet ----------------------------------------------------------------------------------------
     case "feet_shoes":
       return mergeParts([
-        box(BONE.LFoot, [0.1, 0.07, 0.23], BONE.LFoot, { offset: [0, -0.03, -0.06] }),
-        box(BONE.RFoot, [0.1, 0.07, 0.23], BONE.RFoot, { offset: [0, -0.03, -0.06] }),
+        ...shoe(BONE.LFoot, L),
+        ...shoe(BONE.RFoot, L),
       ]);
     case "feet_boots":
       return mergeParts([
-        box(BONE.LFoot, [0.1, 0.1, 0.23], BONE.LFoot, { offset: [0, -0.01, -0.06] }),
-        box(BONE.RFoot, [0.1, 0.1, 0.23], BONE.RFoot, { offset: [0, -0.01, -0.06] }),
-        capsule(BONE.LFoot, BONE.LLeg, 0.08 * L, BONE.LLeg, 1),
-        capsule(BONE.RFoot, BONE.RLeg, 0.08 * L, BONE.RLeg, 1),
+        ...shoe(BONE.LFoot, L, 0.02),
+        ...shoe(BONE.RFoot, L, 0.02),
+        capsule(BONE.LFoot, BONE.LLeg, 0.082 * L, BONE.LLeg, 1),
+        capsule(BONE.RFoot, BONE.RLeg, 0.082 * L, BONE.RLeg, 1),
       ]);
     // hair ----------------------------------------------------------------------------------------
     case "hair_short":

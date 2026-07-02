@@ -3,7 +3,7 @@
 // consume. Vehicles may instead `registerHandler({ kind: "vehicle_enter", … })` to fully own it.
 
 import type { InteractionHandler, PromptData } from "../types";
-import { PRIMARY_KEY_GLYPH } from "../constants";
+import { SECONDARY_KEY_GLYPH } from "../constants";
 
 export interface VehicleEnterData {
   /** Net id of the vehicle to enter (defaults to the entity's own netId). */
@@ -21,7 +21,10 @@ export const vehicleEnterHandler: InteractionHandler = {
     if (veh && veh.seats > 0 && (veh.occupants?.length ?? 0) >= veh.seats) return null; // full
     const cfg = ctx.config;
     return {
-      key: cfg.key ?? PRIMARY_KEY_GLYPH,
+      // Vehicle enter/exit is the SECONDARY (Enter/Exit Vehicle = F) action, NOT the generic
+      // primary Interact (E). Default to the F glyph so this handler can never render a
+      // conflicting "E" prompt for a vehicle.
+      key: cfg.key ?? SECONDARY_KEY_GLYPH,
       verb: cfg.verb || "Enter",
       label: cfg.label ?? (veh?.id != null ? String(veh.id) : undefined),
       hold: cfg.hold,

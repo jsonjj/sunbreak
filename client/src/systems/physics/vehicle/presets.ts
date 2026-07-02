@@ -94,12 +94,15 @@ const SEDAN: VehicleConfig = {
   centerOfMassOffset: [0, -0.4, 0],
   linearDamping: 0.05,
   angularDamping: 0.6,
-  engineForce: 3800,
-  reverseForce: 1900,
-  brakeForce: 2400,
+  engineForce: 4200,
+  reverseForce: 2200,
+  brakeForce: 2600,
   handbrakeForce: 3600,
   maxSteer: 0.55,
-  steerSign: 1,
+  // -1 because the chassis drives nose-forward along +Z (see AXLE note in useVehicleController):
+  // a positive steer input (D / right) must curve the car toward its own right, which is -X for a
+  // +Z-facing car, so the wheel steer angle is negated here. Propagates to every derived preset.
+  steerSign: -1,
   steerSpeedRef: 28,
   steerAtMaxSpeed: 0.22,
   steerDampRate: 9,
