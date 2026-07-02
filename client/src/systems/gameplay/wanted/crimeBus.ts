@@ -39,22 +39,41 @@ export function drainCrimes(): CrimeEvent[] {
   return full;
 }
 
-/** Map a generic damage event (the shared "damage" signal) to a crime and publish it. */
+/** Map a generic damage event (the shared "damage" signal) to a CONTACT crime and publish it.
+ *  Only hits on PEOPLE (civilian/police) are `contact` — the only thing that raises wanted (v2). */
 export function reportDamage(e: DamageEvent): void {
+  const person = e.victimKind === "police" || e.victimKind === "civilian";
   let type: WantedCrimeType;
   if (e.victimKind === "police") type = "officerAttacked";
   else if (e.victimKind === "vehicle" || e.victimKind === "prop") type = "recklessDrive";
   else if (e.melee || !e.weapon) type = "fistfight";
   else type = "gunfire";
-  reportCrime({ type, position: e.position, actorNetId: e.attackerNetId });
+  reportCrime({
+    type,
+    position: e.position,
+    actorNetId: e.attackerNetId,
+    victimNetId: e.victimNetId,
+    victimKind: e.victimKind,
+    contact: person,
+    lethal: false,
+  });
 }
 
-/** Map a generic death event (the shared "death" signal) to a crime and publish it. */
+/** Map a generic death event (the shared "death" signal) to a CONTACT crime and publish it. */
 export function reportDeath(e: DeathEvent): void {
   // The player dying is not a crime the player commits — ignore it here (game-ux owns that).
   if (e.victimKind === "player") return;
+  const person = e.victimKind === "police" || e.victimKind === "civilian";
   const type: WantedCrimeType = e.victimKind === "police" ? "officerKilled" : "civilianKilled";
-  reportCrime({ type, position: e.position, actorNetId: e.killerNetId });
+  reportCrime({
+    type,
+    position: e.position,
+    actorNetId: e.killerNetId,
+    victimNetId: e.victimNetId,
+    victimKind: e.victimKind,
+    contact: person,
+    lethal: true,
+  });
 }
 
 // ── Global + DOM bridges so decoupled producers need no static import ─────────────────────────

@@ -37,7 +37,7 @@ export const AIM: CameraProfile = {
  *  eye offset above the capsule CENTER (the near-plane clips the player's own head at this distance). */
 export const FIRST_PERSON: CameraProfile = {
   distance: 0,
-  height: 0.68,
+  height: 0.78, // eye offset above the capsule CENTRE (~1.65 m eye height — was a touch low at 0.68)
   shoulder: 0,
   fov: 74,
   smoothTime: 0.05,

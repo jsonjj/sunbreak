@@ -57,7 +57,8 @@ export function tickMovement(dt: number, movable: (a: PedAgent) => boolean): voi
 
   for (const e of pedQuery) {
     const a = e.ped_agent!;
-    if (a.state === "dead" || !movable(a)) continue;
+    // "fight" peds are driven by pedCombat (approach + shoot); the wander mover skips them.
+    if (a.state === "dead" || a.state === "fight" || !movable(a)) continue;
     const t = e.transform!;
     const x = t.position.x;
     const z = t.position.z;

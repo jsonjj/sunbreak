@@ -53,6 +53,16 @@ export interface CrimeEvent {
   actorNetId?: number;
   /** override audible radius in metres (defaults to the tuning table for the crime). */
   loudness?: number;
+  // ── Contact-driven wanted (v2): populated for damage/death crimes so the crime system can
+  //    debounce per-victim, scale by distinct victims, and weight kills vs hits / cops vs civs. ──
+  /** The victim's netId (for per-victim debounce + distinct-victim counting). */
+  victimNetId?: number;
+  /** What the victim is (drives cop-vs-civilian weighting). */
+  victimKind?: VictimKind;
+  /** True when the crime is direct CONTACT (the player hit/killed someone) — the only heat source. */
+  contact?: boolean;
+  /** True when the contact killed the victim (kills weigh more than hits). */
+  lethal?: boolean;
 }
 
 /** Generic "damage" signal (the shared damage event) → mapped to a crime by `reportDamage`. */
@@ -108,4 +118,24 @@ export interface WantedSearch {
   timer: number;
   pointX: number;
   pointZ: number;
+}
+
+/**
+ * FOOT COP (v2) — an on-foot officer spawned by wanted level that chases the player and shoots via
+ * the combat system. Killable (carries `stat_health`); classified as "police" for the crime bridge.
+ */
+export interface CopUnit {
+  /** Combat weapon id this cop fires (escalates with star). */
+  weapon: string;
+  /** Base hit chance (0..1) at close range; scaled down with distance by combat's enemy-fire. */
+  accuracy: number;
+  /** Star tier this cop was spawned for (so we can retire the right ones as heat drops). */
+  star: number;
+  /** Seconds to the next shot (fire-rate gate). */
+  fireT: number;
+  /** Chasing the player, or dead + awaiting cleanup. */
+  state: "chase" | "dead";
+  /** performance.now() at spawn / death. */
+  spawnedAt: number;
+  deadAt: number;
 }

@@ -22,6 +22,7 @@ import { rebuildPedHash } from "./spatialHash";
 import { tickSpawn } from "./spawn";
 import { tickPerception, installThreatBridges, uninstallThreatBridges } from "./perception";
 import { tickBehavior } from "./behavior";
+import { tickPedCombat } from "./pedCombat";
 import { tickMovement } from "./movement";
 import { pedMovable, pedShouldTick, tickLod } from "./lod";
 import { setPedRoadGraph } from "./nav";
@@ -121,6 +122,14 @@ export const mod: SubsystemModule<W> = {
       },
     },
     {
+      name: "peds:combat",
+      phase: "update",
+      order: 35,
+      fn: (_w, dt) => {
+        if (playing()) tickPedCombat(dt);
+      },
+    },
+    {
       name: "peds:movement",
       phase: "update",
       order: 40,
@@ -151,6 +160,7 @@ registerModule(mod);
 export { pedsApi } from "./api";
 export { PedInstances } from "./render/pedInstancesView";
 export { PedColliders } from "./render/pedCollidersView";
+export { PedHealthBars } from "./render/pedHealthBars";
 export {
   applyThreat,
   raiseThreat,

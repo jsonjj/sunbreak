@@ -4,6 +4,7 @@
 // the `declare module` augments rather than replaces `@sunbreak/shared`.
 import type { Vec3 } from "@sunbreak/shared";
 import type {
+  CopUnit,
   WantedPolice,
   WantedPerception,
   WantedPursuit,
@@ -30,6 +31,8 @@ declare module "@sunbreak/shared" {
     wanted_stars?: number;
     /** Patrol/return anchor a recycled unit heads back toward. */
     wanted_home?: Vec3;
+    /** FOOT COP (v2): on-foot officer that chases + shoots the player. Killable. */
+    cop_unit?: CopUnit;
   }
 }
 

@@ -80,6 +80,14 @@ export {
 } from "./integrations/acquisition";
 export type { GiveWeaponOptions } from "./integrations/acquisition";
 
+// ── ENEMY (NPC) FIRE — armed peds + on-foot police shoot the player through the SAME damage path.
+export { enemyFireAt, enemyMelee } from "./integrations/enemy";
+export type { EnemyFireResult } from "./integrations/enemy";
+/** Analytic hit helpers (reused by NPC AI for target selection / LOS if needed). */
+export { castCombatRay, forEachDamageableNear } from "./hitscan";
+/** Direct damage application (used by NPC melee/fire wrappers). */
+export { applyHit } from "./resolve";
+
 // ── WORLD WEAPON PICKUPS — INTEGRATOR: place these anywhere in the world ───────────────────────
 export { spawnWeaponPickup } from "./systems/weaponPickupSystem";
 export type { SpawnPickupOptions } from "./systems/weaponPickupSystem";

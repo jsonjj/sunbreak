@@ -19,7 +19,7 @@ import { purchasableWeapons, spawnWeaponPickup } from "@/systems/gameplay/combat
 import { spawnVehicle } from "@/systems/gameplay/vehicle-gameplay";
 import { LANDMARKS } from "@/systems/physics/vehicle";
 import { MARINA } from "@/systems/render/city/geography";
-import { VehicleId } from "@sunbreak/shared";
+import { DEFAULT_SPAWN, VehicleId } from "@sunbreak/shared";
 
 const policeQ = world.with("wanted_police", "transform");
 const vehiclesQ = world.with("veh_isVehicle", "transform");
@@ -120,6 +120,12 @@ export function placeWorldContent(): void {
 
   // ── World weapon pickups (walk-over → granted via combat) ──────────────────────────────────
   try {
+    // STARTER KIT — right in front of the player spawn (~2.5 m forward, i.e. −Z), so a weapon is
+    // immediately visible + grabbable. The pistol auto-equips on pickup; the shotgun is a bonus.
+    const [sx, , sz] = DEFAULT_SPAWN;
+    spawnWeaponPickup({ x: sx, y: 1, z: sz - 2.5 }, "pistol_9mm", { equip: true });
+    spawnWeaponPickup({ x: sx + 1.6, y: 1, z: sz - 2.5 }, "shotgun_pump", { equip: false });
+    // Scattered pickups around the city.
     spawnWeaponPickup({ x: -14, y: 1, z: 14 }, "pistol_9mm", { respawn: true });
     spawnWeaponPickup({ x: 226, y: 1, z: 58 }, "smg_vector", { respawn: true, equip: false });
   } catch {

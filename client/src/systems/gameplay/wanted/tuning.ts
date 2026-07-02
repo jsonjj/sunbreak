@@ -6,6 +6,30 @@ import type { TierName } from "@/render/quality/tiers";
 
 export const MAX_STARS = 5;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTACT-DRIVEN WANTED (v2). Wanted rises ONLY when the player makes contact with a person
+// (hits/kills them) — never from merely firing a gun or driving. Heat scales with the number of
+// DISTINCT victims; a re-hit on the same victim within the debounce window doesn't re-count; kills
+// weigh more than hits; and cops weigh more than civilians.
+// ─────────────────────────────────────────────────────────────────────────────
+/** Per-victim cooldown (s): a second hit on the SAME person inside this window doesn't re-count. */
+export const CONTACT_DEBOUNCE_S = 2.5;
+
+/** Heat added per counted contact, by kind + severity. */
+export const CONTACT_HEAT = {
+  hitCivilian: 1.5,
+  hitPolice: 4,
+  killCivilian: 4,
+  killPolice: 8,
+  /** Extra heat the FIRST time you hit a given distinct person (rampage escalation). */
+  newVictimBonus: 1,
+} as const;
+
+/** Star FLOOR from the number of DISTINCT people hit this spree (more victims → higher wanted). */
+export function minStarsForDistinct(n: number): number {
+  return n >= 8 ? 5 : n >= 5 ? 4 : n >= 3 ? 3 : n >= 2 ? 2 : n >= 1 ? 1 : 0;
+}
+
 /**
  * Heat points required to reach each star tier (index === star level). Crimes ratchet `heat`
  * up (and floor it to a crime's `minStars`); cooldown ratchets it back down one tier at a time.

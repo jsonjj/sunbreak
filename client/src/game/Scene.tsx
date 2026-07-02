@@ -16,7 +16,7 @@ import { CombatRig } from "@/systems/gameplay/combat";
 import { TrafficView } from "@/systems/gameplay/traffic";
 import { WantedView } from "@/systems/gameplay/wanted";
 import { RagdollBridge } from "@/systems/physics/ragdoll";
-import { PedColliders } from "@/systems/gameplay/peds";
+import { PedColliders, PedHealthBars } from "@/systems/gameplay/peds";
 import { InteractionRig } from "@/systems/gameplay/interaction";
 import { MissionMarkers } from "@/systems/gameplay/missions";
 import { DebugCanvas } from "@/systems/content/debug-tools";
@@ -67,6 +67,9 @@ export function Scene() {
 
       {/* Mission world markers / waypoints (reads the mission store; inert with no active mission). */}
       <MissionMarkers />
+
+      {/* World-space ped health bars (billboards above damaged / fighting peds). */}
+      <PedHealthBars />
 
       <PhysicsProvider debug={debug}>
         {/* Safety floor: the flat drivable ground for the city core + districts (top at y=0, matching

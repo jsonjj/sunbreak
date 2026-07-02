@@ -151,6 +151,34 @@ export const THREAT_DEFAULTS: Record<string, { radius: number; intensity: number
   panic: { radius: CONTAGION_RADIUS, intensity: CONTAGION_INTENSITY },
 };
 
+// ── Ped combat (armed peds FIGHT the player; unarmed peds FLEE) ──────────────────────────────
+/** Base fraction of peds that spawn carrying a firearm (scaled per-archetype below). */
+export const PED_ARMED_FRACTION = 0.1;
+/** Per-archetype arm-chance multiplier (gangsters/police likely, tourists never). */
+export const PED_ARM_MULT: Record<PedArchetype, number> = {
+  [PedArchetype.Civilian]: 0.5,
+  [PedArchetype.Business]: 0.3,
+  [PedArchetype.Tourist]: 0,
+  [PedArchetype.Gangster]: 4,
+  [PedArchetype.Police]: 3,
+};
+/** Combat weapon ids an armed ped may carry. */
+export const PED_WEAPONS = ["pistol_9mm", "smg_vector"] as const;
+/** Engage the player within this radius (m); disengage/flee-home beyond the second. */
+export const PED_ENGAGE_R = 34;
+export const PED_DISENGAGE_R = 48;
+/** Standoff distance an armed ped holds while shooting (m). */
+export const PED_STANDOFF = 12;
+/** Seconds between an armed ped's shots + its base accuracy (0..1 at close range). */
+export const PED_FIRE_INTERVAL_S = 1.1;
+export const PED_ACCURACY = 0.4;
+/** Aggressive-but-unarmed (gangster) melee: reach (m), damage, and swing interval (s). */
+export const PED_MELEE_REACH = 2.3;
+export const PED_MELEE_DAMAGE = 9;
+export const PED_MELEE_INTERVAL_S = 1.0;
+/** Move speed multiplier while fighting (approach the standoff briskly). */
+export const PED_FIGHT_SPEED_MUL = 1.0;
+
 // ── Death / ragdoll ─────────────────────────────────────────────────────────────────────────
 /** How long a dead ped lingers (instance hidden) before its pool slot is recycled (ms). */
 export const RAGDOLL_LINGER_MS = 8000;

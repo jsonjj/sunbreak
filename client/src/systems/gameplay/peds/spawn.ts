@@ -10,7 +10,10 @@ import {
   ARCHETYPE_WEIGHTS,
   ARCHETYPES,
   CULL_R,
+  PED_ARM_MULT,
+  PED_ARMED_FRACTION,
   PED_CENTER_Y,
+  PED_WEAPONS,
   SPAWN_HZ,
   SPAWN_MAX_R,
   SPAWN_MIN_R,
@@ -81,6 +84,10 @@ export function spawnOne(px: number, pz: number): boolean {
   a.bodyH = look.bodyH;
   a.age = 0;
   a.deadAt = 0;
+  // Arm a random subset (gangsters/police far more likely; tourists never). Armed peds FIGHT.
+  const armChance = PED_ARMED_FRACTION * (PED_ARM_MULT[arch] ?? 0);
+  a.weapon = rand() < armChance ? (PED_WEAPONS[(rand() * PED_WEAPONS.length) | 0] ?? null) : null;
+  a.fireT = 0;
   assignTickPhase(a, rand);
 
   e.ped!.archetype = arch;

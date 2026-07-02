@@ -105,8 +105,12 @@ function applyGrantItem(item: string): void {
       if (!a) break;
       const p = localPlayerQ.entities[0]?.transform?.position;
       try {
-        // Drive it off the lot: spawn beside the player (they're at the dealership when buying).
-        spawnVehicle(a as Parameters<typeof spawnVehicle>[0], { x: (p?.x ?? 0) + 4, z: p?.z ?? 0, yaw: 0 });
+        // Drive it off the lot: spawn clearly BESIDE the player (not on top of them), facing out.
+        spawnVehicle(a as Parameters<typeof spawnVehicle>[0], {
+          x: (p?.x ?? 0) + 6,
+          z: (p?.z ?? 0) + 2,
+          yaw: Math.PI / 2,
+        });
       } catch {
         /* vehicle spawn failed */
       }

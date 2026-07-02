@@ -20,6 +20,7 @@ import { crimeSystem } from "./crimeSystem";
 import { dispatchSystem } from "./dispatchSystem";
 import { searchSystem } from "./searchSystem";
 import { pursuitSystem } from "./pursuitSystem";
+import { footCopSystem } from "./footCops";
 import { cooldownSystem } from "./cooldownSystem";
 import { hudMirrorSystem } from "./hudMirrorSystem";
 import { initPool, destroyPool } from "./pool";
@@ -36,6 +37,7 @@ export const wanted: SubsystemModule<W> = {
     dispatchSystem, // update 30 — tier → budget spawns/despawns
     searchSystem, // update 38 — LKP probability-sweep point assignment
     pursuitSystem, // update 40 — per-unit FSM + kinematic driving
+    footCopSystem, // update 45 — ON-FOOT cops: chase + shoot the player, killable, star-scaled
     cooldownSystem, // update 50 — uncontested star decay + searching flag
     hudMirrorSystem, // finish 20 — mirror stars to shared HUD store + player entity
   ],

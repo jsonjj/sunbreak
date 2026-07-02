@@ -16,6 +16,7 @@ export type PedState =
   | "flee" // running away from a threat toward a safe node
   | "panic" // very high fear: erratic sprint, spreads fear
   | "cower" // no safe route found: crouch/tremble in place
+  | "fight" // armed/aggressive: engage the player (drive by pedCombat, not the wander mover)
   | "dead"; // killed — instance hidden, ragdoll handoff emitted, awaiting pool release
 
 /** Representation / simulation LOD tier (index matches config.LOD_TIERS). */
@@ -198,6 +199,12 @@ export interface PedAgent {
   animPhase: number; // 0..1 procedural walk-cycle phase (drives the shader stride + bob/lean)
   bodyW: number; // per-instance build width scale (silhouette variety)
   bodyH: number; // per-instance build height scale
+
+  // combat ----------------------------------------------------------------------------------
+  /** Firearm this ped carries (combat weapon id), or null = unarmed. Armed peds fight, not flee. */
+  weapon: string | null;
+  /** Seconds until this ped's next shot/swing (fire-rate gate for pedCombat). */
+  fireT: number;
 
   // lifecycle -------------------------------------------------------------------------------
   age: number; // seconds alive

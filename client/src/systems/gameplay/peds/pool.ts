@@ -35,6 +35,8 @@ function makeAgent(): PedAgent {
     animPhase: 0,
     bodyW: 1,
     bodyH: 1,
+    weapon: null,
+    fireT: 0,
     age: 0,
     deadAt: 0,
   };

@@ -5,16 +5,23 @@
 // `killPed` marks the ped dead, hides its instance, writes a `ped_ragdoll` handoff (+ emits an
 // event) for the physics/ragdoll subsystem, and schedules the pool slot for recycling.
 
+import { PedArchetype } from "@sunbreak/shared";
 import { world } from "@/ecs/world";
 import type { ClientEntity } from "@/ecs/clientEntity";
 import {
   ARRIVE_R,
+  CALM_THRESHOLD,
   FLEE_THRESHOLD,
   IDLE_MAX_S,
   IDLE_MIN_S,
   PANIC_THRESHOLD,
   RAGDOLL_LINGER_MS,
 } from "./config";
+
+/** Armed peds (and gangsters) FIGHT when threatened; everyone else flees. pedCombat drives them. */
+function isFighter(a: PedAgent): boolean {
+  return a.weapon !== null || a.archetype === PedArchetype.Gangster;
+}
 import { randomNeighbor } from "./nav";
 import {
   enterCower,
@@ -96,12 +103,30 @@ export function tickBehavior(dt: number, tickable: (a: PedAgent) => boolean): vo
     if (!tickable(a)) continue;
 
     // ── Fear-driven transitions ─────────────────────────────────────────────────────────
-    if (a.fear >= FLEE_THRESHOLD && a.state !== "flee" && a.state !== "panic") {
-      enterFlee(e);
+    if (
+      a.fear >= FLEE_THRESHOLD &&
+      a.state !== "flee" &&
+      a.state !== "panic" &&
+      a.state !== "fight"
+    ) {
+      if (isFighter(a)) {
+        // Stand and fight — pedCombat owns the approach + shooting from here.
+        a.state = "fight";
+        a.stateT = 0;
+        a.target = -1;
+      } else {
+        enterFlee(e);
+      }
       continue;
     }
 
     switch (a.state) {
+      case "fight": {
+        // pedCombat drives the motion + firing. Only calm down (disengage) once fear fully fades.
+        a.stateT += dt;
+        if (a.fear < CALM_THRESHOLD) beginWander(e);
+        break;
+      }
       case "flee":
       case "panic": {
         a.stateT += dt;

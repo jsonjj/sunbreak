@@ -60,6 +60,9 @@ export function vitalsOf(e: ClientEntity): Health | undefined {
 /** Classify a victim for the wanted crime bridge. */
 export function victimKindFor(e: ClientEntity): CombatVictimKind {
   if (e.isPlayer) return "player";
+  // Foot cops (cop_unit) and wanted police units count as officers.
+  if ((e as { cop_unit?: unknown }).cop_unit !== undefined) return "police";
+  if ((e as { wanted_police?: unknown }).wanted_police !== undefined) return "police";
   const archetype = (e as { ped_agent?: { archetype?: PedArchetype } }).ped_agent?.archetype;
   if (archetype !== undefined) return archetype === PedArchetype.Police ? "police" : "civilian";
   if (e.isVehicle || e.vehicle) return "vehicle";
