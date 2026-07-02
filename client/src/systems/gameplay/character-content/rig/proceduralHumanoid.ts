@@ -55,9 +55,10 @@ function buildSkinBody(p: Proportion): THREE.BufferGeometry {
   const T = p.torso;
   const H = p.head;
   const parts: THREE.BufferGeometry[] = [
-    // head: cranium ellipsoid + a jaw/cheek mass for a face-forward silhouette
+    // head: cranium ellipsoid + a jaw/cheek mass for a face-forward silhouette. The jaw sits toward
+    // -Z (the model's forward, matching the feet + cap-brim), so the face leads the direction of travel.
     ellipsoid(BONE.Head, [0.089 * H, 0.108 * H, 0.096 * H], BONE.Head, { offset: [0, 0.05, 0] }),
-    ellipsoid(BONE.Head, [0.07 * H, 0.06 * H, 0.082 * H], BONE.Head, { offset: [0, -0.012, 0.012] }),
+    ellipsoid(BONE.Head, [0.07 * H, 0.06 * H, 0.082 * H], BONE.Head, { offset: [0, -0.012, -0.012] }),
     // neck taper into the skull
     taperedLimb(BONE.Neck, BONE.Head, 0.052 * H, 0.044 * H, BONE.Neck),
     // torso: chest (broad) → waist (narrow) → pelvis (flare)

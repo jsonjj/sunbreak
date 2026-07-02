@@ -80,7 +80,7 @@ export function Scene() {
         {/* Static world colliders: buildings/props (render/city), streamed chunks
             (render/streaming) and environment prop colliders (render/environment). This is what
             makes vehicles + the player stop driving through buildings and walls. */}
-        <WorldColliders />
+        <WorldColliders terrainHeightfield />
 
         <PlayerController />
         <CameraRig />

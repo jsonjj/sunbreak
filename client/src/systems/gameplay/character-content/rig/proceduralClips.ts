@@ -92,8 +92,11 @@ function legThigh(A: number): NumFn {
   return (p) => A * Math.cos(TAU * p); // +A forward at heel-strike, -A at toe-off
 }
 function legKnee(base: number, swing: number): NumFn {
-  // Knee stays near-straight through stance, flexes through swing (peak ≈ p 0.75). Never hyperextends.
-  return (p) => base + swing * Math.max(0, Math.sin(TAU * (p - 0.5))) ** 1.3;
+  // Knee stays near-straight through stance, folds BACK through swing (peak ≈ p 0.75). A NEGATIVE X
+  // angle folds the shin toward the buttock (heel up-and-back) — the same convention the crouch
+  // poses use (CROUCH_KNEE = -76). A positive angle hyperextends the knee forward, which made the
+  // walk/run/sprint stride read as a reversed, moonwalking gait.
+  return (p) => -(base + swing * Math.max(0, Math.sin(TAU * (p - 0.5))) ** 1.3);
 }
 function ankle(A: number): NumFn {
   // Toe-up at heel-strike (p≈0), plantarflex push at toe-off (p≈0.5), neutral through swing.

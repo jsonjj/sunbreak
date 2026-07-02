@@ -51,11 +51,11 @@ function ChunkCollider({ entity }: { entity: ClientEntity }) {
 
 export interface WorldCollidersProps {
   /**
-   * Also build a Rapier heightfield collider from the environment terrain. OFF by default: the
-   * render/city core is a FLAT slab at y≈0 while the env terrain rises several metres inland, so a
-   * blanket heightfield would make vehicles ride invisible bumps *inside* the city and regress the
-   * (working) flat safety-floor ground. The implementation below is correct + ready — enable it
-   * once the city is conformed to the terrain (or the heightfield is masked to the non-city area).
+   * Also build a Rapier heightfield collider from the environment terrain, MASKED to the non-city
+   * area (see below): heights are flattened to ~ground level within the city core (so the flat slab
+   * + building colliders still own the working city) and ramp up to the real terrain past the city
+   * edge, so leaving the city core no longer drops you through the world. Enabled by the integrator
+   * in Scene.tsx; the flat safety-floor remains as a backstop underneath.
    */
   terrainHeightfield?: boolean;
 }
@@ -121,6 +121,23 @@ export function WorldColliders({ terrainHeightfield = false }: WorldCollidersPro
       const segments = hf.res - 1;
       const span = segments * hf.cellSize;
       const heights = Float32Array.from(hf.heights);
+      // MASK TO NON-CITY: flatten heights to ~ground level within the city core (where the flat
+      // slab + building colliders already provide collision), smoothly ramping up to the real
+      // terrain height past the city edge. This makes the surrounding terrain collidable — so
+      // leaving the city core no longer drops you through the world — WITHOUT introducing bumps
+      // (or a boundary cliff) inside the working, flat city.
+      const CITY_INNER = 140; // m from origin: fully flattened (city core stays exactly as before)
+      const CITY_OUTER = 235; // m from origin: full terrain height
+      const res = hf.res;
+      for (let k = 0; k < heights.length; k++) {
+        const xi = k % res;
+        const zi = (k / res) | 0;
+        const wx = hf.origin.x + xi * hf.cellSize;
+        const wz = hf.origin.z + zi * hf.cellSize;
+        const d = Math.hypot(wx, wz);
+        const t = Math.min(1, Math.max(0, (d - CITY_INNER) / (CITY_OUTER - CITY_INNER)));
+        heights[k] = (heights[k] ?? 0) * (t * t * (3 - 2 * t)); // smoothstep ramp
+      }
       const desc = rapier.ColliderDesc.heightfield(segments, segments, heights, {
         x: span,
         y: 1,

@@ -21,7 +21,6 @@
 
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
-import { registerLocomotionClips } from "@/systems/physics/animation";
 import type { BodyId } from "../types";
 import { registerExternalClips } from "./animationLibrary";
 import { assertBoneParity } from "./skeleton";
@@ -160,7 +159,6 @@ async function loadRealHumanoid(): Promise<boolean> {
     clips.push(sprint);
   }
   registerExternalClips(clips); // live path: character-content Animator (getClips)
-  registerLocomotionClips(clips); // reusable blend-tree driver (physics/animation), if adopted
   return true;
 }
 
