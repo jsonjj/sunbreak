@@ -6,7 +6,65 @@ import { useGameStore, useHudStore, useUiStore } from "../lib/stores";
 import { Button, Panel, Tabs } from "../components/primitives";
 import type { TabItem } from "../components/primitives";
 import { IconMap, IconFlag, IconChart, IconSettings, IconSave, IconExit, IconPlay } from "../lib/icons";
+import { useMissionStore } from "@/systems/gameplay/missions";
 import menu from "../styles/menu.module.css";
+
+/** Live mission summary — active mission + objectives, else available/completed counts. */
+function MissionsTab() {
+  const activeTitle = useMissionStore((s) => s.activeTitle);
+  const stageTitle = useMissionStore((s) => s.activeStageTitle);
+  const objectives = useMissionStore((s) => s.hudObjectives);
+  const status = useMissionStore((s) => s.status);
+  const entries = Object.values(status);
+  const completed = entries.filter((e) => e.status === "completed");
+  const available = entries.filter((e) => e.status === "available");
+
+  return (
+    <>
+      <h3 className={menu.sectionTitle}>Missions</h3>
+      {activeTitle ? (
+        <>
+          <p className={menu.sectionSub}>
+            Active: {activeTitle}
+            {stageTitle ? ` — ${stageTitle}` : ""}
+          </p>
+          <div className={menu.statGrid}>
+            {objectives.length === 0 ? (
+              <div className={menu.statCell}>
+                <div className={menu.statCellLabel}>Objective</div>
+                <div className={menu.statCellValue}>In progress</div>
+              </div>
+            ) : (
+              objectives.map((o) => (
+                <div key={o.id} className={menu.statCell}>
+                  <div className={menu.statCellLabel}>
+                    {o.state === "complete" ? "✓ " : "• "}
+                    {o.label}
+                  </div>
+                  <div className={menu.statCellValue}>
+                    {o.count ? `${o.count.have}/${o.count.need}` : o.state}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <p className={menu.sectionSub}>
+            No active mission — {available.length} available · {completed.length} completed. Explore
+            Santa Vista to pick up work.
+          </p>
+          {available.length > 0 ? (
+            <div className={menu.mapStub}>
+              Available now: {available.map((e) => e.title).join(" · ")}
+            </div>
+          ) : null}
+        </>
+      )}
+    </>
+  );
+}
 
 const TABS: TabItem<PauseTab>[] = [
   { value: "map", label: "Map", icon: <IconMap size={17} /> },
@@ -82,13 +140,7 @@ export function PauseMenu({ onOpenSettings }: { onOpenSettings: () => void }) {
                   </div>
                 </>
               ) : tab === "missions" ? (
-                <>
-                  <h3 className={menu.sectionTitle}>Missions</h3>
-                  <p className={menu.sectionSub}>
-                    No active missions. Explore Santa Vista to pick up work.
-                  </p>
-                  <div className={menu.mapStub}>Mission board arrives in a later build.</div>
-                </>
+                <MissionsTab />
               ) : (
                 <>
                   <h3 className={menu.sectionTitle}>Map</h3>

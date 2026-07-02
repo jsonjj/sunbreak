@@ -18,6 +18,7 @@ import { WantedView } from "@/systems/gameplay/wanted";
 import { RagdollBridge } from "@/systems/physics/ragdoll";
 import { PedColliders } from "@/systems/gameplay/peds";
 import { InteractionRig } from "@/systems/gameplay/interaction";
+import { MissionMarkers } from "@/systems/gameplay/missions";
 import { DebugCanvas } from "@/systems/content/debug-tools";
 
 // The single, generic ECS→R3F bridge. Every render subsystem (city, lighting/sky, environment,
@@ -60,6 +61,9 @@ export function Scene() {
       <ECS.Entities in={threeView}>
         {(e) => <primitive object={e.three!} dispose={null} />}
       </ECS.Entities>
+
+      {/* Mission world markers / waypoints (reads the mission store; inert with no active mission). */}
+      <MissionMarkers />
 
       <PhysicsProvider debug={debug}>
         {/* Safety floor: a large invisible fixed collider so the player + vehicles never fall
