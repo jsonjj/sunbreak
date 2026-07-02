@@ -51,6 +51,8 @@ export type AnimState =
   | "Walk"
   | "Run"
   | "Sprint"
+  | "CrouchIdle"
+  | "CrouchWalk"
   | "Jump"
   | "Fall"
   | "TurnLeft"

@@ -12,20 +12,25 @@ export const PLAYER_GRAVITY = -20;
 export const WALK_SPEED = 2.0; // m/s
 export const RUN_SPEED = 5.0; // m/s (default jog)
 export const SPRINT_SPEED = 8.0; // m/s
-export const CROUCH_SPEED = 1.4; // m/s
+export const CROUCH_SPEED = 1.0; // m/s (~50% of WALK_SPEED — slow, deliberate crouch pace)
 export const JUMP_SPEED = 7.0; // m/s
 export const TERMINAL_FALL = -55; // m/s clamp
 export const MOVE_ACCEL = 12; // damp rate toward target speed
 export const COYOTE_TIME = 0.12; // s grace after leaving ground
 export const JUMP_BUFFER = 0.12; // s buffered jump press
 
-/** Player capsule dimensions (~1.8m tall standing). */
+/** Player capsule dimensions (~1.8m tall standing). Crouching shrinks the half-height ~42%
+ *  (0.6 → 0.35, i.e. ~1.3m total), which also lowers the capsule center — and with it the
+ *  follow-camera anchor and the (feet-planted) rig — so the whole player reads as crouched. */
 export const PLAYER_CAPSULE = {
   halfHeight: 0.6,
   radius: 0.3,
-  crouchHalfHeight: 0.3,
+  crouchHalfHeight: 0.35,
   offset: 0.01, // controller skin gap
 } as const;
+
+/** Exponential damp rate for the smooth stand↔crouch capsule transition (higher = snappier). */
+export const CROUCH_TRANSITION = 10;
 
 /** Kinematic character-controller resolve params. */
 export const CC_AUTOSTEP = { maxHeight: 0.35, minWidth: 0.2, includeDynamic: true } as const;

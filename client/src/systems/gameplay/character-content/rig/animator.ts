@@ -56,6 +56,13 @@ export function createAnimator(root: THREE.Object3D, clips: readonly THREE.Anima
       play("Jump", 0.1);
       return;
     }
+    // Crouched (controller reports mode "crouch" whenever crouch is held & grounded): pick the still
+    // vs moving crouch pose from the same normalized speed the gaits use. `n` is speed / SPRINT_SPEED,
+    // so even a full crouch jog sits near ~0.13 — a tiny epsilon cleanly separates idle from shuffle.
+    if (mode === "crouch") {
+      play(n > 0.02 ? "CrouchWalk" : "CrouchIdle", 0.18);
+      return;
+    }
     // Pick a gait, then sync its playback rate to the ground speed so the feet don't slide.
     // `n` is speed / SPRINT_SPEED (see movement.normalizedSpeed), so recover the real m/s and divide
     // by the clip's measured stride speed (GAIT_NOMINAL_SPEED). timeScale ≈ 1 near each gait's

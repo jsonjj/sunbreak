@@ -237,6 +237,73 @@ function buildIdle(): THREE.AnimationClip {
   return new THREE.AnimationClip("Idle", 4, tracks);
 }
 
+// ── Crouch poses ───────────────────────────────────────────────────────────────────────────────
+// A settled squat: the pelvis drops ~0.18m and the knees flex deeply, but the leg angles are chosen
+// (forward-kinematics on the shared skeleton) so both ANKLES land back at their rest, grounded
+// position — the feet stay planted while everything above the knee lowers. Torso pitches forward and
+// the arms draw in low. The controller separately shrinks the capsule + lowers the camera; together
+// they read unmistakably as a crouch. CROUCH_* below are the shared stance the two clips build on.
+const CROUCH_THIGH = 38; // hip flex (deg): thighs swing forward
+const CROUCH_KNEE = -76; // knee flex (deg): shins fold back under the body
+const CROUCH_FOOT = 38; // ankle (deg): re-levels the sole flat on the ground
+const CROUCH_HIPS_DY = -0.18; // pelvis drop (m) from rest
+
+function buildCrouchIdle(): THREE.AnimationClip {
+  const T = [0, 1.6, 3.2];
+  const tracks: THREE.KeyframeTrack[] = [
+    // Legs — deep squat that keeps the ankles at their rest (grounded) position.
+    qHold(BONE.LUpLeg, [CROUCH_THIGH, 0, 4]),
+    qHold(BONE.RUpLeg, [CROUCH_THIGH, 0, -4]),
+    qHold(BONE.LLeg, [CROUCH_KNEE, 0, 0]),
+    qHold(BONE.RLeg, [CROUCH_KNEE, 0, 0]),
+    qHold(BONE.LFoot, [CROUCH_FOOT, 0, 0]),
+    qHold(BONE.RFoot, [CROUCH_FOOT, 0, 0]),
+    // Torso pitched forward; head lifts to level the gaze, with a faint idle drift.
+    qTrack(BONE.Spine, T, [[12, 0, 0], [13, 0, 0], [12, 0, 0]]),
+    qHold(BONE.Spine1, [8, 0, 0]),
+    qHold(BONE.Spine2, [4, 0, 0]),
+    qTrack(BONE.Head, T, [[-12, 2, 0], [-12, -2, 0], [-12, 2, 0]]),
+    // Arms drawn in and low (elbows bent, hands toward the knees).
+    qHold(BONE.LArm, [24, 0, 8]),
+    qHold(BONE.RArm, [24, 0, -8]),
+    qHold(BONE.LForeArm, [-42, 0, 0]),
+    qHold(BONE.RForeArm, [-42, 0, 0]),
+    // Pelvis lowered, with a faint breathing rise.
+    hipsBob(T, [CROUCH_HIPS_DY, CROUCH_HIPS_DY + 0.008, CROUCH_HIPS_DY]),
+  ];
+  return new THREE.AnimationClip("CrouchIdle", 3.2, tracks);
+}
+
+function buildCrouchWalk(): THREE.AnimationClip {
+  // The crouch stance with a small, slow alternating cadence. Amplitudes are deliberately gentle so
+  // the planted-feet squat still reads believably at this crawl pace.
+  const dur = 0.85;
+  const R = 0.5; // contralateral right-leg phase offset
+  const lThigh = (p: number): number => CROUCH_THIGH + 11 * Math.cos(TAU * p);
+  const rThigh = (p: number): number => CROUCH_THIGH + 11 * Math.cos(TAU * (p + R));
+  const kneeFlex = (p: number): number => CROUCH_KNEE - 16 * Math.max(0, Math.sin(TAU * (p - 0.5))) ** 1.3;
+  const lArm = (p: number): number => 24 - 12 * Math.cos(TAU * p); // counter to its own-side leg
+  const rArm = (p: number): number => 24 - 12 * Math.cos(TAU * (p + R));
+  const tracks: THREE.KeyframeTrack[] = [
+    sampledQuat(BONE.LUpLeg, dur, (p) => [lThigh(p), 0, 4]),
+    sampledQuat(BONE.RUpLeg, dur, (p) => [rThigh(p), 0, -4]),
+    sampledQuat(BONE.LLeg, dur, (p) => [kneeFlex(p), 0, 0]),
+    sampledQuat(BONE.RLeg, dur, (p) => [kneeFlex(p + R), 0, 0]),
+    qHold(BONE.LFoot, [CROUCH_FOOT, 0, 0]),
+    qHold(BONE.RFoot, [CROUCH_FOOT, 0, 0]),
+    sampledQuat(BONE.LArm, dur, (p) => [lArm(p), 0, 8]),
+    sampledQuat(BONE.RArm, dur, (p) => [rArm(p), 0, -8]),
+    qHold(BONE.LForeArm, [-42, 0, 0]),
+    qHold(BONE.RForeArm, [-42, 0, 0]),
+    qHold(BONE.Spine, [13, 0, 0]),
+    qHold(BONE.Spine1, [8, 0, 0]),
+    qHold(BONE.Spine2, [4, 0, 0]),
+    qHold(BONE.Head, [-13, 0, 0]),
+    hipsBob([0, dur / 2, dur], [CROUCH_HIPS_DY, CROUCH_HIPS_DY + 0.02, CROUCH_HIPS_DY]),
+  ];
+  return new THREE.AnimationClip("CrouchWalk", dur, tracks);
+}
+
 function buildJump(): THREE.AnimationClip {
   const T = [0, 0.15, 0.35, 0.6, 0.8];
   const tracks: THREE.KeyframeTrack[] = [
@@ -310,6 +377,8 @@ export function buildLibraryClips(): THREE.AnimationClip[] {
     buildGait("Walk", GAIT_PARAMS.Walk),
     buildGait("Run", GAIT_PARAMS.Run),
     buildGait("Sprint", GAIT_PARAMS.Sprint),
+    buildCrouchIdle(),
+    buildCrouchWalk(),
     buildJump(),
     buildFall(),
     buildTurn("TurnLeft", 1),
