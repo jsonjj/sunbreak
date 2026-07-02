@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { isDebug } from "@/util/debug";
 import { cx, toggleClass } from "../lib/cx";
 import { useHudStore } from "../lib/stores";
@@ -75,6 +75,7 @@ export function GameHud({ cinematic = false }: { cinematic?: boolean }) {
       <div className={cx(styles.corner, styles.br, styles.fadeable)}>
         {inVehicle ? <Speedometer /> : null}
         <WeaponWidget />
+        <WeaponWheelHint />
       </div>
 
       {/* Reticle is drawn by combat's <CombatOverlay/> (spread-aware) — no static HUD crosshair here. */}
@@ -82,6 +83,44 @@ export function GameHud({ cinematic = false }: { cinematic?: boolean }) {
       <div className={cx(styles.corner, styles.bc)}>
         <InteractionPrompt />
       </div>
+    </div>
+  );
+}
+
+/** Subtle, unobtrusive control hint so players discover the weapon wheel. Fades with the HUD idle
+ *  (it lives in the fadeable bottom-right corner). Pointer-events off (the HUD is non-interactive). */
+function WeaponWheelHint() {
+  const kbd: CSSProperties = {
+    fontFamily: "inherit",
+    fontSize: 10,
+    fontWeight: 600,
+    lineHeight: 1,
+    padding: "2px 5px",
+    borderRadius: 4,
+    background: "rgba(255,255,255,0.14)",
+    border: "1px solid rgba(255,255,255,0.22)",
+    color: "rgba(255,255,255,0.92)",
+  };
+  return (
+    <div
+      style={{
+        marginTop: 6,
+        alignSelf: "flex-end",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 6,
+        fontSize: 11,
+        letterSpacing: 0.2,
+        color: "rgba(255,255,255,0.62)",
+        background: "rgba(10,13,20,0.42)",
+        border: "1px solid rgba(255,255,255,0.10)",
+        borderRadius: 999,
+        padding: "3px 9px 3px 6px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span style={kbd}>Tab</span>
+      <span>Weapons</span>
     </div>
   );
 }

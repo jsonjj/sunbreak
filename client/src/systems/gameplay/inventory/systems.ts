@@ -8,12 +8,19 @@ import type { System } from "@sunbreak/shared";
 import { InputAction } from "@sunbreak/shared";
 import { world } from "@/ecs/world";
 import { input } from "@/input/InputManager";
+import { useGameStore } from "@/stores/game.store";
 import { useHudStore } from "@/stores/hud.store";
 import { useInventoryStore } from "./store";
 import { buildInvEquipped } from "./components";
+import { AMMO_TYPES } from "./rules";
 import { inventoryEvents } from "./events";
 
 type W = typeof world;
+
+/** Effectively-infinite reserve for the player: reserves are kept topped up so you never run dry —
+ *  but the magazine still empties on fire and R still reloads (reload just always has ammo). Enemies
+ *  are unaffected (NPC fire never touches the player's inventory). */
+const INFINITE_RESERVE = 999;
 
 /** Local archetype query — the player entity carries our `inv_*` read-model. */
 const players = world.with("isPlayer");
@@ -94,9 +101,33 @@ export const hudFeedSystem: System<W> = (() => {
   } satisfies System<W>;
 })();
 
+/** Keep every reserve pool topped to INFINITE_RESERVE while playing (change-gated so it only writes
+ *  after a reload spends some). Runs before hudFeedSystem so the HUD reads the stable full reserve. */
+export const infiniteAmmoSystem: System<W> = {
+  name: "inv/infiniteAmmo",
+  phase: "finish",
+  order: -50,
+  fn: () => {
+    if (useGameStore.getState().phase !== "playing") return;
+    const st = useInventoryStore.getState();
+    let dirty = false;
+    for (const t of AMMO_TYPES) {
+      if ((st.ammo[t] ?? 0) < INFINITE_RESERVE) {
+        dirty = true;
+        break;
+      }
+    }
+    if (!dirty) return;
+    const ammo = { ...st.ammo };
+    for (const t of AMMO_TYPES) ammo[t] = INFINITE_RESERVE;
+    useInventoryStore.setState({ ammo });
+  },
+};
+
 export const inventorySystems: ReadonlyArray<System<W>> = [
   inventoryInputSystem,
   equippedMirrorSystem,
+  infiniteAmmoSystem,
   hudFeedSystem,
 ];
 

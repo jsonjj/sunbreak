@@ -15,6 +15,7 @@ import { registerModule } from "@/game/registry";
 import { world } from "@/ecs/world";
 
 import { enterExitSystem, resetEnterExit } from "./enterExit";
+import { syncOccupantPosition, voidRespawnCheck } from "./playerTracking";
 import { driveSystem, resetDrive } from "./drive";
 import { damageSystem } from "./damage";
 import { spawnBootstrapSystem, wreckSweepSystem, resetSpawner } from "./spawner";
@@ -29,9 +30,15 @@ export const mod: SubsystemModule<W> = {
     // update phase (gameplay)
     { name: "vg:spawnBootstrap", phase: "update", order: -30, fn: spawnBootstrapSystem },
     { name: "vg:enterExit", phase: "update", order: -10, fn: enterExitSystem },
+    // Mirror the driven vehicle's position onto the player entity so the minimap + cops/AI track the
+    // player while seated (runs right after enter/exit sets vg_occupant, before movers/readers).
+    { name: "vg:occupantSync", phase: "update", order: -5, fn: syncOccupantPosition },
     { name: "vg:drive", phase: "update", order: 0, fn: driveSystem },
     { name: "vg:damage", phase: "update", order: 10, fn: damageSystem },
     { name: "vg:wreckSweep", phase: "update", order: 20, fn: wreckSweepSystem },
+    // Void safety net (replaces the boundary walls): fell into the void / drove out of bounds →
+    // respawn at the main spawn (on foot or in vehicle), velocity zeroed.
+    { name: "vg:voidRespawn", phase: "update", order: 25, fn: voidRespawnCheck },
     // finish phase (HUD mirror) — after the v0 hudSync (order 0) so vehicle speed wins in-car
     { name: "vg:hud", phase: "finish", order: 10, fn: vehicleHudSystem },
   ],

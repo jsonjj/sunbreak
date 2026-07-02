@@ -20,7 +20,6 @@ import { Layer, groupsFor } from "@sunbreak/shared";
 import { ECS, world } from "@/ecs/world";
 import type { ClientEntity } from "@/ecs/clientEntity";
 import { useCityStore } from "@/systems/render/city";
-import { BOUNDARY } from "@/systems/render/city/geography";
 import { environmentApi, useEnvironment } from "@/systems/render/environment";
 
 /** Quaternion (xyzw) for a yaw about +Y — Rapier collider descriptors take a quaternion. */
@@ -31,41 +30,6 @@ function quatY(rotY: number): { x: number; y: number; z: number; w: number } {
 
 // Per-chunk static colliders emitted by render/streaming (added on chunk-ready, removed on unload).
 const streamColliderQuery = world.with("stream_collider", "transform");
-
-/**
- * HARD WORLD BOUNDARY. Four invisible tall walls on the map edges stop the player + every
- * vehicle (car/boat) from leaving the island, and a horizontal ceiling caps aircraft so a
- * helicopter/plane can't fly off the top of the world. Walls rise from below the seabed to
- * above the ceiling, so there's no gap to slip through and nothing to fly over. The playable
- * area (±PLAYABLE_HALF) stays generous — it sits just inside the Scene safety-floor (±600) so
- * the player is always stopped while still on solid ground. All colliders are WORLD-layer.
- */
-function WorldBoundary() {
-  const worldGroups = groupsFor(Layer.WORLD);
-  const half = BOUNDARY.maxX; // square playable area, centred on origin
-  const t = 3; // wall half-thickness (m)
-  const floorY = -8; // wall base (below the seabed)
-  const topY = BOUNDARY.wallHeight; // wall crest (above the flight ceiling)
-  const wallHalfY = (topY - floorY) / 2;
-  const wallCy = (topY + floorY) / 2;
-  const spanY = wallHalfY;
-  // Walls overlap slightly past the corners (half + t) so there are no corner gaps.
-  const spanHalf = half + t;
-  return (
-    <>
-      {/* East / West walls (x = ±half) */}
-      <RigidBody type="fixed" colliders={false}>
-        <CuboidCollider args={[t, spanY, spanHalf]} position={[half + t, wallCy, 0]} collisionGroups={worldGroups} />
-        <CuboidCollider args={[t, spanY, spanHalf]} position={[-half - t, wallCy, 0]} collisionGroups={worldGroups} />
-        {/* North / South walls (z = ±half) */}
-        <CuboidCollider args={[spanHalf, spanY, t]} position={[0, wallCy, half + t]} collisionGroups={worldGroups} />
-        <CuboidCollider args={[spanHalf, spanY, t]} position={[0, wallCy, -half - t]} collisionGroups={worldGroups} />
-        {/* Flight ceiling: a horizontal cap so aircraft can't clear the walls from inside. */}
-        <CuboidCollider args={[spanHalf, 1.5, spanHalf]} position={[0, BOUNDARY.ceilingY, 0]} collisionGroups={worldGroups} />
-      </RigidBody>
-    </>
-  );
-}
 
 function ChunkCollider({ entity }: { entity: ClientEntity }) {
   const c = entity.stream_collider!;
@@ -192,13 +156,12 @@ export function WorldColliders({ terrainHeightfield = false }: WorldCollidersPro
     };
   }, [rworld, rapier, envReady, terrainHeightfield]);
 
-  // ── Boundary walls/ceiling + streaming per-chunk colliders (reactive; cleaned on unload) ────
+  // ── Streaming per-chunk colliders (reactive; cleaned on unload). No boundary walls / ceiling:
+  //    the map is open and a void safety-net respawn (vehicle-gameplay/playerTracking) returns the
+  //    player to spawn if they fall off or drive far out of bounds. ─────────────────────────────
   return (
-    <>
-      <WorldBoundary />
-      <ECS.Entities in={streamColliderQuery}>
-        {(entity) => <ChunkCollider entity={entity} />}
-      </ECS.Entities>
-    </>
+    <ECS.Entities in={streamColliderQuery}>
+      {(entity) => <ChunkCollider entity={entity} />}
+    </ECS.Entities>
   );
 }
