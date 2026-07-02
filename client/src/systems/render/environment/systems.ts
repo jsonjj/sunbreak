@@ -24,13 +24,19 @@ function playerXZ(): { x: number; z: number } {
   return pos ? { x: pos.x, z: pos.z } : { x: 0, z: 0 };
 }
 
-/** Build the world once, on the first render tick after the Canvas exists. Idempotent. */
+/** Build the world once, on the first render tick after the Canvas exists. Idempotent.
+ *  We attempt the (heavy, deterministic) build EXACTLY ONCE: retrying on failure would just
+ *  redo the same work and throw again every frame — a CPU sink — since nothing it depends on
+ *  changes between frames. A throw here is isolated by the SystemRegistry and logged once. */
+let bootAttempted = false;
 const bootSystem: System<W> = {
   name: "env/boot",
   phase: "render",
   order: -1000,
   fn: () => {
-    if (!getEnvBuild()) ensureEnvironmentBuilt();
+    if (bootAttempted || getEnvBuild()) return;
+    bootAttempted = true;
+    ensureEnvironmentBuilt();
   },
 };
 

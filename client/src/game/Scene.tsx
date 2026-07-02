@@ -30,6 +30,30 @@ export function Scene() {
   const debug = isDebug();
   return (
     <>
+      {/* ── Permanent lit baseline (insurance) ───────────────────────────────────────────────
+          v0's <Lighting/> + <Environment/> ground were removed in favour of the render subsystems,
+          which publish their sky/sun/terrain through the bridge below. If ANY of those faults at
+          runtime (or hasn't attached yet), this hand-mounted rig guarantees the world is never an
+          unlit, pure-black void: a non-black sky clear-colour, ambient + hemisphere fill, a soft
+          key light, and a large ground plane. The lighting subsystem's dynamic sky dome + sun and
+          the environment terrain render ON TOP of this when healthy (the ground uses a polygon
+          offset so real terrain/water always wins the depth test). */}
+      <color attach="background" args={["#9fc0dd"]} />
+      <hemisphereLight args={["#bcd6ff", "#5a5040", 0.35]} />
+      <ambientLight intensity={0.28} />
+      <directionalLight position={[60, 90, 40]} intensity={1.1} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+        <planeGeometry args={[3000, 3000]} />
+        <meshStandardMaterial
+          color="#7f8894"
+          roughness={1}
+          metalness={0}
+          polygonOffset
+          polygonOffsetFactor={1}
+          polygonOffsetUnits={1}
+        />
+      </mesh>
+
       {/* Generic render bridge — serves every `three`-carrying subsystem. */}
       <ECS.Entities in={threeView}>
         {(e) => <primitive object={e.three!} dispose={null} />}

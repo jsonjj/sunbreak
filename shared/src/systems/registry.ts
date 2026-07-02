@@ -42,6 +42,8 @@ const phaseIndex = (p: SystemPhase): number => SYSTEM_PHASES.indexOf(p);
 /** Ordered registry of systems. Iterate with `run(phase, ...)` per frame. */
 export class SystemRegistry<W = unknown> {
   private systems: Array<System<W>> = [];
+  /** System names that have already thrown once — used to log a fault a single time. */
+  private faulted = new Set<string>();
 
   register(system: System<W>): () => void {
     this.systems.push(system);
@@ -70,9 +72,30 @@ export class SystemRegistry<W = unknown> {
     );
   }
 
-  /** Run every system registered to `phase`, in order. */
+  /** Run every system registered to `phase`, in order.
+   *
+   *  Each system is fault-isolated: a throw is caught, logged once (per system), and the loop
+   *  moves on. This is critical on the client, where these phases are pumped from a single R3F
+   *  `useFrame` — an uncaught throw there aborts the frame callback and R3F then SKIPS its
+   *  automatic `gl.render()` for that frame (the loop only re-arms because it schedules the next
+   *  rAF before running subscribers). One broken subsystem must never black out the whole
+   *  renderer (or halt every other system) — it just sits out until it stops throwing. */
   run(phase: SystemPhase, world: W, dt: number): void {
-    for (const s of this.systems) if (s.phase === phase) s.fn(world, dt);
+    for (const s of this.systems) {
+      if (s.phase !== phase) continue;
+      try {
+        s.fn(world, dt);
+      } catch (err) {
+        if (!this.faulted.has(s.name)) {
+          this.faulted.add(s.name);
+          console.error(
+            `[systems] "${s.name}" threw during the "${phase}" phase; isolating it so the ` +
+              `frame still renders (further errors from this system are suppressed):`,
+            err,
+          );
+        }
+      }
+    }
   }
 
   get all(): ReadonlyArray<System<W>> {
