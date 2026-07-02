@@ -1,9 +1,11 @@
 import { CharacterId } from "@sunbreak/shared";
 import { input } from "@/input/InputManager";
 import { cx } from "../lib/cx";
+import { formatMoney } from "../lib/format";
 import { useGameStore } from "../lib/stores";
 import { Button, Panel } from "../components/primitives";
 import { IconPlay, IconSettings, IconCheck, IconChevronRight, IconSave } from "../lib/icons";
+import { savegameApi, useSavegameStore } from "@/systems/gameplay/savegame";
 import menu from "../styles/menu.module.css";
 
 interface Lead {
@@ -24,7 +26,17 @@ export function MainMenu({ onOpenSettings }: { onOpenSettings: () => void }) {
   const switchCharacter = useGameStore((s) => s.switchCharacter);
   const setPhase = useGameStore((s) => s.setPhase);
 
+  const metas = useSavegameStore((s) => s.metas);
+
   const start = () => {
+    setPhase("playing");
+    input.requestLock();
+  };
+
+  // Save slots: load an existing slot, or start a fresh run bound to an empty one.
+  const startSlot = (n: number) => {
+    if (savegameApi.hasSave(n)) savegameApi.load(n);
+    else savegameApi.newGame(n);
     setPhase("playing");
     input.requestLock();
   };
@@ -97,20 +109,29 @@ export function MainMenu({ onOpenSettings }: { onOpenSettings: () => void }) {
             <div>
               <div className={menu.sideTitle}>Save slots</div>
               <div className={menu.slots} style={{ marginTop: 12 }}>
-                {[1, 2, 3].map((n) => (
-                  <button key={n} type="button" className={menu.slot} onClick={start}>
-                    <span className={menu.slotIcon}>
-                      <IconSave size={16} />
-                    </span>
-                    <span className={menu.slotText}>
-                      <span className={menu.slotName}>Slot {n}</span>
-                      <span className={menu.slotMeta}>Empty · start a new story</span>
-                    </span>
-                    <span className={menu.slotArrow}>
-                      <IconChevronRight size={18} />
-                    </span>
-                  </button>
-                ))}
+                {[1, 2, 3].map((n) => {
+                  const meta = metas[n - 1];
+                  return (
+                    <button key={n} type="button" className={menu.slot} onClick={() => startSlot(n)}>
+                      <span className={menu.slotIcon}>
+                        <IconSave size={16} />
+                      </span>
+                      <span className={menu.slotText}>
+                        <span className={menu.slotName}>
+                          {meta ? `Slot ${n} · ${meta.character === CharacterId.Cami ? "Cami" : "Mac"}` : `Slot ${n}`}
+                        </span>
+                        <span className={menu.slotMeta}>
+                          {meta
+                            ? `${formatMoney(meta.cash)} · ${new Date(meta.savedAt).toLocaleDateString()}`
+                            : "Empty · start a new story"}
+                        </span>
+                      </span>
+                      <span className={menu.slotArrow}>
+                        <IconChevronRight size={18} />
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </Panel>

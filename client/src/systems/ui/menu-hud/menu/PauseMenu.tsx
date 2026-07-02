@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { PauseTab } from "@sunbreak/shared";
 import { CharacterId } from "@sunbreak/shared";
 import { input } from "@/input/InputManager";
@@ -7,6 +8,7 @@ import { Button, Panel, Tabs } from "../components/primitives";
 import type { TabItem } from "../components/primitives";
 import { IconMap, IconFlag, IconChart, IconSettings, IconSave, IconExit, IconPlay } from "../lib/icons";
 import { useMissionStore } from "@/systems/gameplay/missions";
+import { savegameApi, useSavegameStore } from "@/systems/gameplay/savegame";
 import menu from "../styles/menu.module.css";
 
 /** Live mission summary — active mission + objectives, else available/completed counts. */
@@ -81,10 +83,18 @@ export function PauseMenu({ onOpenSettings }: { onOpenSettings: () => void }) {
   const character = useGameStore((s) => s.activeCharacter);
   const cash = useHudStore((s) => s.cash);
   const bank = useHudStore((s) => s.bank);
+  const currentSlot = useSavegameStore((s) => s.current);
+  const [saved, setSaved] = useState(false);
 
   const doResume = () => {
     resume();
     input.requestLock();
+  };
+
+  const doSave = () => {
+    savegameApi.save();
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1500);
   };
 
   return (
@@ -152,10 +162,10 @@ export function PauseMenu({ onOpenSettings }: { onOpenSettings: () => void }) {
           </div>
 
           <div className={menu.footerBar}>
-            <span className={menu.footerNote}>Saving arrives in a later build.</span>
+            <span className={menu.footerNote}>Progress saves to this browser.</span>
             <div style={{ display: "flex", gap: 10 }}>
-              <Button variant="ghost" icon={<IconSave size={16} />} disabled title="Coming soon">
-                Save
+              <Button variant="ghost" icon={<IconSave size={16} />} onClick={doSave}>
+                {saved ? "Saved ✓" : `Save${currentSlot ? ` · Slot ${currentSlot}` : ""}`}
               </Button>
               <Button variant="secondary" icon={<IconExit size={16} />} onClick={() => setPhase("menu")}>
                 Quit to menu
