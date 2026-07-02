@@ -1,0 +1,75 @@
+{
+  "id": "m05_airfield_getaway",
+  "title": "Airfield Getaway",
+  "description": "Cami's got a buyer across the island. Grab a fast car at the airfield, shake the heat, and reach the safehouse.",
+  "archetype": "chase",
+  "giver": "Cami",
+  "prerequisites": ["m04_costa_collection"],
+  "startTrigger": { "kind": "enterArea", "position": [330, 1, 260], "radius": 6 },
+  "failStates": [{ "kind": "playerDied" }],
+  "stages": [
+    {
+      "id": "wheels",
+      "title": "Grab a fast car",
+      "onEnter": [
+        { "kind": "dialogue", "speaker": "Cami", "line": "There's a GT gassed up on the apron. Take it and go." },
+        { "kind": "spawnVehicle", "ref": "runner", "model": "sports", "position": [336, 1, 266], "heading": 180 }
+      ],
+      "objectives": [
+        {
+          "kind": "enterVehicle",
+          "id": "grab_runner",
+          "label": "Get in the GT",
+          "vehicleRef": "runner",
+          "marker": { "label": "GT", "waypoint": true }
+        }
+      ]
+    },
+    {
+      "id": "shake",
+      "title": "Shake the heat",
+      "checkpoint": true,
+      "failStates": [{ "kind": "wantedAtLeast", "stars": 5 }],
+      "onEnter": [
+        { "kind": "dialogue", "speaker": "Cami", "line": "They clocked us — floor it and lose them!" },
+        { "kind": "setWanted", "stars": 3 }
+      ],
+      "objectives": [
+        {
+          "kind": "survive",
+          "id": "lose_heat",
+          "label": "Lose the police",
+          "seconds": 25,
+          "medalTag": "smooth"
+        }
+      ]
+    },
+    {
+      "id": "deliver",
+      "title": "Reach the safehouse",
+      "objectives": [
+        {
+          "kind": "goto",
+          "id": "reach_safe",
+          "label": "Get to the safehouse",
+          "position": [-300, 1, -250],
+          "radius": 8,
+          "marker": { "label": "Safehouse", "color": "#49e0a8", "waypoint": true }
+        }
+      ],
+      "onComplete": [
+        { "kind": "setWanted", "stars": 0 },
+        { "kind": "dialogue", "speaker": "Cami", "line": "Clean getaway. Verano's ours tonight." }
+      ]
+    }
+  ],
+  "rewards": [
+    { "kind": "cash", "amount": 5000 },
+    { "kind": "rep", "amount": 250 }
+  ],
+  "medals": [
+    { "medal": "bronze" },
+    { "medal": "silver", "underSeconds": 180 },
+    { "medal": "verano_gold", "requires": ["smooth"], "underSeconds": 120 }
+  ]
+}

@@ -55,7 +55,15 @@ import {
 import { setPedVehicleProvider } from "@/systems/gameplay/peds";
 
 // ── Interaction pillar (shops / NPCs / doors / pickups) ───────────────────────────────────────
-import { spawnInteractable, interactionEvents } from "@/systems/gameplay/interaction";
+import { interactionEvents } from "@/systems/gameplay/interaction";
+
+// ── Weapon grants (combat) + car grants (vehicle-gameplay) + map blips (menu-hud) ─────────────
+import { giveWeapon, giveWeaponFromShopItem } from "@/systems/gameplay/combat";
+import { spawnVehicle } from "@/systems/gameplay/vehicle-gameplay";
+import { addBlip, removeBlip, clearBlips } from "@/systems/ui/menu-hud";
+
+// GTA content placement (acquisition points, POI/mission/activity blips, pickups, moving blips).
+import { placeWorldContent } from "./worldContent";
 
 /** Capsule center → feet-origin offset so the rig's feet sit on the ground. */
 const PLAYER_YOFFSET = -(PLAYER_CAPSULE.halfHeight + PLAYER_CAPSULE.radius);
@@ -74,13 +82,36 @@ function uxWallet(): UxWallet {
   return { clean: b.cash, dirty: b.dirty, stash: b.bank };
 }
 
-/** Apply a shop/pickup grant string ("weapon:smg", "armor:50", "heal:full", "cash:500", "ammo:pistol:60"). */
+/** Grant a weapon by ANY id form: economy shop id (wpn_smg), inventory id (smg_vector), or a bare
+ *  name (smg). Routes through combat so it's a REAL, usable weapon + starter ammo (equipped). */
+function grantWeaponAnyId(id: string): boolean {
+  return (
+    giveWeaponFromShopItem(id, { equip: true }) ||
+    giveWeaponFromShopItem(`wpn_${id}`, { equip: true }) ||
+    giveWeapon(id, { equip: true })
+  );
+}
+
+/** Apply a shop/pickup/reward grant token ("wpn:wpn_smg", "weapon:smg", "veh:sports", "armor:50",
+ *  "heal:full", "cash:500", "ammo:pistol:60"). */
 function applyGrantItem(item: string): void {
   const [kind, a, b] = item.split(":");
   switch (kind) {
+    case "wpn":
     case "weapon":
-      if (a) inventoryApi.pickupWeapon(a);
+      if (a) grantWeaponAnyId(a);
       break;
+    case "veh": {
+      if (!a) break;
+      const p = localPlayerQ.entities[0]?.transform?.position;
+      try {
+        // Drive it off the lot: spawn beside the player (they're at the dealership when buying).
+        spawnVehicle(a as Parameters<typeof spawnVehicle>[0], { x: (p?.x ?? 0) + 4, z: p?.z ?? 0, yaw: 0 });
+      } catch {
+        /* vehicle spawn failed */
+      }
+      break;
+    }
     case "ammo":
       if (a) inventoryApi.addAmmo(a as AmmoType, Number(b ?? 0) || 0);
       break;
@@ -172,6 +203,13 @@ function wireEconomy(): void {
           });
         },
       },
+      // Activity giver/objective markers → the real minimap + map (kept `act_`-prefixed).
+      blips: {
+        upsert: (b) =>
+          addBlip({ id: b.id, worldPos: { x: b.x, z: b.z }, kind: "activity", label: b.label }),
+        remove: (id) => removeBlip(id),
+        clearOwned: () => clearBlips((bl) => bl.id.startsWith("act_")),
+      },
     });
   } catch {
     /* activities not ready */
@@ -217,45 +255,32 @@ function npcGreeting(npcId?: string): string {
   switch (npcId) {
     case "val":
       return "Val: Keep it clean on my block and we'll get along.";
+    case "atm": {
+      const b = economyApi.getBalance();
+      return `ATM · Cash $${b.cash.toLocaleString()} · Bank $${b.bank.toLocaleString()}`;
+    }
     default:
       return "They give you a wary nod.";
   }
 }
 
 function wireInteraction(): void {
-  // Starter set near the spawn ([0,2,6]) so the interaction pillar has reachable targets.
+  // The actual acquisition points (gun store, dealership, safehouse, ATM, helipad/marina, weapon
+  // pickups) + all their blips are placed by placeWorldContent() at real district coordinates. Here
+  // we only wire the interaction OUTCOMES → real subsystem effects.
+
+  // A couple of walk-over cash pickups near the spawn so money is discoverable immediately.
   try {
-    spawnInteractable(
-      { kind: "shop_buy", verb: "Shop", label: "Ironworks Supply", range: 3.2, data: { vendorId: "ironworks", name: "Ironworks Supply" } },
-      [8, 1, 4],
-    );
-    spawnInteractable(
-      { kind: "shop_buy", verb: "Shop", label: "Threadcount", range: 3.2, data: { vendorId: "threadcount", name: "Threadcount" } },
-      [13, 1, -3],
-    );
-    spawnInteractable(
-      { kind: "npc_talk", verb: "Talk", label: "Val", data: { npcId: "val", name: "Val" } },
-      [-6, 1, 3],
-    );
-    spawnInteractable(
-      { kind: "door", verb: "Enter", label: "Safehouse", data: { open: false } },
-      [3, 1, -6],
-    );
-    spawnInteractable(
-      { kind: "item_pickup", verb: "Pick up", label: "Compact SMG", data: { itemId: "weapon:smg", name: "Compact SMG" } },
-      [-3, 1, 9],
-    );
-    // Walk-over cash pickups (credited to the real wallet by the economy pickup system).
-    economyApi.dropCash({ x: 4, y: 0.6, z: 10 }, 500);
-    economyApi.dropCash({ x: -9, y: 0.6, z: 1 }, 300);
+    economyApi.dropCash({ x: 6, y: 0.6, z: 12 }, 400);
+    economyApi.dropCash({ x: -8, y: 0.6, z: 3 }, 300);
   } catch {
-    /* interaction not ready */
+    /* economy not ready */
   }
 
   // Interaction outcomes → real subsystem effects.
   interactionEvents.on("shop_buy", ({ entity }) => {
     const data = entity.interact_?.data as { vendorId?: string } | undefined;
-    gameEvents.emit("shop:open", { vendorId: data?.vendorId ?? "ironworks" });
+    gameEvents.emit("shop:open", { vendorId: data?.vendorId ?? "gunstore" });
     input.releaseLock(); // free the cursor for the shop overlay
   });
   interactionEvents.on("item_pickup", ({ itemId }) => {
@@ -349,6 +374,10 @@ export function wireIntegration(): void {
   // 5) Server-less cross-AI reactions (traffic ↔ police, peds ↔ traffic).
   wireTrafficAndPeds();
 
-  // 6) Activate the interaction pillar (world interactables + hotkeys + effect handlers).
+  // 6) Activate the interaction pillar (interaction-outcome handlers + hotkeys).
   wireInteraction();
+
+  // 7) Place the GTA content: acquisition points, POI/mission-giver/activity blips, weapon pickups,
+  //    the first-mission waypoint, and moving-entity (player-car / police) blips.
+  placeWorldContent();
 }

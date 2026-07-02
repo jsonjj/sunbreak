@@ -1,0 +1,93 @@
+{
+  "id": "m04_costa_collection",
+  "title": "Costa Dorada Collection",
+  "description": "Mac needs a debt collected on the Neon Mile. Lean on the crew, then grab the cash.",
+  "archetype": "solo",
+  "giver": "Mac",
+  "prerequisites": ["m03_sunset_run"],
+  "startTrigger": { "kind": "enterArea", "position": [230, 1, 30], "radius": 5 },
+  "failStates": [{ "kind": "playerDied" }],
+  "stages": [
+    {
+      "id": "roll_up",
+      "title": "Roll up on the Neon Mile",
+      "onEnter": [
+        { "kind": "dialogue", "speaker": "Mac", "line": "The mark's crew is holed up on the Mile. Convince them to pay." }
+      ],
+      "objectives": [
+        {
+          "kind": "goto",
+          "id": "reach_mile",
+          "label": "Get to the Neon Mile",
+          "position": [300, 1, 60],
+          "radius": 6,
+          "marker": { "label": "Neon Mile", "waypoint": true }
+        }
+      ]
+    },
+    {
+      "id": "muscle",
+      "title": "Lean on the crew",
+      "checkpoint": true,
+      "onEnter": [
+        { "kind": "dialogue", "speaker": "Mac", "line": "They want to do this the hard way. Fine." },
+        { "kind": "setWanted", "stars": 2 },
+        {
+          "kind": "spawnEnemies",
+          "ref": "crew",
+          "archetype": "gangster",
+          "position": [308, 1, 70],
+          "count": 4,
+          "radius": 6,
+          "weapon": "pistol",
+          "behavior": "attack"
+        }
+      ],
+      "objectives": [
+        {
+          "kind": "eliminate",
+          "id": "clear_crew",
+          "label": "Take out the crew",
+          "targets": { "spawnRef": "crew" },
+          "medalTag": "clean_sweep",
+          "marker": { "color": "#ff5a5a" }
+        }
+      ]
+    },
+    {
+      "id": "collect",
+      "title": "Collect the debt",
+      "onEnter": [
+        { "kind": "spawnProp", "ref": "debt", "model": "cash", "position": [304, 1, 66] },
+        { "kind": "spawnProp", "ref": "debt", "model": "cash", "position": [312, 1, 74] },
+        { "kind": "spawnProp", "ref": "debt", "model": "cash", "position": [300, 1, 78] }
+      ],
+      "objectives": [
+        {
+          "kind": "collect",
+          "id": "grab_debt",
+          "label": "Collect the cash",
+          "itemRef": "debt",
+          "count": 3,
+          "radius": 2.5,
+          "marker": { "label": "Cash", "color": "#49e0a8" }
+        }
+      ],
+      "onComplete": [
+        { "kind": "setWanted", "stars": 0 },
+        { "kind": "dialogue", "speaker": "Mac", "line": "That's how Costa Dorada does business. Nice." }
+      ]
+    }
+  ],
+  "rewards": [
+    { "kind": "cash", "amount": 3000 },
+    { "kind": "rep", "amount": 150 },
+    { "kind": "weapon", "weaponId": "shotgun" },
+    { "kind": "unlockMission", "missionId": "m05_airfield_getaway" }
+  ],
+  "medals": [
+    { "medal": "bronze" },
+    { "medal": "silver", "underSeconds": 200 },
+    { "medal": "verano_gold", "requires": ["clean_sweep"], "underSeconds": 140 }
+  ]
+}
