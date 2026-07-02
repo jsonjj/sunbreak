@@ -165,6 +165,8 @@ class InputManager {
         return this.mouseButtons.has(2);
       case InputAction.SwitchWeapon:
         return this.keys.has("Tab");
+      case InputAction.FirstPerson:
+        return this.keys.has("KeyV");
       case InputAction.Pause:
         return this.keys.has("Escape");
       default:

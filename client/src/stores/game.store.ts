@@ -12,7 +12,8 @@ interface GameStore extends GameStoreState {
 
 export const useGameStore = create<GameStore>()(
   subscribeWithSelector((set) => ({
-    phase: "playing",
+    // Boot into the main menu (character select + save slots); "Enter Santa Vista" / a slot → playing.
+    phase: "menu",
     activeCharacter: CharacterId.Cami,
     loadProgress: 1,
     setPhase: (phase) => set({ phase }),

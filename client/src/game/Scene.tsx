@@ -41,10 +41,13 @@ export function Scene() {
           key light, and a large ground plane. The lighting subsystem's dynamic sky dome + sun and
           the environment terrain render ON TOP of this when healthy (the ground uses a polygon
           offset so real terrain/water always wins the depth test). */}
+      {/* Dim fill + sky clear-colour only — the render/lighting subsystem owns the dynamic sun/sky/
+          shadows now, so the baseline directional light was removed to avoid a doubled sun + double
+          shadows. These low-intensity lights + the ground plane remain purely as anti-black-void
+          insurance if the lighting subsystem ever faults. */}
       <color attach="background" args={["#9fc0dd"]} />
-      <hemisphereLight args={["#bcd6ff", "#5a5040", 0.35]} />
-      <ambientLight intensity={0.28} />
-      <directionalLight position={[60, 90, 40]} intensity={1.1} />
+      <hemisphereLight args={["#bcd6ff", "#5a5040", 0.16]} />
+      <ambientLight intensity={0.1} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[3000, 3000]} />
         <meshStandardMaterial
