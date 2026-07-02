@@ -1,0 +1,62 @@
+[
+  {
+    "id": "sq_gator_whisperer",
+    "title": "The Gator Whisperer",
+    "district": "the_glades",
+    "character": { "name": "Old Pete", "faction": "civilian" },
+    "premise": "Old Pete swears a nine-foot gator named Priscilla ate his lucky airboat propeller. He can't afford a new one and he can't bring himself to blame Priscilla. He'd like his propeller back, and his dignity, in whatever order you can manage.",
+    "beats": [
+      { "text": "Find Old Pete arguing with an empty patch of swamp water." },
+      { "text": "Track Priscilla to her sunning spot near the old sugar pier." },
+      { "text": "Recover the propeller without turning Pete into lunch." },
+      { "text": "Return it and let Pete pretend it was the plan all along." }
+    ],
+    "reward": { "cash": 900, "rep": 40 },
+    "toneTags": ["comedy", "glades", "strangers"]
+  },
+  {
+    "id": "sq_mixtape_memorial",
+    "title": "Mixtape Memorial",
+    "district": "el_recodo",
+    "character": { "name": "DJ Caro", "faction": "civilian" },
+    "premise": "DJ Caro's late brother left one unreleased mixtape on a stolen laptop, now floating somewhere in El Recodo's pawn-shop underworld. She'll trade everything she has to hear his voice one more time before the block forgets him.",
+    "beats": [
+      { "text": "Meet DJ Caro outside the shuttered record shop." },
+      { "text": "Chase the lead through three pawn shops and one bad alley." },
+      { "text": "Recover the laptop from the fence reselling it." },
+      { "text": "Bring it back and stay for the first play." }
+    ],
+    "reward": { "cash": 1100, "rep": 55 },
+    "toneTags": ["heart", "music", "strangers"]
+  },
+  {
+    "id": "sq_the_influencer",
+    "title": "The Influencer",
+    "district": "downtown",
+    "character": { "name": "Brayden Poole", "faction": "civilian" },
+    "premise": "Brayden has three million followers and zero survival instinct. He wants dramatic footage of himself surviving the mean streets for content. The streets are willing to oblige. Keep him alive long enough to go viral, ideally for the right reasons.",
+    "beats": [
+      { "text": "Find Brayden setting up a ring light in a loading dock." },
+      { "text": "Escort him to increasingly ill-advised photo spots." },
+      { "text": "Bail him out when a real crew takes offense." },
+      { "text": "Get him home before his batteries, or his luck, die." }
+    ],
+    "reward": { "cash": 1500, "rep": 45 },
+    "toneTags": ["satire", "comedy", "strangers"]
+  },
+  {
+    "id": "sq_last_call",
+    "title": "Last Call",
+    "district": "the_keys",
+    "character": { "name": "Vivi Lang", "faction": "neon_keys" },
+    "premise": "Vivi is closing her rooftop bar for good after thirty years, chased out by a Keys Kondos development. She wants one last legendary night, with a little payback woven in. Help her throw the party the Keys will never forget.",
+    "beats": [
+      { "text": "Meet Vivi as she polishes the bar for the last time." },
+      { "text": "Round up the old regulars scattered across the Keys." },
+      { "text": "Deal with the developer's suits crashing the party." },
+      { "text": "Give Vivi the sunrise send-off she earned." }
+    ],
+    "reward": { "cash": 2000, "rep": 80 },
+    "toneTags": ["bittersweet", "keys", "strangers"]
+  }
+]

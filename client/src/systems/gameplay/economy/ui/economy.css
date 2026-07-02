@@ -1,0 +1,434 @@
+/* Economy subsystem UI — premium, Verano-warm, original. Reuses v0 :root tokens (--glass,
+   --hairline, --accent, --accent-2, --shadow, --ink, --muted). All classes are econ-* scoped.
+   The root is pointer-events:none; only interactive surfaces opt back in. */
+
+.econ-root {
+  position: fixed;
+  inset: 0;
+  z-index: 20; /* above the v0 HUD (z:10) so panels sit on top */
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink, #f4f6fb);
+}
+
+.econ-root button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---------- Wallet HUD (top-right glass card) ---------- */
+.econ-wallet {
+  position: absolute;
+  top: 20px;
+  right: 22px;
+  min-width: 210px;
+  padding: 12px 14px 10px;
+  border-radius: var(--radius, 14px);
+  background: var(--glass, rgba(16, 19, 28, 0.55));
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow, 0 10px 40px rgba(0, 0, 0, 0.45));
+  pointer-events: auto;
+}
+
+.econ-wallet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.econ-wallet__char {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(244, 246, 251, 0.62));
+}
+
+.econ-wallet__cash {
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  background: linear-gradient(96deg, var(--accent-2, #ffd166), var(--accent, #ff8a4c));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.econ-wallet__row {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.econ-wallet__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.econ-wallet__meta b {
+  font-size: 13px;
+  font-weight: 700;
+}
+.econ-wallet__meta.is-dirty b {
+  color: var(--accent, #ff8a4c);
+}
+.econ-wallet__label {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(244, 246, 251, 0.62));
+}
+
+.econ-wallet__actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 11px;
+}
+.econ-chip-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink, #f4f6fb);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  transition: background 160ms ease, border-color 160ms ease, transform 120ms ease;
+}
+.econ-chip-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.econ-chip-btn:active {
+  transform: translateY(1px);
+}
+
+/* ---------- Modal shell (shop + skills) ---------- */
+.econ-scrim {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(
+    120% 120% at 50% 0%,
+    rgba(11, 13, 18, 0.55),
+    rgba(11, 13, 18, 0.82)
+  );
+  pointer-events: auto;
+  animation: econ-fade 160ms ease both;
+}
+
+.econ-panel {
+  width: min(920px, 96vw);
+  max-height: min(84vh, 760px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(24, 27, 38, 0.92), rgba(14, 16, 24, 0.92));
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  animation: econ-rise 200ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.econ-panel__top {
+  position: relative;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--hairline, rgba(255, 255, 255, 0.12));
+  background: radial-gradient(140% 200% at 0% 0%, rgba(255, 138, 76, 0.14), transparent 60%);
+}
+.econ-panel__kicker {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted, rgba(244, 246, 251, 0.62));
+}
+.econ-panel__title {
+  margin: 3px 0 0;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.econ-panel__balance {
+  position: absolute;
+  right: 56px;
+  top: 18px;
+  text-align: right;
+}
+.econ-panel__balance b {
+  font-size: 18px;
+  font-weight: 800;
+}
+.econ-panel__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink, #f4f6fb);
+  font-size: 16px;
+  line-height: 1;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.econ-panel__close:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ---------- Tabs ---------- */
+.econ-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 16px 0;
+}
+.econ-tab {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: var(--muted, rgba(244, 246, 251, 0.62));
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: color 160ms ease, background 160ms ease;
+}
+.econ-tab:hover {
+  color: var(--ink, #f4f6fb);
+}
+.econ-tab.is-active {
+  color: var(--ink, #f4f6fb);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 -2px 0 var(--accent, #ff8a4c);
+}
+
+/* ---------- Shop grid ---------- */
+.econ-body {
+  padding: 16px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.econ-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.econ-card {
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.12));
+  transition: border-color 160ms ease, background 160ms ease, transform 120ms ease;
+}
+.econ-card:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.06);
+}
+.econ-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.econ-card__name {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.econ-card__blurb {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--muted, rgba(244, 246, 251, 0.62));
+  min-height: 30px;
+}
+.econ-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+.econ-card__price {
+  font-size: 15px;
+  font-weight: 800;
+}
+.econ-card__income {
+  font-size: 11px;
+  color: var(--accent-2, #ffd166);
+  margin-top: 4px;
+}
+
+/* Tier chip */
+.econ-tier {
+  flex: none;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.16));
+  color: var(--ink, #f4f6fb);
+}
+.econ-tier[data-tier="1"] { background: rgba(120, 200, 255, 0.14); }
+.econ-tier[data-tier="2"] { background: rgba(120, 255, 190, 0.14); }
+.econ-tier[data-tier="3"] { background: rgba(255, 209, 102, 0.16); }
+.econ-tier[data-tier="4"] { background: rgba(255, 138, 76, 0.18); }
+.econ-tier[data-tier="5"] { background: rgba(255, 90, 140, 0.2); }
+
+/* Buy button + states */
+.econ-buy {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: linear-gradient(96deg, var(--accent-2, #ffd166), var(--accent, #ff8a4c));
+  color: #1a1205;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  transition: filter 160ms ease, transform 120ms ease;
+}
+.econ-buy:hover {
+  filter: brightness(1.06);
+}
+.econ-buy:active {
+  transform: translateY(1px);
+}
+.econ-buy:disabled {
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--muted, rgba(244, 246, 251, 0.62));
+  border-color: var(--hairline, rgba(255, 255, 255, 0.12));
+  filter: none;
+}
+.econ-card.is-owned {
+  opacity: 0.72;
+}
+.econ-card.is-locked {
+  opacity: 0.85;
+}
+.econ-lock {
+  font-size: 11px;
+  color: var(--accent, #ff8a4c);
+  font-weight: 600;
+}
+.econ-owned-tag {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-2, #ffd166);
+  letter-spacing: 0.04em;
+}
+
+/* Toast under the header */
+.econ-toast {
+  margin: 0 16px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
+  background: rgba(255, 255, 255, 0.05);
+  animation: econ-fade 160ms ease both;
+}
+.econ-toast.is-ok {
+  border-color: rgba(120, 255, 190, 0.4);
+  color: #b8ffdc;
+}
+.econ-toast.is-err {
+  border-color: rgba(255, 120, 120, 0.4);
+  color: #ffc4c4;
+}
+
+/* ---------- Skills ---------- */
+.econ-skill {
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
+}
+.econ-skill:last-child {
+  border-bottom: none;
+}
+.econ-skill__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+.econ-skill__name {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.econ-skill__lvl {
+  font-size: 13px;
+  font-weight: 800;
+}
+.econ-skill__lvl span {
+  color: var(--muted, rgba(244, 246, 251, 0.62));
+  font-weight: 600;
+}
+.econ-bar {
+  position: relative;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.econ-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-2, #ffd166), var(--accent, #ff8a4c));
+  transition: width 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.econ-skill__perks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+.econ-perk {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 209, 102, 0.14);
+  border: 1px solid rgba(255, 209, 102, 0.3);
+  color: var(--accent-2, #ffd166);
+}
+
+.econ-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--muted, rgba(244, 246, 251, 0.62));
+  font-size: 13px;
+}
+
+@keyframes econ-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes econ-rise {
+  from { opacity: 0; transform: translateY(10px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .econ-scrim,
+  .econ-panel,
+  .econ-toast {
+    animation: none;
+  }
+  .econ-bar__fill,
+  .econ-chip-btn,
+  .econ-buy,
+  .econ-tab {
+    transition: none;
+  }
+}

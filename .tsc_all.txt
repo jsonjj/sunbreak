@@ -1,0 +1,20 @@
+src/systems/gameplay/missions/bridges/economy.ts(41,19): error TS2322: Type '{ cash: number; dirty: number; rep: number; }' is not assignable to type '{ char: CharacterId; clean: number; dirty: number; bank: number; } & EconWalletBridge'.
+src/systems/gameplay/stats/deathRespawnSystem.ts(134,11): error TS2365: Operator '<=' cannot be applied to types 'Health' and 'number'.
+src/systems/gameplay/stats/entityVitals.ts(31,5): error TS2322: Type 'number | Health' is not assignable to type 'number'.
+src/systems/gameplay/stats/entityVitals.ts(38,34): error TS2365: Operator '>' cannot be applied to types 'number | Health' and 'number'.
+src/systems/gameplay/stats/entityVitals.ts(45,3): error TS2322: Type 'number' is not assignable to type 'Health'.
+src/systems/gameplay/stats/entityVitals.ts(62,40): error TS2345: Argument of type 'number' is not assignable to parameter of type 'Health'.
+src/systems/gameplay/stats/stats.components.ts(16,5): error TS2717: Subsequent property declarations must have the same type.  Property 'stat_health' must be of type 'Health | undefined', but here has type 'number | undefined'.
+src/systems/physics/vehicle/handling.ts(233,18): error TS2739: Type 'VehicleState' is missing the following properties from type 'VehicleRuntimeState': forwardKmh, rpm, wheelsGrounded, engineHealth01
+src/systems/physics/vehicle/handling.ts(235,9): error TS2339: Property 'forwardSpeed' does not exist on type 'VehicleRuntimeState | VehicleState'.
+src/systems/physics/vehicle/handling.ts(236,9): error TS2339: Property 'rpm01' does not exist on type 'VehicleRuntimeState | VehicleState'.
+src/systems/physics/vehicle/handling.ts(238,9): error TS2339: Property 'engineHealth' does not exist on type 'VehicleRuntimeState | VehicleState'.
+src/systems/physics/vehicle/handling.ts(239,9): error TS2339: Property 'grounded' does not exist on type 'VehicleRuntimeState | VehicleState'.
+src/systems/physics/vehicle/handling.ts(240,9): error TS2339: Property 'wheelsOnGround' does not exist on type 'VehicleRuntimeState | VehicleState'.
+src/systems/physics/vehicle/handling.ts(241,9): error TS2339: Property 'isDrifting' does not exist on type 'VehicleRuntimeState | VehicleState'.
+src/systems/physics/vehicle/handling.ts(242,9): error TS2339: Property 'driftScore' does not exist on type 'VehicleRuntimeState | VehicleState'.
+src/systems/physics/vehicle/runtime.ts(85,5): error TS2322: Type 'VehicleRuntimeState | VehicleState' is not assignable to type 'Readonly<VehicleState>'.
+src/systems/physics/vehicle/runtime.ts(85,13): error TS2739: Type 'VehicleState' is missing the following properties from type 'VehicleRuntimeState': forwardKmh, rpm, wheelsGrounded, engineHealth01
+src/systems/physics/vehicle/runtime.ts(161,3): error TS2739: Type 'VehicleState' is missing the following properties from type 'VehicleRuntimeState': forwardKmh, rpm, wheelsGrounded, engineHealth01
+src/systems/physics/vehicle/runtime.ts(200,5): error TS2739: Type 'VehicleState' is missing the following properties from type 'VehicleRuntimeState': forwardKmh, rpm, wheelsGrounded, engineHealth01
+src/systems/physics/vehicle/vehicle.components.ts(23,5): error TS2717: Subsequent property declarations must have the same type.  Property 'veh_state' must be of type 'VehicleRuntimeState | undefined', but here has type 'VehicleState | undefined'.

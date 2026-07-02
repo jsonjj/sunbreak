@@ -1,0 +1,104 @@
+[
+  {
+    "context": { "district": "downtown", "mood": "calm" },
+    "barks": [
+      { "text": "Another perfect day to be broke in paradise.", "speaker": "civilian", "tags": ["wry", "money"] },
+      { "text": "Is the whole city this shiny or just this street?", "speaker": "tourist", "tags": ["tourist"] },
+      { "text": "Cold water, cold water! Two bucks, beat the heat!", "speaker": "vendor", "tags": ["vendor", "heat"] },
+      { "text": "Move along, folks. Nothing here worth a photo.", "speaker": "cop", "tags": ["cop"] },
+      { "text": "If I stand near the towers, maybe some money rubs off.", "speaker": "civilian", "tags": ["wry"] },
+      { "text": "The app promised dolphins. All I see is traffic.", "speaker": "tourist", "tags": ["tourist", "wry"] }
+    ]
+  },
+  {
+    "context": { "district": "downtown", "mood": "tense" },
+    "barks": [
+      { "text": "Keep your hands where the cameras can see them.", "speaker": "cop", "tags": ["cop", "tense"] },
+      { "text": "Whatever that siren's about, it isn't me. Probably.", "speaker": "civilian", "tags": ["tense", "wry"] },
+      { "text": "Downtown's hot today. Eyes up, wallet deep.", "speaker": "gangster", "tags": ["gangster", "tense"] },
+      { "text": "Did not sign up for a chase scene on my lunch break.", "speaker": "civilian", "tags": ["tense", "wry"] },
+      { "text": "Is this normal? Everyone's walking so fast.", "speaker": "tourist", "tags": ["tourist", "tense"] }
+    ]
+  },
+  {
+    "context": { "district": "downtown", "mood": "storm" },
+    "barks": [
+      { "text": "Glass towers in a lightning storm. Love that for us.", "speaker": "civilian", "tags": ["storm", "wry"] },
+      { "text": "Off the streets. The pretty part of town floods too.", "speaker": "cop", "tags": ["cop", "storm"] },
+      { "text": "My umbrella became modern art in three seconds flat.", "speaker": "tourist", "tags": ["tourist", "wry"] }
+    ]
+  },
+  {
+    "context": { "district": "the_keys", "mood": "festive" },
+    "barks": [
+      { "text": "Bottle service costs more than my rent. Worth it.", "speaker": "tourist", "tags": ["keys", "money"] },
+      { "text": "Fresh leis, glow sticks, bad decisions, right here!", "speaker": "vendor", "tags": ["vendor", "festive"] },
+      { "text": "The yachts get bigger every year and I get smaller.", "speaker": "civilian", "tags": ["wry", "money"] },
+      { "text": "Smile for the marina. Everybody's somebody's mark.", "speaker": "gangster", "tags": ["gangster", "keys"] },
+      { "text": "Came for the sunset, stayed for the open bar.", "speaker": "tourist", "tags": ["tourist", "festive"] }
+    ]
+  },
+  {
+    "context": { "district": "the_keys", "mood": "storm" },
+    "barks": [
+      { "text": "Marina's closed. Yes, even the big boat. Especially that one.", "speaker": "cop", "tags": ["cop", "storm"] },
+      { "text": "The sunset cruise is now a survive-the-swells cruise.", "speaker": "tourist", "tags": ["tourist", "wry"] },
+      { "text": "Rich or broke, the surge doesn't read the room.", "speaker": "civilian", "tags": ["storm", "money"] }
+    ]
+  },
+  {
+    "context": { "district": "el_recodo", "mood": "calm" },
+    "barks": [
+      { "text": "Mango, mango con chile! Best on the block, ask anyone.", "speaker": "vendor", "tags": ["vendor", "food"] },
+      { "text": "Abuela says the block's changed. Abuela says that daily.", "speaker": "civilian", "tags": ["family", "wry"] },
+      { "text": "Low and slow down the boulevard, that's the whole plan.", "speaker": "civilian", "tags": ["cars", "calm"] },
+      { "text": "Two tacos: one for now, one for the walk. Trust me.", "speaker": "vendor", "tags": ["vendor", "food"] },
+      { "text": "This mural beats anything downtown, honestly.", "speaker": "tourist", "tags": ["tourist", "art"] }
+    ]
+  },
+  {
+    "context": { "district": "el_recodo", "mood": "tense" },
+    "barks": [
+      { "text": "This corner's spoken for. Keep it moving, friend.", "speaker": "gangster", "tags": ["gangster", "tense"] },
+      { "text": "When the music stops early, you go home early.", "speaker": "civilian", "tags": ["tense", "wry"] },
+      { "text": "We got calls about this block. Don't make it three.", "speaker": "cop", "tags": ["cop", "tense"] },
+      { "text": "Pull the shutters, mija. Not our night to watch.", "speaker": "civilian", "tags": ["family", "tense"] }
+    ]
+  },
+  {
+    "context": { "district": "little_ayiti", "mood": "festive" },
+    "barks": [
+      { "text": "Griot's ready, plantain's hot, eat before it's gone!", "speaker": "vendor", "tags": ["vendor", "food"] },
+      { "text": "Drums till midnight, then the aunties take requests.", "speaker": "civilian", "tags": ["music", "festive"] },
+      { "text": "Don't know this song, but my hips figured it out.", "speaker": "tourist", "tags": ["tourist", "music"] },
+      { "text": "Fresh juice, cold and sweet, keep the parade moving!", "speaker": "vendor", "tags": ["vendor", "festive"] },
+      { "text": "Whole block's family tonight, even the strangers.", "speaker": "civilian", "tags": ["community", "festive"] }
+    ]
+  },
+  {
+    "context": { "district": "deacons_mill", "mood": "tense" },
+    "barks": [
+      { "text": "Nothing ships through the Mill without somebody knowing.", "speaker": "gangster", "tags": ["gangster", "docks"] },
+      { "text": "Third shift at the plant, third shift of pretending I'm fine.", "speaker": "civilian", "tags": ["work", "wry"] },
+      { "text": "You didn't see a truck. There was no truck. Understand?", "speaker": "cop", "tags": ["cop", "tense"] },
+      { "text": "Rust hides a lot of sins down here. Don't add one.", "speaker": "gangster", "tags": ["gangster", "tense"] }
+    ]
+  },
+  {
+    "context": { "district": "the_glades", "mood": "storm" },
+    "barks": [
+      { "text": "Airboat's the only ride when the roads go under.", "speaker": "civilian", "tags": ["glades", "storm"] },
+      { "text": "Gettin' out before the water does. You should too.", "speaker": "vendor", "tags": ["vendor", "storm"] },
+      { "text": "Gators don't check the forecast. Neither do fools.", "speaker": "civilian", "tags": ["glades", "wry"] },
+      { "text": "Storm's comin' sideways. Bring the dog in, leave the truck.", "speaker": "civilian", "tags": ["storm"] }
+    ]
+  },
+  {
+    "context": { "district": "the_glades", "mood": "calm" },
+    "barks": [
+      { "text": "Out here the loudest thing is the bugs, and I like it.", "speaker": "civilian", "tags": ["glades", "calm"] },
+      { "text": "Fresh catch, smoked mullet, pull over and try it!", "speaker": "vendor", "tags": ["vendor", "food"] },
+      { "text": "City folk get lost out here. We just let 'em.", "speaker": "civilian", "tags": ["glades", "wry"] }
+    ]
+  }
+]

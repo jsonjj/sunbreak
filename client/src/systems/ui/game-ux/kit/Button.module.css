@@ -1,0 +1,97 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ux-sp-2);
+  border: 1px solid transparent;
+  border-radius: var(--ux-r-md);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    transform var(--ux-dur-1) var(--ux-ease-out),
+    background var(--ux-dur-2) var(--ux-ease-out),
+    border-color var(--ux-dur-2) var(--ux-ease-out),
+    box-shadow var(--ux-dur-2) var(--ux-ease-out),
+    opacity var(--ux-dur-2) var(--ux-ease-out);
+}
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ux-ink-900), 0 0 0 4px var(--ux-accent);
+}
+
+.affix {
+  display: inline-flex;
+  align-items: center;
+}
+.label {
+  display: inline-flex;
+}
+
+/* sizes */
+.sm {
+  padding: 6px 12px;
+  font-size: var(--ux-fs-xs);
+}
+.md {
+  padding: 10px 18px;
+  font-size: var(--ux-fs-sm);
+}
+.lg {
+  padding: 14px 26px;
+  font-size: var(--ux-fs-md);
+}
+
+/* variants */
+.primary {
+  color: var(--ux-accent-ink);
+  background: var(--ux-grad-sun);
+  box-shadow: var(--ux-shadow-glow);
+}
+.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 46px rgba(255, 138, 76, 0.4);
+}
+
+.ghost {
+  color: var(--ux-text);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--ux-hairline-strong);
+}
+.ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: var(--ux-accent);
+}
+
+.subtle {
+  color: var(--ux-text-muted);
+  background: transparent;
+}
+.subtle:hover:not(:disabled) {
+  color: var(--ux-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.danger {
+  color: #fff;
+  background: linear-gradient(96deg, #ff6a6a, var(--ux-danger));
+  box-shadow: 0 10px 34px rgba(255, 91, 91, 0.28);
+}
+.danger:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.block {
+  display: flex;
+  width: 100%;
+}

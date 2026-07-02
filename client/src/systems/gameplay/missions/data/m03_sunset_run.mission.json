@@ -1,0 +1,75 @@
+{
+  "id": "m03_sunset_run",
+  "title": "Sunset Run",
+  "description": "Steal a fast car, shake the heat, and reach the safehouse before dark.",
+  "archetype": "chase",
+  "giver": "Radio",
+  "prerequisites": ["m02_boardwalk_shakedown"],
+  "startTrigger": { "kind": "enterArea", "position": [-18, 1, -8], "radius": 5 },
+  "failStates": [{ "kind": "playerDied" }],
+  "stages": [
+    {
+      "id": "steal",
+      "title": "Steal a fast car",
+      "onEnter": [
+        { "kind": "dialogue", "speaker": "Radio", "line": "There's a sports car idling on the corner. Grab it." },
+        { "kind": "spawnVehicle", "ref": "runner", "model": "sports", "position": [-22, 1, -10], "heading": 90 }
+      ],
+      "objectives": [
+        {
+          "kind": "enterVehicle",
+          "id": "steal_runner",
+          "label": "Steal the sports car",
+          "vehicleRef": "runner",
+          "marker": { "label": "Sports car", "waypoint": true }
+        }
+      ]
+    },
+    {
+      "id": "evade",
+      "title": "Lose the tail",
+      "checkpoint": true,
+      "failStates": [{ "kind": "wantedAtLeast", "stars": 5 }],
+      "onEnter": [
+        { "kind": "dialogue", "speaker": "Radio", "line": "Cops everywhere — keep moving and shake 'em!" },
+        { "kind": "setWanted", "stars": 3 }
+      ],
+      "objectives": [
+        {
+          "kind": "survive",
+          "id": "evade_police",
+          "label": "Evade the police",
+          "seconds": 20,
+          "medalTag": "smooth"
+        }
+      ]
+    },
+    {
+      "id": "safehouse",
+      "title": "Reach the safehouse",
+      "objectives": [
+        {
+          "kind": "goto",
+          "id": "reach_safehouse",
+          "label": "Get to the safehouse",
+          "position": [-55, 1, -52],
+          "radius": 7,
+          "marker": { "label": "Safehouse", "color": "#49e0a8", "waypoint": true }
+        }
+      ],
+      "onComplete": [
+        { "kind": "setWanted", "stars": 0 },
+        { "kind": "dialogue", "speaker": "Radio", "line": "You're clear. Ditch the car and lay low." }
+      ]
+    }
+  ],
+  "rewards": [
+    { "kind": "cash", "amount": 2500 },
+    { "kind": "rep", "amount": 200 }
+  ],
+  "medals": [
+    { "medal": "bronze" },
+    { "medal": "silver", "underSeconds": 140 },
+    { "medal": "verano_gold", "requires": ["smooth"], "underSeconds": 90 }
+  ]
+}

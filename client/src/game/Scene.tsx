@@ -1,29 +1,67 @@
-import { Perf } from "r3f-perf";
-import { Lighting } from "../render/Lighting";
+import { CuboidCollider, RigidBody } from "@react-three/rapier";
+import { Layer, groupsFor } from "@sunbreak/shared";
 import { PhysicsProvider } from "../physics/PhysicsProvider";
-import { Environment } from "./Environment";
 import { PlayerController } from "../player/PlayerController";
 import { CameraRig } from "../camera/CameraRig";
 import { SystemsRunner } from "./SystemsRunner";
 import { InputBinder } from "../input/InputBinder";
 import { isDebug } from "../util/debug";
+import { ECS, world } from "../ecs/world";
 
-/** The full v0 scene graph mounted inside the R3F <Canvas>. */
+// ── Subsystem R3F bridges (each subsystem self-registers on import via the systems-loader; here we
+// only mount the React views that need to live in the scene graph / Rapier context). ────────────
+import { VehiclePhysicsView } from "@/systems/physics/vehicle";
+import { CombatRig } from "@/systems/gameplay/combat";
+import { TrafficView } from "@/systems/gameplay/traffic";
+import { WantedView } from "@/systems/gameplay/wanted";
+import { RagdollBridge } from "@/systems/physics/ragdoll";
+import { InteractionRig } from "@/systems/gameplay/interaction";
+import { DebugCanvas } from "@/systems/content/debug-tools";
+
+// The single, generic ECS→R3F bridge. Every render subsystem (city, lighting/sky, environment,
+// streaming, peds, characters, vfx) publishes its visuals as an entity `three` view component and
+// relies on this to mount them — no hand-mounting. We EXCLUDE entities owned by a dedicated view
+// that parents its own `three` (vehicles → <VehicleBody>, traffic cars → <TrafficView>, police →
+// <WantedView>) so those objects are never double-parented.
+const threeView = world.with("three").without("veh_isVehicle", "traffic_car", "wanted_police");
+
+/** The composed v1 scene graph mounted inside the R3F <Canvas>. */
 export function Scene() {
   const debug = isDebug();
   return (
     <>
-      <Lighting />
+      {/* Generic render bridge — serves every `three`-carrying subsystem. */}
+      <ECS.Entities in={threeView}>
+        {(e) => <primitive object={e.three!} dispose={null} />}
+      </ECS.Entities>
 
       <PhysicsProvider debug={debug}>
-        <Environment />
+        {/* Safety floor: a large invisible fixed collider so the player + vehicles never fall
+            through before city/terrain colliders exist. Supersedes the removed v0 ground plane. */}
+        <RigidBody type="fixed" colliders={false}>
+          <CuboidCollider
+            args={[600, 0.5, 600]}
+            position={[0, -0.5, 0]}
+            collisionGroups={groupsFor(Layer.WORLD)}
+          />
+        </RigidBody>
+
         <PlayerController />
         <CameraRig />
+
+        {/* Rapier-context rigs (physics + occlusion + near-body sync). */}
+        <VehiclePhysicsView />
+        <TrafficView />
+        <WantedView />
+        <CombatRig />
+        <RagdollBridge />
+        <InteractionRig />
+
         <SystemsRunner />
       </PhysicsProvider>
 
       <InputBinder />
-      {debug && <Perf position="top-left" />}
+      {debug && <DebugCanvas />}
     </>
   );
 }

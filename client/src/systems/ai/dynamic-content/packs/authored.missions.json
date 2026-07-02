@@ -1,0 +1,108 @@
+[
+  {
+    "id": "mission_vig_night",
+    "title": "Vig Night",
+    "type": "debt_shakedown",
+    "district": "el_recodo",
+    "giver": { "name": "Tino Vega", "faction": "serpientes" },
+    "hook": "Tino runs numbers out of the laundromat, and three clients suddenly forgot how counting works. Remind them, politely, that Los Serpientes have excellent memories.",
+    "objectives": [
+      { "id": "obj_meet", "kind": "go_to", "text": "Meet Tino behind the Suds & Spin laundromat.", "targetDistrict": "el_recodo" },
+      { "id": "obj_dominoes", "kind": "collect", "text": "Collect the late payment from the domino hall.", "targetDistrict": "el_recodo" },
+      { "id": "obj_mechanic", "kind": "collect", "text": "Shake down the mechanic skimming the till.", "targetDistrict": "el_recodo" },
+      { "id": "obj_return", "kind": "deliver", "text": "Drop the full envelope back to Tino.", "targetDistrict": "el_recodo" }
+    ],
+    "reward": { "cash": 1800, "rep": 60 },
+    "failConditions": ["A client ends up hospitalized", "Police are called to the laundromat"],
+    "wantedOnStart": 0,
+    "toneTags": ["gritty", "street", "serpientes"]
+  },
+  {
+    "id": "mission_midnight_cargo",
+    "title": "Midnight Cargo",
+    "type": "smuggling_run",
+    "district": "deacons_mill",
+    "giver": { "name": "Roy Kessler", "faction": "dixie_combine" },
+    "hook": "A container 'fell off' a ship at Deacon's Mill and needs to vanish before the morning shift clocks in. The Combine pays well for drivers who don't ask what's rattling inside.",
+    "objectives": [
+      { "id": "obj_flatbed", "kind": "steal_vehicle", "text": "Grab the flatbed idling by the dry docks.", "targetDistrict": "deacons_mill" },
+      { "id": "obj_load", "kind": "collect", "text": "Load the mislabeled container at Pier 7.", "targetDistrict": "deacons_mill" },
+      { "id": "obj_patrol", "kind": "evade", "text": "Lose the harbor patrol tailing you off the causeway.", "targetDistrict": null },
+      { "id": "obj_barn", "kind": "deliver", "text": "Deliver the cargo to the Combine's barn in the Glades.", "targetDistrict": "the_glades" }
+    ],
+    "reward": { "cash": 4200, "rep": 90 },
+    "failConditions": ["Cargo inspected by port authority", "The flatbed is destroyed"],
+    "wantedOnStart": 1,
+    "toneTags": ["heist", "night", "docks"]
+  },
+  {
+    "id": "mission_the_skip",
+    "title": "The Skip",
+    "type": "bounty",
+    "district": "downtown",
+    "giver": { "name": "Delphine Roux", "faction": "neon_keys" },
+    "hook": "A club promoter skipped town owing the Neon Keys a fortune and a lot of pride. Word is he's hiding in plain sight downtown. Bring him back breathing; the bruising is optional but encouraged.",
+    "objectives": [
+      { "id": "obj_ask", "kind": "go_to", "text": "Ask around the finance-district cafes for the promoter.", "targetDistrict": "downtown" },
+      { "id": "obj_guards", "kind": "eliminate", "text": "Subdue the promoter's two bodyguards in the garage.", "targetDistrict": "downtown" },
+      { "id": "obj_grab", "kind": "collect", "text": "Grab the promoter before he reaches the marina.", "targetDistrict": "downtown" },
+      { "id": "obj_deliver", "kind": "deliver", "text": "Deliver him to Delphine at the rooftop lounge.", "targetDistrict": "the_keys" }
+    ],
+    "reward": { "cash": 5000, "rep": 120 },
+    "failConditions": ["The promoter escapes the city", "The target is killed"],
+    "wantedOnStart": 2,
+    "toneTags": ["bounty", "noir", "keys"]
+  },
+  {
+    "id": "mission_repossession",
+    "title": "Repossession, Paradise Style",
+    "type": "repo",
+    "district": "the_keys",
+    "giver": { "name": "Sal Ferro", "faction": "neon_keys" },
+    "hook": "A washed-up crypto bro stopped paying on his speedboat the second CoinYak tanked. The Keys want their toy back, quietly, before he livestreams the whole thing.",
+    "objectives": [
+      { "id": "obj_find", "kind": "go_to", "text": "Find the defaulted speedboat at the Keys marina.", "targetDistrict": "the_keys" },
+      { "id": "obj_take", "kind": "steal_vehicle", "text": "Take the speedboat before its owner notices.", "targetDistrict": "the_keys" },
+      { "id": "obj_outrun", "kind": "evade", "text": "Outrun the owner's jet-ski down the coast.", "targetDistrict": null },
+      { "id": "obj_slip", "kind": "deliver", "text": "Return the boat to Sal's private slip.", "targetDistrict": "the_keys" }
+    ],
+    "reward": { "cash": 3200, "rep": 70 },
+    "failConditions": ["The boat is sunk or wrecked", "The owner records the repo"],
+    "wantedOnStart": 0,
+    "toneTags": ["repo", "comedy", "keys"]
+  },
+  {
+    "id": "mission_block_party",
+    "title": "Block Party Insurance",
+    "type": "protection",
+    "district": "little_ayiti",
+    "giver": { "name": "Mama Estelle", "faction": "civilian" },
+    "hook": "The Little Ayiti street festival is the best night of the year, until a crew of shakedown artists decides the food stalls owe them a 'permit fee.' Mama Estelle would like you to renegotiate.",
+    "objectives": [
+      { "id": "obj_meet", "kind": "go_to", "text": "Meet Mama Estelle at the community kitchen.", "targetDistrict": "little_ayiti" },
+      { "id": "obj_runoff", "kind": "eliminate", "text": "Run off the crew muscling the food stalls.", "targetDistrict": "little_ayiti" },
+      { "id": "obj_hold", "kind": "survive", "text": "Hold the main stage until the parade passes.", "targetDistrict": "little_ayiti" }
+    ],
+    "reward": { "cash": 2400, "rep": 110 },
+    "failConditions": ["A vendor's stall is destroyed", "Estelle is harmed"],
+    "wantedOnStart": 1,
+    "toneTags": ["protect", "heart", "festival"]
+  },
+  {
+    "id": "mission_sweet_delivery",
+    "title": "Sweet Delivery",
+    "type": "courier",
+    "district": "downtown",
+    "giver": { "name": "Ernesto Salas", "faction": "zafra_cartel" },
+    "hook": "The Zafra Cartel needs a package moved from a downtown high-rise to a Glades airboat dock before a rival crew intercepts it. No stops. No peeking. Tonight the clock is the only boss.",
+    "objectives": [
+      { "id": "obj_pickup", "kind": "collect", "text": "Pick up the sealed case from the downtown penthouse.", "targetDistrict": "downtown" },
+      { "id": "obj_shake", "kind": "evade", "text": "Shake the rival crew's SUV through the tunnels.", "targetDistrict": null },
+      { "id": "obj_dock", "kind": "deliver", "text": "Reach the Glades airboat dock before midnight.", "targetDistrict": "the_glades" }
+    ],
+    "reward": { "cash": 3800, "rep": 85 },
+    "failConditions": ["The case is opened or scanned", "The rival crew takes the package"],
+    "wantedOnStart": 2,
+    "toneTags": ["courier", "tense", "timed"]
+  }
+]

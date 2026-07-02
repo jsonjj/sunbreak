@@ -25,6 +25,7 @@ const TRACKED: InputAction[] = [
   InputAction.Reload,
   InputAction.Fire,
   InputAction.Aim,
+  InputAction.SwitchWeapon,
   InputAction.Pause,
 ];
 
@@ -81,6 +82,11 @@ class InputManager {
   /** Explicitly request pointer lock (used by the click-to-play overlay). */
   requestLock(): void {
     if (!this.locked) this.el?.requestPointerLock();
+  }
+
+  /** Release pointer lock — used when dialogue/menus/phone open so the cursor is usable. */
+  releaseLock(): void {
+    if (this.locked && typeof document !== "undefined") document.exitPointerLock();
   }
 
   get locked(): boolean {
@@ -157,6 +163,8 @@ class InputManager {
         return this.mouseButtons.has(0);
       case InputAction.Aim:
         return this.mouseButtons.has(2);
+      case InputAction.SwitchWeapon:
+        return this.keys.has("Tab");
       case InputAction.Pause:
         return this.keys.has("Escape");
       default:

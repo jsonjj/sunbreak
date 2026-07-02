@@ -1,0 +1,94 @@
+{
+  "id": "m02_boardwalk_shakedown",
+  "title": "Boardwalk Shakedown",
+  "description": "A simple pickup on the boardwalk turns into an ambush. Survive it, then grab the cash.",
+  "archetype": "deal_gone_wrong",
+  "giver": "Boss",
+  "prerequisites": ["m01_first_score"],
+  "startTrigger": { "kind": "enterArea", "position": [26, 1, 10], "radius": 5 },
+  "failStates": [{ "kind": "playerDied" }],
+  "stages": [
+    {
+      "id": "approach",
+      "title": "Get to the boardwalk",
+      "onEnter": [
+        { "kind": "dialogue", "speaker": "Boss", "line": "Meet's on the boardwalk. Don't be late." }
+      ],
+      "objectives": [
+        {
+          "kind": "goto",
+          "id": "reach_boardwalk",
+          "label": "Head to the meet",
+          "position": [30, 1, 20],
+          "radius": 5,
+          "marker": { "label": "Meet", "waypoint": true }
+        }
+      ]
+    },
+    {
+      "id": "ambush",
+      "title": "Deal gone wrong",
+      "checkpoint": true,
+      "timer": { "id": "fight", "seconds": 120, "onExpire": "fail", "hud": true },
+      "onEnter": [
+        { "kind": "dialogue", "speaker": "Boss", "line": "It's a setup — light 'em up!" },
+        { "kind": "setWanted", "stars": 2 },
+        {
+          "kind": "spawnEnemies",
+          "ref": "goons",
+          "archetype": "gangster",
+          "position": [34, 1, 26],
+          "count": 4,
+          "radius": 6,
+          "weapon": "pistol",
+          "behavior": "attack"
+        }
+      ],
+      "objectives": [
+        {
+          "kind": "eliminate",
+          "id": "clear_goons",
+          "label": "Take out the ambush crew",
+          "targets": { "spawnRef": "goons" },
+          "medalTag": "clean_sweep",
+          "marker": { "color": "#ff5a5a" }
+        }
+      ]
+    },
+    {
+      "id": "loot",
+      "title": "Grab the cash",
+      "onEnter": [
+        { "kind": "spawnProp", "ref": "loot", "model": "cash", "position": [33, 1, 24] },
+        { "kind": "spawnProp", "ref": "loot", "model": "cash", "position": [36, 1, 28] },
+        { "kind": "spawnProp", "ref": "loot", "model": "cash", "position": [31, 1, 29] }
+      ],
+      "objectives": [
+        {
+          "kind": "collect",
+          "id": "grab_loot",
+          "label": "Collect the dropped cash",
+          "itemRef": "loot",
+          "count": 3,
+          "radius": 2.5,
+          "marker": { "label": "Cash", "color": "#49e0a8" }
+        }
+      ],
+      "onComplete": [
+        { "kind": "setWanted", "stars": 0 },
+        { "kind": "dialogue", "speaker": "Boss", "line": "Good. Now vanish." }
+      ]
+    }
+  ],
+  "rewards": [
+    { "kind": "cash", "amount": 1500 },
+    { "kind": "rep", "amount": 120 },
+    { "kind": "weapon", "weaponId": "smg" },
+    { "kind": "unlockMission", "missionId": "m03_sunset_run" }
+  ],
+  "medals": [
+    { "medal": "bronze" },
+    { "medal": "silver", "underSeconds": 210 },
+    { "medal": "verano_gold", "requires": ["clean_sweep"], "underSeconds": 150 }
+  ]
+}

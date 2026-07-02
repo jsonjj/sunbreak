@@ -1,0 +1,128 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  z-index: var(--ux-z-screen);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(255, 45, 111, 0.14), transparent 55%),
+    radial-gradient(120% 110% at 50% 120%, rgba(6, 8, 13, 0.9), rgba(4, 6, 11, 0.96));
+  backdrop-filter: saturate(0.5) blur(3px);
+  -webkit-backdrop-filter: saturate(0.5) blur(3px);
+}
+.center {
+  position: relative;
+  width: min(560px, 88vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ux-sp-4);
+  text-align: center;
+}
+.kicker {
+  font-size: var(--ux-fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--ux-text-muted);
+}
+.word {
+  margin: 0;
+  font-family: var(--ux-font-display);
+  font-size: var(--ux-fs-hero);
+  font-weight: 800;
+  line-height: 0.92;
+}
+.flatline {
+  background: linear-gradient(92deg, #ff8a8a, var(--ux-danger) 55%, var(--ux-accent-rose));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 10px 60px rgba(255, 91, 91, 0.25);
+}
+.booked {
+  background: linear-gradient(92deg, var(--ux-accent-2), var(--ux-accent) 55%, var(--ux-accent-indigo));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.subtitle {
+  margin: 0;
+  max-width: 42ch;
+  font-size: var(--ux-fs-md);
+  color: var(--ux-text-muted);
+  line-height: 1.5;
+}
+.fee {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ux-sp-3);
+  margin-top: var(--ux-sp-2);
+  padding: 10px 16px;
+  border-radius: var(--ux-r-pill);
+  border: 1px solid var(--ux-hairline);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: var(--ux-fs-md);
+}
+.feeLabel {
+  font-size: var(--ux-fs-2xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ux-text-dim);
+}
+.holdRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ux-sp-4);
+  margin-top: var(--ux-sp-5);
+}
+.hold {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ux-text);
+}
+.ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.ringBg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 4;
+}
+.ringFg {
+  fill: none;
+  stroke: var(--ux-accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.08s linear;
+  filter: drop-shadow(0 0 6px rgba(255, 138, 76, 0.6));
+}
+.holdGlyph {
+  pointer-events: none;
+}
+.holdText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+.holdTitle {
+  font-size: var(--ux-fs-md);
+  font-weight: 700;
+}
+.holdHint {
+  font-size: var(--ux-fs-2xs);
+  color: var(--ux-text-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

@@ -1,0 +1,62 @@
+// content/data-format — seed weapon catalog.
+//
+// Three real weapons so the combat subsystem has data day one: a sidearm, an automatic, and a
+// melee. Typed with `satisfies WeaponInput[]`; validated + registered in `registerSeedContent()`.
+import type { WeaponInput } from "../schemas";
+
+export const SEED_WEAPONS = [
+  {
+    id: "wpn_pistol",
+    name: "Vista 9",
+    category: "handgun",
+    slot: "sidearm",
+    damage: 26,
+    falloff: { near: 18, far: 45 },
+    rpm: 380,
+    fireMode: "semi",
+    mag: 12,
+    reserve: 96,
+    ammoType: "pistol",
+    reloadTime: 1.6,
+    recoil: { vertical: 1.2, horizontal: 0.6 },
+    spread: { hip: 2.0, ads: 0.6 },
+    adsTime: 0.2,
+    model: "weapons/pistol.glb",
+  },
+  {
+    id: "wpn_smg",
+    name: "Marisol Sweeper",
+    category: "smg",
+    slot: "long",
+    damage: 18,
+    falloff: { near: 20, far: 50 },
+    rpm: 780,
+    fireMode: "auto",
+    mag: 30,
+    reserve: 180,
+    ammoType: "smg",
+    reloadTime: 2.1,
+    recoil: { vertical: 1.6, horizontal: 1.0 },
+    spread: { hip: 3.0, ads: 1.0 },
+    adsTime: 0.22,
+    model: "weapons/smg.glb",
+  },
+  {
+    id: "wpn_bat",
+    name: "Sunridge Slugger",
+    category: "melee",
+    slot: "melee",
+    damage: 45,
+    rpm: 90,
+    fireMode: "none",
+    mag: 0,
+    reserve: 0,
+    ammoType: "none",
+    reloadTime: 0,
+    recoil: { vertical: 0, horizontal: 0 },
+    spread: { hip: 0, ads: 0 },
+    adsTime: 0,
+    range: 2,
+    model: "weapons/bat.glb",
+  },
+] satisfies WeaponInput[];

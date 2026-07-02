@@ -1,0 +1,22 @@
+.panel {
+  position: relative;
+  border-radius: var(--ux-r-lg);
+  border: 1px solid var(--ux-hairline);
+  box-shadow: var(--ux-shadow-1);
+}
+.glass {
+  background: var(--ux-glass);
+  backdrop-filter: blur(var(--ux-blur));
+  -webkit-backdrop-filter: blur(var(--ux-blur));
+}
+.solid {
+  background: var(--ux-panel);
+}
+.bare {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.inset {
+  padding: var(--ux-sp-5);
+}

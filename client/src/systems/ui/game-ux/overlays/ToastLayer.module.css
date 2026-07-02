@@ -1,0 +1,15 @@
+.layer {
+  position: absolute;
+  top: 74px;
+  right: 22px;
+  z-index: var(--ux-z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--ux-sp-2);
+  pointer-events: none;
+  max-width: min(360px, 90vw);
+}
+.layer > * {
+  pointer-events: auto;
+}

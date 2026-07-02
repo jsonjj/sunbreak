@@ -1,0 +1,19 @@
+.money {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.pos {
+  color: var(--ux-cash);
+}
+.neg {
+  color: var(--ux-danger);
+}
+.tag {
+  margin-left: 6px;
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ux-text-dim);
+}

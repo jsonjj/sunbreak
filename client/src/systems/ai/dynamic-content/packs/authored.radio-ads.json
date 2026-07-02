@@ -1,0 +1,82 @@
+[
+  {
+    "id": "ad_coinyak_01",
+    "brand": "coinyak",
+    "station": "wave_101",
+    "lengthSeconds": 30,
+    "script": "You've got a phone. You've got dreams. You've got exactly eleven dollars. That's a CoinYak starter portfolio! Our patented YakChart goes up, down, and sideways, sometimes all before lunch! Join nine million Yakkers aping into coins with names your grandma can't pronounce. Is it a currency? Is it a collectible? Who cares, it's MOONING! Download CoinYak and turn your rent into a rounding error today!",
+    "tagline": "CoinYak. To the moon, probably.",
+    "disclaimer": "Not financial advice. CoinYak is not a bank, a broker, or a good idea. Value may reach zero faster than you can read this.",
+    "toneTags": ["crypto", "hype", "satire", "fast-read"]
+  },
+  {
+    "id": "ad_strand_grubb_01",
+    "brand": "strand_grubb",
+    "station": "static_talk",
+    "lengthSeconds": 30,
+    "script": "Slipped on a grape at the supermarket? Bitten by your neighbor's emotional-support iguana? At Strand and Grubb, we turn your worst day into our best quarter! One call and our fleet of billboards goes to work. We chase ambulances so you don't have to, mostly because we're already in the ambulance. Remember: if you can point at the pain, you can point at a payout. Strand and Grubb, we sue so you don't have to think about it.",
+    "tagline": "Strand and Grubb. Hurt? Get paid.",
+    "disclaimer": "Strand and Grubb is a law firm in the loosest legal sense. Past settlements do not guarantee we answer the phone.",
+    "toneTags": ["legal", "satire", "hard-sell"]
+  },
+  {
+    "id": "ad_stormguard_01",
+    "brand": "stormguard",
+    "station": "dusty_roads",
+    "lengthSeconds": 30,
+    "script": "When the sky turns green and the weatherman turns pale, will YOUR windows hold? StormGuard shutters are forged from genuine storm-grade materials and installed by guys named Denny! For just six easy payments, then eighteen surprise payments, you'll sleep soundly knowing your shutters are technically present. Don't wait for the surge. Call StormGuard before your neighbor tells the insurance man about last time!",
+    "tagline": "StormGuard. Probably better than plywood.",
+    "disclaimer": "Storm-grade is not a rating. Shutters not tested in actual storms. Denny is not licensed. Surge not included.",
+    "toneTags": ["scam", "storm", "hard-sell", "satire"]
+  },
+  {
+    "id": "ad_verano_vice_01",
+    "brand": "verano_vice",
+    "station": "bump_713",
+    "lengthSeconds": 20,
+    "script": "It's 3 a.m. and the night's still legal, for now. You need VERANO VICE, the energy drink so bright it's visible from orbit! One can equals four coffees, two regrets, and a heartbeat you can actually hear! Now in new flavor, Sunburn! Athletes drink it. Doctors question it. Legends chug it. Verano Vice. Sleep is a scam anyway.",
+    "tagline": "Verano Vice. Blink less, live more.",
+    "disclaimer": null,
+    "toneTags": ["energy", "nightlife", "loud"]
+  },
+  {
+    "id": "ad_sunny_loans_01",
+    "brand": "sunny_loans",
+    "station": "la_mezcla",
+    "lengthSeconds": 30,
+    "script": "Short on rent? Car making the noise again? Sunny Day Loans says YES when everyone else says please leave. Walk in with your car title, walk out with cash and a brand-new relationship with us, forever! Our interest rates are a friendly four hundred percent, calculated hourly out of respect for your time. No credit? No problem! No car? Now that's a problem. Sunny Day Loans, because tomorrow is also broke.",
+    "tagline": "Sunny Day Loans. Cash today, questions never.",
+    "disclaimer": "APR may exceed the speed of light. Collateral includes your car, your pride, and select relatives.",
+    "toneTags": ["loans", "predatory", "satire"]
+  },
+  {
+    "id": "ad_paradise_boats_01",
+    "brand": "paradise_boats",
+    "station": "sunburst_fm",
+    "lengthSeconds": 30,
+    "script": "Ahoy, dreamers! Paradise Boat Depot is DROWNING in inventory and we're passing the panic on to YOU! Pre-owned, pre-loved, pre-flooded, every vessel priced to float! That hull stain? Character. That smell? The ocean, probably. Finance a yacht for less than a jet-ski with our Trust Me payment plan! Sail off today, before the tide, or the repo man, comes in!",
+    "tagline": "Paradise Boats. She floats, mostly.",
+    "disclaimer": "Boats sold as-is, where-is, if-is. The word floats is aspirational. Bilge pump sold separately.",
+    "toneTags": ["boats", "used", "hard-sell", "satire"]
+  },
+  {
+    "id": "ad_pollo_supremo_01",
+    "brand": "pollo_supremo",
+    "station": "sunburst_fm",
+    "lengthSeconds": 20,
+    "script": "Craving something crispy, golden, and legally chicken? Head to POLLO SUPREMO, where the recipe's a secret because so are the ingredients! Twelve pieces, three sauces, one nap, that's the Supremo Bucket! Now with new Inferno Wings, endorsed by three firefighters and one very brave chihuahua. Family owned, family sized, family therapy not included. Pollo Supremo. You'll be back before you leave.",
+    "tagline": "Pollo Supremo. Cluckin' unbelievable.",
+    "disclaimer": null,
+    "toneTags": ["food", "fast-food", "fun"]
+  },
+  {
+    "id": "ad_keys_kondos_01",
+    "brand": "keys_kondos",
+    "station": "wave_101",
+    "lengthSeconds": 30,
+    "script": "Introducing KEYS KONDOS, luxury living in a tower that is definitely being built, allegedly! Own a slice of the skyline at the low, low pre-construction price, payable now, keys delivered soon-ish! Enjoy amenities like a rooftop infinity pool, a lobby, and the concept of walls! Investors on three continents can't all be wrong. Well, they can, but think positive! Keys Kondos. The future, on paper.",
+    "tagline": "Keys Kondos. Own the skyline, eventually.",
+    "disclaimer": "Renderings are an artist's fever dream. Completion date, pool, and building not guaranteed. Deposits non-refundable.",
+    "toneTags": ["realestate", "hype", "scam", "satire"]
+  }
+]

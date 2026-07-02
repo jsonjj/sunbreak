@@ -1,0 +1,75 @@
+{
+  "id": "m01_first_score",
+  "title": "First Score",
+  "description": "A no-questions courier run to learn the ropes: meet a contact, grab a car, make the drop.",
+  "archetype": "solo",
+  "giver": "Contact",
+  "startTrigger": { "kind": "enterArea", "position": [8, 1, 2], "radius": 4 },
+  "replayable": true,
+  "stages": [
+    {
+      "id": "meet",
+      "title": "Meet your contact",
+      "onEnter": [
+        { "kind": "dialogue", "speaker": "Contact", "line": "Over here. Keep it quiet and we both get paid." }
+      ],
+      "objectives": [
+        {
+          "kind": "interact",
+          "id": "talk_contact",
+          "label": "Meet the contact",
+          "targetId": "contact",
+          "position": [8, 1, -6],
+          "radius": 2.5,
+          "marker": { "label": "Contact", "color": "#ffd24a" }
+        }
+      ],
+      "onComplete": [
+        { "kind": "dialogue", "speaker": "Contact", "line": "My car's parked out back. Take it." }
+      ]
+    },
+    {
+      "id": "grab_car",
+      "title": "Grab the getaway car",
+      "checkpoint": true,
+      "objectives": [
+        {
+          "kind": "enterVehicle",
+          "id": "enter_getaway",
+          "label": "Get in the getaway car",
+          "vehicleRef": "getaway",
+          "marker": { "label": "Getaway", "waypoint": true }
+        }
+      ],
+      "onEnter": [
+        { "kind": "spawnVehicle", "ref": "getaway", "model": "sedan", "position": [-10, 1, -6], "heading": 0 }
+      ]
+    },
+    {
+      "id": "dropoff",
+      "title": "Make the drop",
+      "objectives": [
+        {
+          "kind": "goto",
+          "id": "reach_drop",
+          "label": "Drive to the drop-off",
+          "position": [-28, 1, -28],
+          "radius": 6,
+          "marker": { "label": "Drop-off", "color": "#49e0a8", "waypoint": true }
+        }
+      ],
+      "onComplete": [
+        { "kind": "dialogue", "speaker": "Contact", "line": "Clean work. Here's your cut." }
+      ]
+    }
+  ],
+  "rewards": [
+    { "kind": "cash", "amount": 500 },
+    { "kind": "rep", "amount": 40 }
+  ],
+  "medals": [
+    { "medal": "bronze" },
+    { "medal": "silver", "underSeconds": 120 },
+    { "medal": "verano_gold", "underSeconds": 75 }
+  ]
+}

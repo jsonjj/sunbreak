@@ -1,0 +1,23 @@
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  height: 1.5em;
+  padding: 0 6px;
+  font-family: var(--ux-font-ui);
+  font-size: var(--ux-fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ux-text);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--ux-hairline-strong);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+}
+.pad {
+  border-radius: var(--ux-r-pill);
+  color: var(--ux-accent-ink);
+  background: var(--ux-accent-2);
+  border-color: transparent;
+}

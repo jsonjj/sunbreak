@@ -1,0 +1,65 @@
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--ux-sp-5);
+  background: rgba(4, 6, 11, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.dialog {
+  max-width: calc(100vw - 2 * var(--ux-sp-5));
+  max-height: calc(100vh - 2 * var(--ux-sp-6));
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--ux-r-xl);
+  border: 1px solid var(--ux-hairline);
+  background: var(--ux-panel);
+  box-shadow: var(--ux-shadow-2);
+  overflow: hidden;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ux-sp-4);
+  padding: var(--ux-sp-5) var(--ux-sp-5) var(--ux-sp-3);
+}
+.title {
+  margin: 0;
+  font-size: var(--ux-fs-lg);
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+.close {
+  display: inline-flex;
+  padding: 6px;
+  color: var(--ux-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ux-r-sm);
+  cursor: pointer;
+  transition: color var(--ux-dur-2), background var(--ux-dur-2);
+}
+.close:hover {
+  color: var(--ux-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+.close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ux-accent);
+}
+.body {
+  padding: 0 var(--ux-sp-5) var(--ux-sp-5);
+  overflow: auto;
+}
+.foot {
+  display: flex;
+  gap: var(--ux-sp-3);
+  justify-content: flex-end;
+  padding: var(--ux-sp-4) var(--ux-sp-5);
+  border-top: 1px solid var(--ux-hairline);
+  background: rgba(0, 0, 0, 0.2);
+}

@@ -1,7 +1,60 @@
-// STUB — implement in Wave 2 per gta6-build/02-physics/vehicle-physics.md
-// Subsystem: physics/vehicle (client) — raycast vehicle controller. Own all files here.
+// physics/vehicle — client subsystem entrypoint. Implements the arcade raycast-vehicle stack on
+// Rapier's DynamicRayCastVehicleController (via @react-three/rapier). Self-registers on import
+// (see client/src/game/systems-loader.ts). Owns everything under this folder only.
+//
+// Contract (the single seam with gameplay/vehicle-gameplay):
+//   • gameplay writes `veh_input: DriverInput` each frame (or via handle.setDriverInput)
+//   • gameplay reads  `veh_state: VehicleState` (or handle.getState()) for HUD/audio/camera
+//   • gameplay spawns via `spawnVehicle()` OR by adding a `veh_spawnRequest` component
+//   • gameplay couples damage via `veh_engineHealth` (or handle.applyEngineHealth)
+// Physics owns the fixed-step solver (controller.updateVehicle) — consumers must not call it.
+//
+// INTEGRATOR: mount <VehiclePhysicsView/> once inside <PhysicsProvider> (Scene.tsx). Everything
+// else auto-wires through this module's self-registration.
 import type { SubsystemModule } from "@sunbreak/shared";
+import { registerModule } from "@/game/registry";
+import { world } from "@/ecs/world";
+import "./vehicle.components";
+import { vehicleSpawnIntakeSystem } from "./systems";
 
-export const vehiclePhysics: SubsystemModule = {
+type W = typeof world;
+
+export const vehiclePhysics: SubsystemModule<W> = {
   id: "physics/vehicle",
+  systems: [vehicleSpawnIntakeSystem],
 };
+
+registerModule(vehiclePhysics);
+
+// ─── Public contract (types) ────────────────────────────────────────────────────────────────
+export type {
+  DriverInput,
+  VehicleState,
+  WheelSpec,
+  VehicleArcadeConfig,
+  VehicleConfig,
+  VehicleSpawnRequest,
+  VehicleHandle,
+  RapierVehicleController,
+  RapierRigidBody,
+} from "./types";
+export type { SpawnVehicleOptions } from "./runtime";
+
+// ─── Public contract (values) ───────────────────────────────────────────────────────────────
+export { createEmptyDriverInput, createInitialVehicleState } from "./types";
+export {
+  spawnVehicle,
+  despawnVehicle,
+  getVehicleHandle,
+  normalizeVehicleEntity,
+  spawnTransform,
+} from "./runtime";
+export {
+  VEHICLE_PRESETS,
+  DEFAULT_VEHICLE_CONFIG,
+  resolveVehicleConfig,
+  computeChassisInertia,
+} from "./presets";
+
+// ─── Render bridge (mounted by the integrator inside <PhysicsProvider>) ───────────────────────
+export { VehiclePhysicsView } from "./VehiclePhysicsView";

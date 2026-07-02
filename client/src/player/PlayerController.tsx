@@ -82,6 +82,9 @@ export function PlayerController() {
     const cc = ccRef.current;
     const body = bodyRef.current;
     if (!cc || !body) return;
+    // Seated seam: while the player occupies a vehicle, the on-foot controller yields entirely —
+    // vehicle-gameplay owns the body (frozen) and the camera follows the car. See CameraRig.
+    if (entityRef.current?.vg_occupant) return;
     const collider = body.collider(0);
     if (!collider) return;
 
@@ -195,17 +198,10 @@ export function PlayerController() {
         args={[PLAYER_CAPSULE.halfHeight, PLAYER_CAPSULE.radius]}
         collisionGroups={groupsFor(Layer.PLAYER)}
       />
-      <group ref={visualRef}>
-        <mesh castShadow position={[0, 0, 0]}>
-          <capsuleGeometry args={[PLAYER_CAPSULE.radius, PLAYER_CAPSULE.halfHeight * 2, 8, 16]} />
-          <meshStandardMaterial color="#e8794b" roughness={0.6} metalness={0.05} />
-        </mesh>
-        {/* facing nub */}
-        <mesh castShadow position={[0, 0.25, -(PLAYER_CAPSULE.radius + 0.06)]}>
-          <boxGeometry args={[0.14, 0.14, 0.14]} />
-          <meshStandardMaterial color="#20222b" />
-        </mesh>
-      </group>
+      {/* v0 capsule visual removed — gameplay/character-content attaches a rigged lead to the
+          player entity (its `three` renders through the generic ECS↔R3F bridge). The empty group
+          keeps the visualRef stable for the controller's (now inert) facing damp. */}
+      <group ref={visualRef} />
     </RigidBody>
   );
 }

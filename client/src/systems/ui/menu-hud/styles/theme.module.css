@@ -1,0 +1,158 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   SUNBREAK — menu/HUD design tokens (premium, Stripe-inspired · Verano identity).
+   Applied on the overlay root so everything below inherits the palette. All custom
+   properties are `--sb-*` namespaced to never clash with the v0 :root tokens.
+   ───────────────────────────────────────────────────────────────────────────── */
+.theme {
+  /* Surfaces — dusk indigo → glass */
+  --sb-bg: #070912;
+  --sb-bg-2: #0b0e1a;
+  --sb-surface: rgba(19, 22, 36, 0.72);
+  --sb-surface-2: rgba(28, 32, 50, 0.66);
+  --sb-surface-solid: #12151f;
+  --sb-glass: rgba(14, 17, 28, 0.55);
+  --sb-hairline: rgba(255, 255, 255, 0.1);
+  --sb-hairline-2: rgba(255, 255, 255, 0.16);
+
+  /* Ink */
+  --sb-ink: #f5f7ff;
+  --sb-ink-dim: rgba(245, 247, 255, 0.66);
+  --sb-ink-faint: rgba(245, 247, 255, 0.4);
+
+  /* Verano sunset accents (used with restraint) */
+  --sb-amber: #ffb85c;
+  --sb-coral: #ff7a59;
+  --sb-rose: #ff5c8a;
+  --sb-indigo: #7c6bff;
+  --sb-sky: #4aa8ff;
+  --sb-accent: var(--sb-coral);
+  --sb-sunset: linear-gradient(105deg, #ffcf6b 0%, #ff7a59 42%, #ff5c8a 74%, #7c6bff 100%);
+  --sb-sunset-soft: linear-gradient(120deg, rgba(255, 184, 92, 0.16), rgba(124, 107, 255, 0.16));
+
+  /* Semantic HUD colors — high contrast, universally legible */
+  --sb-health: #4ad991;
+  --sb-health-low: #ff5a5f;
+  --sb-armor: #4aa8ff;
+  --sb-stamina: #ffce6b;
+  --sb-ability: #b98bff;
+  --sb-cash: #6fe0a6;
+  --sb-warn: #ff6b6b;
+
+  /* Radii */
+  --sb-r-xs: 6px;
+  --sb-r-sm: 9px;
+  --sb-r: 13px;
+  --sb-r-lg: 18px;
+  --sb-r-xl: 24px;
+  --sb-r-pill: 999px;
+
+  /* Elevation + blur */
+  --sb-shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --sb-shadow: 0 14px 44px rgba(0, 0, 0, 0.5);
+  --sb-shadow-lg: 0 30px 90px rgba(0, 0, 0, 0.62);
+  --sb-glow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 8px 30px rgba(255, 122, 89, 0.18);
+  --sb-blur: 18px;
+
+  /* Type */
+  --sb-font:
+    "Inter var", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --sb-font-num: var(--sb-font);
+
+  /* HUD accessibility knobs (overridden inline from settingsStore.accessibility) */
+  --sb-hud-scale: 1;
+  --sb-hud-opacity: 1;
+
+  --sb-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sb-dur: 200ms;
+
+  font-family: var(--sb-font);
+  color: var(--sb-ink);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Accessibility: reduce flashing/shake — kill non-essential animation.
+   `:global` keeps the keyframe names usable from the hud/menu modules too. */
+.reduceFlash *,
+.reduceShake * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+/* Colorblind-friendly semantic swaps (subtle, legibility-first) */
+.cbProtanopia {
+  --sb-health: #5ec8ff;
+  --sb-armor: #b98bff;
+  --sb-health-low: #ffb000;
+}
+.cbDeuteranopia {
+  --sb-health: #5ec8ff;
+  --sb-armor: #c58bff;
+  --sb-health-low: #ffb000;
+}
+.cbTritanopia {
+  --sb-health: #4ad991;
+  --sb-armor: #ff6b9d;
+  --sb-health-low: #ff5a5f;
+}
+
+:global(@keyframes sb-pulse) {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+:global(@keyframes sb-flash) {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+:global(@keyframes sb-rise) {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+:global(@keyframes sb-fade) {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+:global(@keyframes sb-shimmer) {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 200% 50%;
+  }
+}
+:global(@keyframes sb-spin) {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme *,
+  .theme *::before,
+  .theme *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

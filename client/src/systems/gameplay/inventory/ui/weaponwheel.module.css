@@ -1,0 +1,248 @@
+/* Scoped styles for the weapon wheel + ammo HUD. CSS Modules => no global collisions. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  font-family:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  color: #f4f6fb;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+  animation: inv-fade 120ms ease-out;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120% 120% at 50% 50%,
+    rgba(8, 10, 18, 0.32) 0%,
+    rgba(6, 8, 15, 0.62) 60%,
+    rgba(4, 5, 10, 0.78) 100%
+  );
+  backdrop-filter: blur(3px) saturate(115%);
+  -webkit-backdrop-filter: blur(3px) saturate(115%);
+}
+
+.wheelWrap {
+  position: relative;
+  width: min(78vmin, 560px);
+  height: min(78vmin, 560px);
+  display: grid;
+  place-items: center;
+  animation: inv-pop 150ms cubic-bezier(0.2, 0.9, 0.25, 1.15);
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 24px 60px rgba(0, 0, 0, 0.45));
+}
+
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-align: center;
+  pointer-events: none;
+  padding: 0 18%;
+}
+
+.centerCat {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: rgba(244, 246, 251, 0.55);
+}
+
+.centerWeapon {
+  font-size: clamp(15px, 2.6vmin, 20px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+
+.centerAmmo {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.centerClip {
+  font-size: clamp(20px, 3.4vmin, 28px);
+}
+
+.centerSep {
+  font-size: 15px;
+  color: rgba(244, 246, 251, 0.4);
+}
+
+.centerReserve {
+  font-size: 15px;
+  color: rgba(244, 246, 251, 0.62);
+}
+
+.centerMelee {
+  margin-top: 6px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(244, 246, 251, 0.5);
+}
+
+.hint {
+  position: absolute;
+  bottom: -46px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: rgba(244, 246, 251, 0.55);
+  pointer-events: none;
+}
+
+.hint kbd {
+  font: inherit;
+  font-weight: 600;
+  color: rgba(244, 246, 251, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+  padding: 1px 6px;
+  margin: 0 1px;
+}
+
+/* Segment label text rendered inside the SVG. */
+.segLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  fill: currentColor;
+}
+
+.segCount {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  fill: currentColor;
+}
+
+/* ── Ammo HUD counter (optional standalone mount) ────────────────────────────── */
+.ammoCounter {
+  position: fixed;
+  right: 26px;
+  bottom: 24px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(20, 23, 33, 0.72), rgba(12, 14, 22, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #f4f6fb;
+  font-family:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  pointer-events: none;
+}
+
+.ammoIcon {
+  color: #ff9d5c;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
+.ammoText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.ammoWeapon {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(244, 246, 251, 0.55);
+}
+
+.ammoNums {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ammoClip {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.ammoSep {
+  font-size: 13px;
+  color: rgba(244, 246, 251, 0.4);
+}
+
+.ammoReserve {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(244, 246, 251, 0.6);
+}
+
+.ammoMelee {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(244, 246, 251, 0.7);
+}
+
+@keyframes inv-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes inv-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .wheelWrap {
+    animation: none;
+  }
+}

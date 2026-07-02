@@ -1,0 +1,109 @@
+.toast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ux-sp-3);
+  min-width: 240px;
+  max-width: 340px;
+  padding: 12px 14px 12px 16px;
+  border-radius: var(--ux-r-md);
+  border: 1px solid var(--ux-hairline);
+  background: var(--ux-glass-2);
+  backdrop-filter: blur(var(--ux-blur));
+  -webkit-backdrop-filter: blur(var(--ux-blur));
+  box-shadow: var(--ux-shadow-1);
+  overflow: hidden;
+  pointer-events: auto;
+}
+.rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--ux-accent);
+}
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: var(--ux-r-sm);
+  color: var(--ux-accent);
+  background: rgba(255, 255, 255, 0.06);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.text {
+  font-size: var(--ux-fs-sm);
+  font-weight: 650;
+  line-height: 1.25;
+}
+.sub {
+  font-size: var(--ux-fs-2xs);
+  color: var(--ux-text-muted);
+  letter-spacing: 0.02em;
+}
+.close {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 4px;
+  color: var(--ux-text-dim);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.close:hover {
+  color: var(--ux-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* kind accents */
+.cash .rail,
+.cash .icon {
+  color: var(--ux-cash);
+  background: rgba(111, 224, 168, 0.12);
+}
+.cash .rail {
+  background: var(--ux-cash);
+}
+.pickup .rail {
+  background: var(--ux-accent-2);
+}
+.pickup .icon {
+  color: var(--ux-accent-2);
+}
+.objective .rail {
+  background: var(--ux-accent);
+}
+.heat .rail {
+  background: var(--ux-heat-4);
+}
+.heat .icon {
+  color: var(--ux-heat-4);
+}
+.combat .rail {
+  background: var(--ux-accent-rose);
+}
+.combat .icon {
+  color: var(--ux-accent-rose);
+}
+.save .rail {
+  background: var(--ux-success);
+}
+.save .icon {
+  color: var(--ux-success);
+}
+.info .rail {
+  background: var(--ux-info);
+}
+.info .icon {
+  color: var(--ux-info);
+}

@@ -1,0 +1,85 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  z-index: var(--ux-z-screen);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--ux-ink-950);
+}
+.bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(90% 60% at 50% -8%, rgba(255, 209, 102, 0.16), transparent 58%),
+    radial-gradient(120% 90% at 50% 118%, rgba(108, 123, 255, 0.16), transparent 60%),
+    radial-gradient(60% 40% at 82% 20%, rgba(255, 93, 143, 0.1), transparent 60%);
+}
+.center {
+  position: relative;
+  width: min(520px, 86vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ux-sp-6);
+  padding: var(--ux-sp-6);
+  text-align: left;
+}
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ux-sp-4);
+}
+.brandText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.brand {
+  font-size: var(--ux-fs-2xl);
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  background: var(--ux-grad-sun);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.tag {
+  font-size: var(--ux-fs-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ux-text-muted);
+}
+.barRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ux-sp-3);
+}
+.meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ux-sp-3);
+}
+.pct {
+  font-size: var(--ux-fs-lg);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+.count {
+  font-size: var(--ux-fs-2xs);
+  letter-spacing: 0.04em;
+  color: var(--ux-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
+}
+.tipRow {
+  min-height: 1.4em;
+}
+.tip {
+  margin: 0;
+  font-size: var(--ux-fs-sm);
+  color: var(--ux-text-muted);
+  line-height: 1.5;
+}

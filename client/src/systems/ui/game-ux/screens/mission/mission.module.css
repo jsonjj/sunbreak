@@ -1,0 +1,169 @@
+/* ---- Start card (top-center title card) ---- */
+.startWrap {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--ux-z-screen);
+  width: min(460px, 88vw);
+  pointer-events: none;
+}
+.startCard {
+  position: relative;
+  padding: var(--ux-sp-5);
+  border-radius: var(--ux-r-lg);
+  border: 1px solid var(--ux-hairline);
+  background: var(--ux-glass-2);
+  backdrop-filter: blur(var(--ux-blur));
+  -webkit-backdrop-filter: blur(var(--ux-blur));
+  box-shadow: var(--ux-shadow-2);
+  overflow: hidden;
+}
+.startKicker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ux-sp-2);
+  font-size: var(--ux-fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ux-accent);
+}
+.dotLive {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ux-accent);
+  box-shadow: 0 0 0 0 rgba(255, 138, 76, 0.6);
+  animation: ux-pulse 1.4s var(--ux-ease-in-out) infinite;
+}
+.startTitle {
+  margin: var(--ux-sp-2) 0 var(--ux-sp-3);
+  font-family: var(--ux-font-display);
+  font-size: var(--ux-fs-2xl);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.02;
+}
+.startObjective {
+  display: flex;
+  align-items: center;
+  gap: var(--ux-sp-2);
+  color: var(--ux-text-muted);
+  font-size: var(--ux-fs-sm);
+}
+.startObjective svg {
+  color: var(--ux-accent-2);
+  flex: none;
+}
+.startTimer {
+  height: 3px;
+  margin-top: var(--ux-sp-3);
+  border-radius: var(--ux-r-pill);
+  background: var(--ux-grad-sun);
+  transform-origin: left center;
+}
+
+/* ---- Result card (centered) ---- */
+.resultWrap {
+  position: absolute;
+  inset: 0;
+  z-index: var(--ux-z-screen);
+  display: grid;
+  place-items: center;
+  padding: var(--ux-sp-5);
+  background: rgba(4, 6, 11, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.resultCard {
+  position: relative;
+  width: min(440px, 90vw);
+  padding: var(--ux-sp-6);
+  text-align: center;
+  border-radius: var(--ux-r-xl);
+  border: 1px solid var(--ux-hairline);
+  background: var(--ux-panel);
+  box-shadow: var(--ux-shadow-2);
+}
+.resultBadge {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  margin-bottom: var(--ux-sp-3);
+}
+.resultBadge.pass {
+  color: var(--ux-accent-ink);
+  background: var(--ux-grad-sun);
+  box-shadow: var(--ux-shadow-glow);
+}
+.resultBadge.fail {
+  color: #fff;
+  background: linear-gradient(96deg, #ff6a6a, var(--ux-danger));
+}
+.resultKicker {
+  font-size: var(--ux-fs-2xs);
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ux-text-muted);
+}
+.resultWord {
+  margin: var(--ux-sp-2) 0 var(--ux-sp-5);
+  font-family: var(--ux-font-display);
+  font-size: var(--ux-fs-2xl);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.passText {
+  background: var(--ux-grad-sun);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.failText {
+  color: var(--ux-danger);
+}
+.rewards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ux-sp-2);
+  margin-bottom: var(--ux-sp-5);
+}
+.rewardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: var(--ux-r-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--ux-hairline);
+}
+.rewardLabel {
+  font-size: var(--ux-fs-2xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ux-text-dim);
+}
+.rewardVal {
+  font-weight: 700;
+  color: var(--ux-accent-2);
+}
+.medal {
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--ux-accent-2);
+}
+.failReason {
+  margin: 0 0 var(--ux-sp-5);
+  color: var(--ux-text-muted);
+  font-size: var(--ux-fs-md);
+  line-height: 1.5;
+}
+.resultActions {
+  display: flex;
+  gap: var(--ux-sp-3);
+  justify-content: center;
+}

@@ -1,0 +1,49 @@
+{
+  "schema": "sunbreak.map",
+  "schemaVersion": 1,
+  "id": "map_calle-sol",
+  "name": "Calle Sol Strip",
+  "districtId": "district_calle-sol",
+  "bounds": { "min": [-80, -2, -80], "max": [80, 40, 80] },
+  "districts": [
+    {
+      "id": "district_calle-sol",
+      "name": "Calle Sol",
+      "polygon": [[-80, -80], [80, -80], [80, 80], [-80, 80]],
+      "music": "radio_sol",
+      "tags": ["nightlife"]
+    }
+  ],
+  "spawns": [
+    {
+      "id": "spawn_sol-player",
+      "kind": "player",
+      "transform": { "pos": [0, 1, 0] },
+      "districtId": "district_calle-sol"
+    }
+  ],
+  "pois": [
+    {
+      "id": "poi_sol-bar",
+      "kind": "shop",
+      "name": "Neon Bar",
+      "transform": { "pos": [10, 0, 10] },
+      "radius": 3,
+      "links": { "missionId": "mission_intro" }
+    }
+  ],
+  "props": [
+    {
+      "id": "prop_sol-lamp-1",
+      "model": "props/streetlamp.glb",
+      "transform": { "pos": [4, 0, 4] },
+      "instanceGroup": "streetlamp"
+    },
+    {
+      "id": "prop_sol-lamp-2",
+      "model": "props/streetlamp.glb",
+      "transform": { "pos": [-4, 0, 4] },
+      "instanceGroup": "streetlamp"
+    }
+  ]
+}

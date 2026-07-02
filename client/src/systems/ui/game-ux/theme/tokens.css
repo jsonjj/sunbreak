@@ -1,0 +1,108 @@
+/* SUNBREAK game-ux design tokens — the single token source for these overlays (and reusable
+ * by the HUD subsystem). Namespaced `--ux-*` so nothing collides with the v0 `--accent`/`--bg`
+ * globals in index.css. Palette harmonizes with the HUD (warm sunrise amber on a night base):
+ * confident, cinematic, restrained gradients, strong hierarchy. */
+:root {
+  /* --- ink / paper ramp (night base -> daybreak text) --- */
+  --ux-ink-950: #06070c;
+  --ux-ink-900: #0b0d13;
+  --ux-ink-850: #0f121b;
+  --ux-ink-800: #141824;
+  --ux-ink-700: #1c2130;
+  --ux-ink-600: #2a3040;
+  --ux-paper-100: #f5f7fc;
+  --ux-paper-200: #dfe4f0;
+  --ux-paper-400: #aab2c5;
+
+  --ux-text: #f4f6fb;
+  --ux-text-muted: rgba(244, 246, 251, 0.64);
+  --ux-text-dim: rgba(244, 246, 251, 0.4);
+  --ux-hairline: rgba(255, 255, 255, 0.12);
+  --ux-hairline-strong: rgba(255, 255, 255, 0.2);
+
+  /* --- accents (sunbreak sunrise) --- */
+  --ux-accent: #ff8a4c;
+  --ux-accent-2: #ffd166;
+  --ux-accent-rose: #ff5d8f;
+  --ux-accent-indigo: #6c7bff;
+  --ux-accent-ink: #1a0f08; /* text on accent fills */
+
+  /* Restrained signature gradient — used sparingly for hero words / rails. */
+  --ux-grad-sun: linear-gradient(96deg, var(--ux-accent-2), var(--ux-accent) 46%, var(--ux-accent-rose));
+  --ux-grad-night: linear-gradient(180deg, rgba(20, 24, 36, 0.92), rgba(9, 11, 18, 0.94));
+  --ux-grad-screen: radial-gradient(130% 90% at 50% -10%, rgba(255, 138, 76, 0.14), transparent 55%),
+    radial-gradient(120% 110% at 50% 120%, rgba(40, 46, 110, 0.5), transparent 60%),
+    rgba(6, 8, 13, 0.72);
+
+  /* --- semantic --- */
+  --ux-success: #45d483;
+  --ux-danger: #ff5b5b;
+  --ux-warning: #ffc24b;
+  --ux-info: #63b3ff;
+  --ux-cash: #6fe0a8;
+
+  /* --- HEAT tiers (0..5) --- */
+  --ux-heat-0: #7bdcb0;
+  --ux-heat-1: #d7e06a;
+  --ux-heat-2: #ffc24b;
+  --ux-heat-3: #ff8a4c;
+  --ux-heat-4: #ff5b5b;
+  --ux-heat-5: #ff2d6f;
+
+  /* --- surfaces --- */
+  --ux-glass: rgba(16, 19, 28, 0.62);
+  --ux-glass-2: rgba(22, 26, 38, 0.78);
+  --ux-panel: linear-gradient(180deg, rgba(26, 30, 44, 0.9), rgba(14, 16, 24, 0.92));
+  --ux-blur: 14px;
+
+  /* --- type scale (rem-based so OS text-scaling works) --- */
+  --ux-font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --ux-font-display: "Archivo", "Oswald", var(--ux-font-ui);
+  --ux-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --ux-fs-2xs: 0.6875rem; /* 11px */
+  --ux-fs-xs: 0.75rem;
+  --ux-fs-sm: 0.8125rem;
+  --ux-fs-md: 0.9375rem;
+  --ux-fs-lg: 1.125rem;
+  --ux-fs-xl: 1.5rem;
+  --ux-fs-2xl: 2rem;
+  --ux-fs-3xl: 3rem;
+  --ux-fs-hero: clamp(3.25rem, 11vw, 7rem);
+
+  /* --- spacing --- */
+  --ux-sp-1: 4px;
+  --ux-sp-2: 8px;
+  --ux-sp-3: 12px;
+  --ux-sp-4: 16px;
+  --ux-sp-5: 24px;
+  --ux-sp-6: 32px;
+  --ux-sp-7: 48px;
+  --ux-sp-8: 64px;
+
+  /* --- radius --- */
+  --ux-r-sm: 8px;
+  --ux-r-md: 12px;
+  --ux-r-lg: 18px;
+  --ux-r-xl: 26px;
+  --ux-r-pill: 999px;
+
+  /* --- elevation --- */
+  --ux-shadow-1: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --ux-shadow-2: 0 18px 60px rgba(0, 0, 0, 0.5);
+  --ux-shadow-glow: 0 10px 40px rgba(255, 138, 76, 0.28);
+
+  /* --- z-index layers (spec-mandated) --- */
+  --ux-z-hud: 100;
+  --ux-z-toast: 400;
+  --ux-z-phone: 500;
+  --ux-z-shop: 550;
+  --ux-z-screen: 900;
+
+  /* --- motion --- */
+  --ux-dur-1: 0.14s;
+  --ux-dur-2: 0.24s;
+  --ux-dur-3: 0.4s;
+  --ux-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ux-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+}

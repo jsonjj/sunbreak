@@ -1,0 +1,456 @@
+/* ---- frame ---- */
+.phoneWrap {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  z-index: var(--ux-z-phone);
+  display: flex;
+  align-items: flex-end;
+}
+.phoneShadow {
+  filter: drop-shadow(0 24px 60px rgba(0, 0, 0, 0.6));
+}
+.phone {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  max-width: calc(100vw - 44px);
+  height: min(640px, 84vh);
+  border-radius: 30px;
+  border: 1px solid var(--ux-hairline-strong);
+  background:
+    radial-gradient(120% 60% at 50% -6%, rgba(255, 138, 76, 0.16), transparent 55%),
+    linear-gradient(180deg, var(--ux-ink-850), var(--ux-ink-950));
+  overflow: hidden;
+}
+
+/* ---- status bar ---- */
+.statusBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px 4px;
+  font-size: var(--ux-fs-2xs);
+  color: var(--ux-text-muted);
+}
+.carrier {
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+.clock {
+  font-variant-numeric: tabular-nums;
+}
+.statusIcons {
+  display: inline-flex;
+  gap: 6px;
+  color: var(--ux-text-muted);
+}
+
+/* ---- header ---- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ux-sp-2);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ux-hairline);
+}
+.headerBtn {
+  display: inline-flex;
+  padding: 8px;
+  color: var(--ux-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--ux-r-sm);
+  cursor: pointer;
+}
+.headerBtn:hover {
+  color: var(--ux-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+.headerTitle {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  font-size: var(--ux-fs-sm);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- body ---- */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.homeBar {
+  height: 5px;
+  width: 120px;
+  margin: 6px auto 10px;
+  border-radius: var(--ux-r-pill);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* ---- home ---- */
+.home {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--ux-sp-4);
+}
+.homeGreeting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--ux-sp-5) 0 var(--ux-sp-6);
+}
+.homeTime {
+  font-size: 2.6rem;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.homeDate {
+  font-size: var(--ux-fs-xs);
+  color: var(--ux-text-muted);
+  letter-spacing: 0.08em;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--ux-sp-4) var(--ux-sp-2);
+}
+.appTile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ux-text);
+}
+.appIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  color: var(--ux-accent-ink);
+  box-shadow: var(--ux-shadow-1);
+  transition: transform var(--ux-dur-1) var(--ux-ease-out);
+}
+.appTile:hover:not(:disabled) .appIcon {
+  transform: translateY(-2px) scale(1.04);
+}
+.appLabel {
+  font-size: var(--ux-fs-2xs);
+  color: var(--ux-text-muted);
+}
+.appLocked {
+  cursor: not-allowed;
+}
+.appLocked .appIcon {
+  filter: grayscale(0.7) brightness(0.7);
+}
+
+/* ---- contacts ---- */
+.contactList {
+  list-style: none;
+  margin: 0;
+  padding: var(--ux-sp-2);
+  overflow-y: auto;
+  flex: 1;
+}
+.contactRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ux-sp-3);
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--ux-r-md);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ux-text);
+  transition: background var(--ux-dur-2);
+}
+.contactRow:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.contactRow:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.contactMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.contactName {
+  font-weight: 650;
+  font-size: var(--ux-fs-sm);
+}
+.contactRole {
+  font-size: var(--ux-fs-2xs);
+  color: var(--ux-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.contactCta {
+  color: var(--ux-text-dim);
+}
+
+/* ---- avatar ---- */
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  color: var(--ux-accent-ink);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* ---- chat ---- */
+.chat {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.chatScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--ux-sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ux-sp-2);
+}
+.chatIntro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--ux-sp-5) 0;
+  text-align: center;
+}
+.chatIntroName {
+  margin-top: 6px;
+  font-weight: 750;
+  font-size: var(--ux-fs-lg);
+}
+.chatIntroRole {
+  font-size: var(--ux-fs-2xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ux-accent);
+}
+.chatIntroBlurb {
+  margin: 6px 0 0;
+  font-size: var(--ux-fs-sm);
+  color: var(--ux-text-muted);
+  max-width: 30ch;
+}
+.bubbleRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+.mine {
+  justify-content: flex-end;
+}
+.theirs {
+  justify-content: flex-start;
+}
+.bubble {
+  max-width: 78%;
+  padding: 9px 13px;
+  border-radius: 16px;
+  font-size: var(--ux-fs-sm);
+  line-height: 1.42;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bubbleMine {
+  color: var(--ux-accent-ink);
+  background: var(--ux-grad-sun);
+  border-bottom-right-radius: 5px;
+}
+.bubbleTheirs {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ux-hairline);
+  border-bottom-left-radius: 5px;
+}
+.typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 0;
+}
+.typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ux-text-muted);
+  animation: ux-pulse 1s var(--ux-ease-in-out) infinite;
+}
+.typing i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.composer {
+  display: flex;
+  gap: var(--ux-sp-2);
+  padding: var(--ux-sp-3);
+  border-top: 1px solid var(--ux-hairline);
+}
+.composerInput {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: var(--ux-r-pill);
+  border: 1px solid var(--ux-hairline-strong);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ux-text);
+  font-size: var(--ux-fs-sm);
+  outline: none;
+}
+.composerInput:focus {
+  border-color: var(--ux-accent);
+}
+.composerSend {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  border: none;
+  color: var(--ux-accent-ink);
+  background: var(--ux-grad-sun);
+  cursor: pointer;
+  transition: opacity var(--ux-dur-2), transform var(--ux-dur-1);
+}
+.composerSend:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.composerSend:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.appEmpty {
+  padding: var(--ux-sp-6);
+  text-align: center;
+  color: var(--ux-text-muted);
+}
+
+/* ---- maps ---- */
+.maps {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ux-sp-3);
+  padding: var(--ux-sp-4);
+  overflow-y: auto;
+}
+.mapSvg {
+  width: 100%;
+  height: auto;
+  border-radius: var(--ux-r-lg);
+  border: 1px solid var(--ux-hairline);
+}
+.mapLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ux-sp-3);
+  justify-content: center;
+}
+.mapLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ux-fs-2xs);
+  text-transform: capitalize;
+  color: var(--ux-text-muted);
+}
+.mapDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ---- wallet ---- */
+.wallet {
+  flex: 1;
+  padding: var(--ux-sp-4);
+  overflow-y: auto;
+}
+.walletHero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--ux-sp-5) 0 var(--ux-sp-6);
+}
+.walletHeroLabel {
+  font-size: var(--ux-fs-2xs);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ux-text-dim);
+}
+.walletHeroValue {
+  font-size: var(--ux-fs-3xl);
+  font-weight: 800;
+}
+.walletRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ux-sp-2);
+}
+.walletRow {
+  display: flex;
+  align-items: center;
+  gap: var(--ux-sp-3);
+  padding: 12px 14px;
+  border-radius: var(--ux-r-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--ux-hairline);
+}
+.walletIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--ux-r-sm);
+  background: rgba(255, 255, 255, 0.06);
+}
+.walletMeta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.walletLabel {
+  font-weight: 650;
+  font-size: var(--ux-fs-sm);
+}
+.walletNote {
+  font-size: var(--ux-fs-2xs);
+  color: var(--ux-text-muted);
+}
+.walletAmount {
+  font-size: var(--ux-fs-md);
+}
