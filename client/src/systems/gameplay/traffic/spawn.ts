@@ -2,13 +2,17 @@
 // (so they never pop in on-camera) with a bumper-gap clearance check; cars beyond the despawn
 // radius are recycled once off-screen. Cap scales with quality tier × the adaptive governor.
 import { useQuality } from "@/render/quality/useQuality";
+import { isBuildingAt } from "@/systems/render/city/occupancy";
 import type { ClientEntity } from "@/ecs/clientEntity";
 import { CAPS, DESPAWN_RADIUS, SPAWN_INNER, SPAWN_OUTER, SPAWN_PER_TICK } from "./config";
+import { sampleLane } from "./laneGraph";
 import { laneHasCarBetween } from "./occupancy";
 import { randRange } from "./prng";
 import { spawnCarAt, recycleCar } from "./lifecycle";
 import { offscreen, state } from "./state";
 import type { Lane, LaneGraph } from "./types";
+
+const spawnScratch = { x: 0, y: 0, z: 0 };
 
 const INNER2 = SPAWN_INNER * SPAWN_INNER;
 const OUTER2 = SPAWN_OUTER * SPAWN_OUTER;
@@ -49,6 +53,10 @@ export function maintainDensity(graph: LaneGraph, cars: readonly ClientEntity[],
     const s = randRange(state.rng, 2, lane.length - 2);
     const clearance = 9;
     if (laneHasCarBetween(lane.id, s - clearance, s + clearance)) continue;
+    // Defensive: never spawn a car inside a building footprint (lanes ARE the city roads, so this
+    // rarely triggers, but it guarantees cars start on the road, not clipped into a wall).
+    sampleLane(lane, s, spawnScratch);
+    if (isBuildingAt(spawnScratch.x, spawnScratch.z, 1.5)) continue;
     spawnCarAt(graph, lane, s);
     count++;
     made++;

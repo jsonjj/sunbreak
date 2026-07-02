@@ -6,11 +6,13 @@ import {
   ARCHETYPES,
   PED_ACCEL,
   PED_CENTER_Y,
+  PED_RADIUS,
   SEPARATION_R,
   SEPARATION_W,
   VEHICLE_AVOID_R,
   VEHICLE_AVOID_W,
 } from "./config";
+import { resolveOutOfBuildings } from "@/systems/render/city/occupancy";
 import { forEachPedNear } from "./spatialHash";
 import { pedQuery } from "./queries";
 import type { PedAgent, VehicleQuery } from "./types";
@@ -148,10 +150,22 @@ export function tickMovement(dt: number, movable: (a: PedAgent) => boolean): voi
       a.speed = 0;
     }
 
-    // Integrate + write transform.
-    t.position.x = x + a.vx * dt;
-    t.position.z = z + a.vz * dt;
+    // Integrate, then keep the ped OUT of building footprints (wall-slide; hold if cornered) so
+    // steering/flee/separation can never push it through a building. Pinned to the ground plane.
+    const nx = x + a.vx * dt;
+    const nz = z + a.vz * dt;
+    const slid = resolveOutOfBuildings(x, z, nx, nz, PED_RADIUS);
+    t.position.x = slid.x;
+    t.position.z = slid.z;
     t.position.y = PED_CENTER_Y;
+    if (slid.blocked && dt > 1e-4) {
+      // Reflect the ACTUAL (slid) motion into velocity so the walk cycle + heading match, and drop
+      // the waypoint when fully cornered so the FSM re-routes to a reachable node next tick.
+      a.vx = (slid.x - x) / dt;
+      a.vz = (slid.z - z) / dt;
+      a.speed = Math.hypot(a.vx, a.vz);
+      if (slid.x === x && slid.z === z) a.target = -1;
+    }
 
     // Facing + walk-cycle phase (drives the shader stride). Cadence is derived from the SAME stride
     // model the crowd shader uses (leg amplitude grows with speed, ref 3.6 m/s — see pedInstances

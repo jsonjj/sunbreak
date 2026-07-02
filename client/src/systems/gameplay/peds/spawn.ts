@@ -19,6 +19,8 @@ import {
   SPAWN_MIN_R,
   SPAWN_PER_TICK,
 } from "./config";
+import { isBuildingAt } from "@/systems/render/city/occupancy";
+import { isWater } from "@/systems/render/city/geography";
 import { getNav, randomNeighbor } from "./nav";
 import { acquireEntity, returnEntity } from "./pool";
 import { setAgentTarget } from "./reactions";
@@ -37,6 +39,10 @@ export function spawnOne(px: number, pz: number): boolean {
   const node = nav.randomNodeAround(px, pz, SPAWN_MIN_R, SPAWN_MAX_R, rand);
   if (node < 0) return false;
   nav.nodePos(node, tmp);
+
+  // Never spawn a ped inside a building footprint or in the water — keep them on walkable ground
+  // (sidewalks / open lots / parks). Rejected candidates are simply retried next tick.
+  if (isBuildingAt(tmp.x, tmp.z, 0.5) || isWater(tmp.x, tmp.z)) return false;
 
   // Off-screen bias: skip candidates roughly inside the camera's forward cone (avoids pop-in).
   if (viewRef.hasCamera) {
