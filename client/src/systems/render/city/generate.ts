@@ -51,8 +51,10 @@ function buildColliders(
     });
   }
 
+  // Solid hero volumes block movement; open strips (Neon Mile) + the over-water pier don't.
+  const SOLID: ReadonlySet<Landmark["kind"]> = new Set(["tower", "stadium", "mall", "hangar"]);
   for (const l of landmarks) {
-    if (l.kind !== "tower") continue; // strips/plazas are non-blocking
+    if (!SOLID.has(l.kind)) continue;
     const r = polygonBounds(l.footprint);
     const hx = (r.x1 - r.x0) / 2;
     const hz = (r.z1 - r.z0) / 2;

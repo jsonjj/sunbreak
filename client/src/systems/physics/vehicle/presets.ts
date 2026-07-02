@@ -3,7 +3,14 @@
 // All feel constants live here so they're fast to iterate and (v4) identical on the server.
 import { VehicleId } from "@sunbreak/shared";
 import type { Vec3Tuple } from "@sunbreak/shared";
-import type { VehicleArcadeConfig, VehicleConfig, WheelSpec } from "./types";
+import { WATER_LEVEL } from "@/systems/render/city/geography";
+import type {
+  BoatConfig,
+  FlightConfig,
+  VehicleArcadeConfig,
+  VehicleConfig,
+  WheelSpec,
+} from "./types";
 
 const DEFAULT_ARCADE: VehicleArcadeConfig = {
   downforce: 6,
@@ -278,6 +285,182 @@ const POLICE = derive(SEDAN, {
   arcade: { downforce: 8, gripAssist: 0.36 },
 });
 
+// ─── Extended roster (string ids the shared VehicleId enum doesn't cover) ────────────────────
+/** Ids for craft outside the shared VehicleId enum. `VehicleConfig.id` accepts strings. */
+export const ExtVehicleId = {
+  Motorcycle: "motorcycle",
+  Helicopter: "helicopter",
+  Plane: "plane",
+  Boat: "boat",
+} as const;
+export type ExtVehicleId = (typeof ExtVehicleId)[keyof typeof ExtVehicleId];
+
+/**
+ * Motorcycle — light, punchy, agile, low-grip (wheelie/slide-prone). Uses the proven raycast car
+ * solver with a deliberately NARROW 4-wheel stance (paired close on each axle) so it's statically
+ * stable + never wobbles at rest, while reading as a two-wheeler with the bike body + a firm
+ * upright assist. RWD. `kind: "bike"` selects the motorcycle body + bike handling branch.
+ */
+const MOTORCYCLE: VehicleConfig = derive(SEDAN, {
+  id: ExtVehicleId.Motorcycle,
+  kind: "bike",
+  mass: 260,
+  chassisHalfExtents: [0.32, 0.42, 1.05],
+  centerOfMassOffset: [0, -0.34, 0],
+  linearDamping: 0.05,
+  angularDamping: 0.7,
+  engineForce: 2600,
+  reverseForce: 900,
+  brakeForce: 1500,
+  handbrakeForce: 1600,
+  maxSteer: 0.6,
+  steerSpeedRef: 24,
+  steerAtMaxSpeed: 0.3,
+  steerDampRate: 12,
+  topSpeedKmh: 205,
+  gears: 6,
+  color: "#d24a2c",
+  arcade: {
+    downforce: 3,
+    gripAssist: 0.34,
+    gripFadeSpeed: 22,
+    antiRoll: 46, // firm upright bias so it leans but never falls over
+    antiRollDamp: 5,
+    driftFrictionMul: 0.7,
+    driftSideMul: 0.7,
+  },
+  wheels: makeWheels({
+    halfTrack: 0.32,
+    frontZ: 0.82,
+    rearZ: -0.82,
+    connectionY: -0.14,
+    radius: 0.35,
+    restLength: 0.26,
+    stiffness: 26,
+    compression: 0.85,
+    relaxation: 0.9,
+    maxTravel: 0.2,
+    maxForce: 16000,
+    frontFriction: 2.0,
+    rearFriction: 2.2,
+    sideFriction: 1.25,
+  }),
+});
+
+/** Base for non-wheeled craft (aircraft/boat): fills the wheel-solver fields with inert defaults. */
+function craftBase(id: string, over: Partial<VehicleConfig>): VehicleConfig {
+  return {
+    id,
+    mass: 1200,
+    chassisHalfExtents: [1, 1, 2],
+    centerOfMassOffset: [0, -0.3, 0],
+    linearDamping: 0.1,
+    angularDamping: 1.5,
+    engineForce: 0,
+    reverseForce: 0,
+    brakeForce: 0,
+    handbrakeForce: 0,
+    maxSteer: 0,
+    steerSign: -1,
+    steerSpeedRef: 20,
+    steerAtMaxSpeed: 0.3,
+    steerDampRate: 8,
+    topSpeedKmh: 200,
+    gears: 1,
+    wheels: [],
+    arcade: { ...DEFAULT_ARCADE },
+    color: "#cccccc",
+    ...over,
+  };
+}
+
+const HELI_FLIGHT: FlightConfig = {
+  fixedWing: false,
+  maxThrust: 48000, // ≈ 2.2 × weight → strong climb authority
+  hoverCollective: 0.45, // mass·g / maxThrust
+  liftCoeff: 0,
+  takeoffSpeed: 0,
+  liftSpeedCap: 0,
+  pitchTorque: 12000,
+  rollTorque: 7000,
+  yawTorque: 9000,
+  controlRefSpeed: 1, // full control authority regardless of airspeed
+  linearDrag: 0, // horizontal drag comes from body linearDamping (see config below)
+  angularDrag: 0,
+  levelAssist: 2.4, // auto-levels toward upright when cyclic is neutral
+  headingAssist: 0.6, // damps sideways drift so it isn't too floaty
+  rotorSpinRate: 42,
+};
+
+const HELICOPTER: VehicleConfig = craftBase(ExtVehicleId.Helicopter, {
+  kind: "heli",
+  mass: 2200,
+  chassisHalfExtents: [1.1, 1.1, 2.4],
+  centerOfMassOffset: [0, -0.55, 0],
+  linearDamping: 0.12, // gentle: ~28 m/s cruise at a 20° tilt
+  angularDamping: 3.0, // heavy, stable, controllable rotation
+  topSpeedKmh: 240,
+  color: "#2f3d4d",
+  flight: HELI_FLIGHT,
+});
+
+const PLANE_FLIGHT: FlightConfig = {
+  fixedWing: true,
+  maxThrust: 9000, // ~6.4 m/s² → ~90 m/s top with the drag below
+  hoverCollective: 0,
+  liftCoeff: 15, // F_up = 15·min(vFwd, cap)²  → lift ≈ weight at takeoffSpeed
+  takeoffSpeed: 30,
+  liftSpeedCap: 62,
+  pitchTorque: 12000,
+  rollTorque: 4000,
+  yawTorque: 6000,
+  controlRefSpeed: 45, // control surfaces reach full authority at 45 m/s
+  linearDrag: 0, // drag comes from body linearDamping (caps top speed ~90 m/s)
+  angularDrag: 0,
+  levelAssist: 0.8, // gentle wing-leveler; mostly stays where you put it
+  headingAssist: 1.3, // wings/keel: strongly resists sideslip, flies where it points
+  rotorSpinRate: 130,
+};
+
+const PLANE: VehicleConfig = craftBase(ExtVehicleId.Plane, {
+  kind: "plane",
+  mass: 1400,
+  chassisHalfExtents: [0.9, 0.8, 3.4],
+  centerOfMassOffset: [0, -0.2, 0],
+  linearDamping: 0.07, // ~90 m/s (~320 km/h) terminal at full throttle
+  angularDamping: 1.2,
+  topSpeedKmh: 320,
+  color: "#d7dae0",
+  flight: PLANE_FLIGHT,
+});
+
+const BOAT_CFG: BoatConfig = {
+  waterLevel: WATER_LEVEL, // island sea surface (geography.WATER_LEVEL = -1.2)
+  thrust: 16000,
+  reverseThrust: 8000,
+  buoyancy: 2.5, // max upthrust as a multiple of weight (fully submerged pops up)
+  draft: 0.7, // floats with COM ~0.7 m below the surface
+  heaveDamp: 2.6,
+  steerTorque: 9000,
+  lateralDrag: 3.2, // keel — kills sideways slip (rate 1/s)
+  forwardDrag: 0.4, // hull drag (rate 1/s)
+  turnBank: 0.16,
+  levelAssist: 3.2,
+  angularDrag: 0,
+};
+
+const BOAT: VehicleConfig = craftBase(ExtVehicleId.Boat, {
+  kind: "boat",
+  mass: 1200,
+  chassisHalfExtents: [1.35, 0.7, 3.2],
+  centerOfMassOffset: [0, -0.45, 0],
+  linearDamping: 0.0, // horizontal drag handled in boat.ts; buoyancy handles vertical
+  angularDamping: 2.2,
+  topSpeedKmh: 120,
+  color: "#c94a3a",
+  boat: BOAT_CFG,
+});
+
 export const VEHICLE_PRESETS: Record<VehicleId, VehicleConfig> = {
   [VehicleId.Sedan]: SEDAN,
   [VehicleId.Coupe]: COUPE,
@@ -285,6 +468,20 @@ export const VEHICLE_PRESETS: Record<VehicleId, VehicleConfig> = {
   [VehicleId.Truck]: TRUCK,
   [VehicleId.Sports]: SPORTS,
   [VehicleId.Police]: POLICE,
+};
+
+/** Presets for the extended roster (motorcycle + aircraft + watercraft), keyed by string id. */
+export const EXTENDED_PRESETS: Record<string, VehicleConfig> = {
+  [ExtVehicleId.Motorcycle]: MOTORCYCLE,
+  [ExtVehicleId.Helicopter]: HELICOPTER,
+  [ExtVehicleId.Plane]: PLANE,
+  [ExtVehicleId.Boat]: BOAT,
+};
+
+/** Every preset (enum + extended) by string key — handy for spawners / catalogs. */
+export const ALL_VEHICLE_PRESETS: Record<string, VehicleConfig> = {
+  ...VEHICLE_PRESETS,
+  ...EXTENDED_PRESETS,
 };
 
 /** The default config used when a spec can't be resolved. */
@@ -296,6 +493,7 @@ const isVehicleConfig = (v: unknown): v is VehicleConfig =>
 /**
  * Resolve a spawn `spec` (a preset id/name or a full config) to a concrete, owned
  * `VehicleConfig`. Always returns a fresh object so per-vehicle tweaks never mutate a preset.
+ * Checks the enum presets first, then the extended (string) roster, else falls back to sedan.
  */
 export function resolveVehicleConfig(
   spec: VehicleId | string | VehicleConfig,
@@ -304,6 +502,10 @@ export function resolveVehicleConfig(
   if (isVehicleConfig(spec)) {
     return derive(spec, colorOverride ? { color: colorOverride } : {});
   }
-  const preset = VEHICLE_PRESETS[spec as VehicleId] ?? DEFAULT_VEHICLE_CONFIG;
+  const preset =
+    VEHICLE_PRESETS[spec as VehicleId] ?? EXTENDED_PRESETS[spec] ?? DEFAULT_VEHICLE_CONFIG;
   return derive(preset, colorOverride ? { color: colorOverride } : {});
 }
+
+/** Locomotion family for a resolved config (default `"car"`). */
+export const kindOf = (cfg: VehicleConfig): NonNullable<VehicleConfig["kind"]> => cfg.kind ?? "car";

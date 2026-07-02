@@ -9,7 +9,15 @@ const vec2 = z.object({ x: z.number(), z: z.number() });
 const vec3 = z.tuple([z.number(), z.number(), z.number()]);
 const roadClass = z.enum(["arterial", "collector", "local"]);
 const zone = z.enum(["commercial", "residential", "industrial", "mixed"]);
-const districtKey = z.enum(["miracle_row", "costa_dorada", "calle_sol", "the_mint"]);
+const districtKey = z.enum([
+  "miracle_row",
+  "costa_dorada",
+  "calle_sol",
+  "the_mint",
+  "north_park",
+  "bayfront",
+  "airfield",
+]);
 
 const roadGraph = z.object({
   nodes: z.array(z.object({ id: z.number(), x: z.number(), z: z.number() })),

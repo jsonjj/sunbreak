@@ -30,6 +30,8 @@ export interface CityMaterials {
   asphalt: THREE.MeshStandardMaterial;
   sidewalk: THREE.MeshStandardMaterial;
   ground: THREE.MeshStandardMaterial;
+  groundPark: THREE.MeshStandardMaterial;
+  groundApron: THREE.MeshStandardMaterial;
   crosswalk: THREE.MeshBasicMaterial;
   buildingOpaque: THREE.MeshStandardMaterial;
   buildingGlass: THREE.MeshStandardMaterial;
@@ -61,6 +63,10 @@ export function createCityMaterials(): CityMaterials {
     side: THREE.DoubleSide,
   });
   const ground = new THREE.MeshStandardMaterial({ color: "#22262e", roughness: 1, metalness: 0 });
+  // Park lawns + airfield apron get their own flat ground colours so those districts read
+  // distinctly from the dark urban slab.
+  const groundPark = new THREE.MeshStandardMaterial({ color: "#3f5a30", roughness: 1, metalness: 0 });
+  const groundApron = new THREE.MeshStandardMaterial({ color: "#6d7076", roughness: 1, metalness: 0 });
   const crosswalk = new THREE.MeshBasicMaterial({
     color: "#d8dbe0",
     toneMapped: false,
@@ -95,6 +101,8 @@ export function createCityMaterials(): CityMaterials {
     asphalt,
     sidewalk,
     ground,
+    groundPark,
+    groundApron,
     crosswalk,
     buildingOpaque,
     buildingGlass,
@@ -110,6 +118,8 @@ export function createCityMaterials(): CityMaterials {
     asphalt,
     sidewalk,
     ground,
+    groundPark,
+    groundApron,
     crosswalk,
     buildingOpaque,
     buildingGlass,

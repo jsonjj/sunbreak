@@ -417,6 +417,23 @@
   overflow: auto;
   min-height: 0;
 }
+/* Map tab: full-bleed the content so the map canvas fills the panel. */
+.contentFlush {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.mapPane {
+  flex: 1;
+  min-height: 480px;
+  display: flex;
+}
+/* Widen + heighten the pause dialog when the pannable map is showing. */
+.dialogWide {
+  width: min(1320px, 96vw);
+  max-height: min(92vh, 900px);
+}
 .sectionTitle {
   font-size: 15px;
   font-weight: 750;

@@ -1,0 +1,140 @@
+/* Combat HUD overlay — dynamic crosshair, hitmarker, and floating damage numbers.
+   Fully self-contained (no external CSS vars). Fixed, click-through, driven imperatively by rAF. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  pointer-events: none;
+  overflow: hidden;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
+
+/* ── Crosshair ─────────────────────────────────────────────────────────────── */
+.crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.crosshair.visible {
+  opacity: 0.92;
+}
+.crosshair.dim {
+  opacity: 0.4;
+}
+
+.line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #fff;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+  will-change: transform;
+}
+/* vertical arms (top/bottom): thin + tall; horizontal arms (left/right): thin + wide */
+.v {
+  width: 2px;
+  height: 7px;
+  margin: -3.5px 0 0 -1px;
+}
+.h {
+  width: 7px;
+  height: 2px;
+  margin: -1px 0 0 -3.5px;
+}
+.dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.55);
+}
+/* ADS: tint the reticle so aiming reads instantly */
+.crosshair.ads .line,
+.crosshair.ads .dot {
+  background: #ffcf8a;
+}
+
+/* ── Hitmarker ─────────────────────────────────────────────────────────────── */
+.hitmarker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 0;
+  will-change: opacity, transform;
+}
+.tick {
+  position: absolute;
+  width: 8px;
+  height: 2px;
+  background: #f4f6fb;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  border-radius: 1px;
+}
+.tick.tl {
+  top: 3px;
+  left: 3px;
+  transform: rotate(45deg);
+}
+.tick.tr {
+  top: 3px;
+  right: 3px;
+  transform: rotate(-45deg);
+}
+.tick.bl {
+  bottom: 3px;
+  left: 3px;
+  transform: rotate(-45deg);
+}
+.tick.br {
+  bottom: 3px;
+  right: 3px;
+  transform: rotate(45deg);
+}
+.hitmarker.kill .tick {
+  background: #ff5a52;
+  box-shadow: 0 0 6px rgba(255, 90, 82, 0.8);
+}
+
+/* ── Floating damage numbers ───────────────────────────────────────────────── */
+.dmg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.9),
+    0 0 2px rgba(0, 0, 0, 0.9);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  will-change: transform, opacity;
+  white-space: nowrap;
+}
+.dmg.head {
+  color: #ffd27a;
+  font-size: 20px;
+}
+.dmg.kill {
+  color: #ff6a62;
+}

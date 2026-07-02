@@ -5,15 +5,20 @@ import * as THREE from "three";
 import type { Palette, PaletteChannel } from "../types";
 import { materialKey, resolveColor } from "./palette";
 
-// Per-channel surface response so a body doesn't read as one uniform plastic: skin is soft and
-// slightly glossy, fabric is matte, leather (shoes) has a low sheen, hair catches a highlight.
-const SURFACE: Readonly<Record<PaletteChannel, { roughness: number; metalness: number }>> = {
-  skin: { roughness: 0.58, metalness: 0.0 },
-  hair: { roughness: 0.62, metalness: 0.08 },
+// Per-channel surface response so a body doesn't read as one uniform plastic: skin is soft with a
+// faint sheen, fabric is matte, denim/bottoms a touch rougher, leather (shoes) has a low sheen,
+// hair catches a highlight, and eyes/detail read wet-glossy.
+const SURFACE: Readonly<
+  Record<PaletteChannel, { roughness: number; metalness: number }>
+> = {
+  skin: { roughness: 0.52, metalness: 0.0 },
+  hair: { roughness: 0.55, metalness: 0.1 },
   clothing: { roughness: 0.86, metalness: 0.02 },
   clothingDark: { roughness: 0.84, metalness: 0.02 },
-  shoe: { roughness: 0.42, metalness: 0.12 },
-  accent: { roughness: 0.7, metalness: 0.05 },
+  bottom: { roughness: 0.9, metalness: 0.02 },
+  shoe: { roughness: 0.4, metalness: 0.14 },
+  accent: { roughness: 0.68, metalness: 0.06 },
+  detail: { roughness: 0.28, metalness: 0.0 },
 };
 
 export class MaterialCache {

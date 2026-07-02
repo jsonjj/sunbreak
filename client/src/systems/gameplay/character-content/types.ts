@@ -7,21 +7,33 @@
 import type * as THREE from "three";
 import type { CharacterId, LocomotionMode, PedArchetype } from "@sunbreak/shared";
 
-/** Rig-template proportion id (all share ONE canonical skeleton; only mesh thickness varies). */
-export type BodyId = "medium" | "slim" | "heavy";
+/** Rig-template proportion id (all share ONE canonical skeleton; girth + a small uniform height
+ *  scale vary per body so a crowd reads as a real mix of builds). */
+export type BodyId = "medium" | "slim" | "heavy" | "athletic" | "stocky";
 
 /** Wardrobe slots that can be swapped/tinted. Head + hands ("skin") are a base, always-on part. */
-export type Slot = "hair" | "torso" | "legs" | "feet" | "hat" | "accessory";
+export type Slot = "hair" | "torso" | "legs" | "feet" | "hat" | "eyewear" | "accessory";
 
-/** Which curated color a part tints from. Derived channels (clothingDark/shoe/accent) come off
- *  the base palette so a crowd still shares a tiny set of materials. */
-export type PaletteChannel = "skin" | "hair" | "clothing" | "clothingDark" | "shoe" | "accent";
+/** Which curated color a part tints from. Derived channels (clothingDark/bottom/shoe/accent/detail)
+ *  come off the base palette so a crowd still shares a tiny set of materials. */
+export type PaletteChannel =
+  | "skin"
+  | "hair"
+  | "clothing"
+  | "clothingDark"
+  | "bottom"
+  | "shoe"
+  | "accent"
+  | "detail";
 
 /** Curated palette keys (hex strings resolved from the curated tables at appearance-build time). */
 export interface Palette {
   skin: string;
   hair: string;
+  /** Primary top / outerwear colour. */
   clothing: string;
+  /** Optional distinct bottoms (trousers/skirt) colour. Falls back to a darkened `clothing`. */
+  clothing2?: string;
 }
 
 /** Network- and save-serializable description of a humanoid's look. */

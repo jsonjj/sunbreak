@@ -6,6 +6,7 @@
 // Building variety comes from per-vertex color, so a whole family shares a single material.
 import * as THREE from "three";
 import type { CityMaterials } from "./materials";
+import { groundKindAt } from "./geography";
 import type { BuildingSpec, CityMapDoc, Landmark, PropType, RoadNode } from "./types";
 
 export interface CityBuild {
@@ -86,6 +87,38 @@ class SurfaceArrays {
     g.computeBoundingSphere();
     return g;
   }
+}
+
+// ── ground (clipped to land: urban slab / park lawn / airfield apron; water shows sea) ─
+
+function buildGround(doc: CityMapDoc, mats: CityMaterials, root: THREE.Group): void {
+  const CELL = 24; // m — resolution of the land/water + district ground clip
+  const urban = new SurfaceArrays();
+  const park = new SurfaceArrays();
+  const apron = new SurfaceArrays();
+  const { min, max } = doc.bounds;
+  for (let z = min.z; z < max.z; z += CELL) {
+    for (let x = min.x; x < max.x; x += CELL) {
+      const cw = Math.min(CELL, max.x - x);
+      const cd = Math.min(CELL, max.z - z);
+      const cx = x + cw / 2;
+      const cz = z + cd / 2;
+      const kind = groundKindAt(cx, cz);
+      const arr = kind === "urban" ? urban : kind === "park" ? park : kind === "apron" ? apron : null;
+      if (!arr) continue; // "none"/water → leave the environment terrain (or sea) showing
+      arr.rect(cx, cz, cw / 2, cd / 2, -0.01, 8);
+    }
+  }
+  const addSurface = (arr: SurfaceArrays, mat: THREE.Material, name: string) => {
+    if (arr.empty()) return;
+    const m = new THREE.Mesh(arr.toGeometry(), mat);
+    m.receiveShadow = true;
+    m.name = name;
+    root.add(m);
+  };
+  addSurface(urban, mats.ground, "city:ground");
+  addSurface(park, mats.groundPark, "city:ground:park");
+  addSurface(apron, mats.groundApron, "city:ground:apron");
 }
 
 // ── roads / sidewalks / crosswalks ────────────────────────────────────────────
@@ -310,40 +343,127 @@ function buildProps(doc: CityMapDoc, mats: CityMaterials, root: THREE.Group): nu
 
 // ── landmarks (hero placeholders) ─────────────────────────────────────────────
 
+function landmarkHalfExtents(l: Landmark): { hx: number; hz: number } {
+  let x0 = Infinity;
+  let z0 = Infinity;
+  let x1 = -Infinity;
+  let z1 = -Infinity;
+  for (const p of l.footprint) {
+    if (p.x < x0) x0 = p.x;
+    if (p.z < z0) z0 = p.z;
+    if (p.x > x1) x1 = p.x;
+    if (p.z > z1) z1 = p.z;
+  }
+  return { hx: (x1 - x0) / 2, hz: (z1 - z0) / 2 };
+}
+
 function buildLandmark(l: Landmark, mats: CityMaterials): THREE.Object3D {
   const g = new THREE.Group();
   g.name = `city:landmark:${l.id}`;
   g.position.set(l.position[0], 0, l.position[2]);
   g.rotation.y = l.rotationY;
+  const { hx, hz } = landmarkHalfExtents(l);
 
-  if (l.kind === "tower") {
-    const tiers = 4;
-    let y = 0;
-    for (let t = 0; t < tiers; t++) {
-      const frac = 1 - t / (tiers + 1);
-      const w = 40 * frac;
-      const h = (l.height / tiers) * (0.8 + frac * 0.4);
-      const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), mats.landmarkGlass);
-      box.position.y = y + h / 2;
-      g.add(box);
-      y += h;
+  switch (l.kind) {
+    case "tower": {
+      // Stepped glass spire — the signature skyline hero.
+      const tiers = 5;
+      const base = Math.max(hx, hz) * 2;
+      let y = 0;
+      for (let t = 0; t < tiers; t++) {
+        const frac = 1 - t / (tiers + 1);
+        const w = base * frac;
+        const h = (l.height / tiers) * (0.85 + frac * 0.35);
+        const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), mats.landmarkGlass);
+        box.position.y = y + h / 2;
+        g.add(box);
+        y += h;
+      }
+      const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 2.4, 22, 6), mats.landmarkGlass);
+      spire.position.y = y + 11;
+      g.add(spire);
+      const crown = new THREE.Mesh(new THREE.TorusGeometry(6, 0.7, 6, 16), mats.landmarkNeon);
+      crown.rotation.x = Math.PI / 2;
+      crown.position.y = y;
+      g.add(crown);
+      break;
     }
-    const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 2.4, 22, 6), mats.landmarkGlass);
-    spire.position.y = y + 11;
-    g.add(spire);
-    const crown = new THREE.Mesh(new THREE.TorusGeometry(6, 0.7, 6, 16), mats.landmarkNeon);
-    crown.rotation.x = Math.PI / 2;
-    crown.position.y = y;
-    g.add(crown);
-  } else {
-    // Neon Mile: a glowing median + a run of arches.
-    const median = new THREE.Mesh(new THREE.BoxGeometry(290, 0.4, 4), mats.landmarkNeon);
-    median.position.y = 0.2;
-    g.add(median);
-    for (let i = -3; i <= 3; i++) {
-      const arch = new THREE.Mesh(new THREE.TorusGeometry(7, 0.5, 6, 16, Math.PI), mats.landmarkNeon);
-      arch.position.set(i * 42, 0, 0);
-      g.add(arch);
+    case "stadium": {
+      // Oval bowl: an open ring of stands around a sunken field.
+      const rx = Math.max(hx, hz);
+      const stands = new THREE.Mesh(
+        new THREE.CylinderGeometry(rx, rx * 0.82, l.height, 40, 1, true),
+        mats.sidewalk,
+      );
+      stands.position.y = l.height / 2;
+      stands.scale.set(1, 1, hz / hx);
+      g.add(stands);
+      const field = new THREE.Mesh(new THREE.CircleGeometry(rx * 0.72, 40), mats.groundPark);
+      field.rotation.x = -Math.PI / 2;
+      field.position.y = 0.3;
+      field.scale.set(1, hz / hx, 1);
+      g.add(field);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(rx * 0.95, 1.2, 6, 40), mats.landmarkNeon);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = l.height;
+      ring.scale.set(1, hz / hx, 1);
+      g.add(ring);
+      break;
+    }
+    case "mall": {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, l.height, hz * 2), mats.sidewalk);
+      body.position.y = l.height / 2;
+      g.add(body);
+      const sign = new THREE.Mesh(new THREE.BoxGeometry(hx * 1.2, 4, 2), mats.landmarkNeon);
+      sign.position.set(0, l.height + 2, hz);
+      g.add(sign);
+      break;
+    }
+    case "hangar": {
+      // Arched shed (half-cylinder shell) with a dark door band.
+      const shell = new THREE.Mesh(
+        new THREE.CylinderGeometry(hz, hz, hx * 2, 20, 1, true, 0, Math.PI),
+        mats.sidewalk,
+      );
+      shell.rotation.z = Math.PI / 2;
+      shell.position.y = 0.1;
+      g.add(shell);
+      const door = new THREE.Mesh(new THREE.BoxGeometry(1.5, hz * 0.9, hz * 1.6), mats.ground);
+      door.position.set(hx, hz * 0.45, 0);
+      g.add(door);
+      break;
+    }
+    case "pier": {
+      // Boardwalk deck on pilings, reaching out over the water.
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, 0.5, hz * 2), mats.ground);
+      deck.position.y = 0.6;
+      g.add(deck);
+      const rows = Math.max(2, Math.round(hz / 8));
+      for (let i = 0; i < rows; i++) {
+        const pz = -hz + (i / (rows - 1)) * (hz * 2);
+        for (const px of [-hx * 0.7, hx * 0.7]) {
+          const pile = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 6, 6), mats.ground);
+          pile.position.set(px, -2.2, pz);
+          g.add(pile);
+        }
+      }
+      break;
+    }
+    case "strip":
+    default: {
+      // Neon Mile: a glowing median + a run of arches down the avenue.
+      const span = hx * 2;
+      const median = new THREE.Mesh(new THREE.BoxGeometry(span, 0.4, 4), mats.landmarkNeon);
+      median.position.y = 0.2;
+      g.add(median);
+      const arches = Math.max(3, Math.round(span / 42));
+      for (let i = 0; i < arches; i++) {
+        const ax = -hx + (i / (arches - 1)) * span;
+        const arch = new THREE.Mesh(new THREE.TorusGeometry(7, 0.5, 6, 16, Math.PI), mats.landmarkNeon);
+        arch.position.set(ax, 0, 0);
+        g.add(arch);
+      }
+      break;
     }
   }
   return g;
@@ -356,15 +476,10 @@ export function buildCity(doc: CityMapDoc, mats: CityMaterials): CityBuild {
   const root = new THREE.Group();
   root.name = "santa-vista";
 
-  // Ground slab (visual; the drivable collider is exposed in doc.colliders).
-  const w = doc.bounds.max.x - doc.bounds.min.x;
-  const d = doc.bounds.max.z - doc.bounds.min.z;
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mats.ground);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.set((doc.bounds.min.x + doc.bounds.max.x) / 2, -0.01, (doc.bounds.min.z + doc.bounds.max.z) / 2);
-  ground.receiveShadow = true;
-  ground.name = "city:ground";
-  root.add(ground);
+  // Ground (visual; drivable collision comes from the Scene safety-floor + doc.colliders).
+  // Clipped to land so the dark urban slab never paints over the harbour / marsh / sea, and
+  // parks + the airfield apron get their own ground colour.
+  buildGround(doc, mats, root);
 
   buildRoads(doc, mats, root);
   const buildingDraws = buildBuildings(doc, mats, root);

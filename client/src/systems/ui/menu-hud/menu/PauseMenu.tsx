@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { PauseTab } from "@sunbreak/shared";
 import { CharacterId } from "@sunbreak/shared";
 import { input } from "@/input/InputManager";
+import { cx } from "../lib/cx";
 import { formatMoney } from "../lib/format";
 import { useGameStore, useHudStore, useUiStore } from "../lib/stores";
 import { Button, Panel, Tabs } from "../components/primitives";
@@ -9,6 +10,7 @@ import type { TabItem } from "../components/primitives";
 import { IconMap, IconFlag, IconChart, IconSettings, IconSave, IconExit, IconPlay } from "../lib/icons";
 import { useMissionStore } from "@/systems/gameplay/missions";
 import { savegameApi, useSavegameStore } from "@/systems/gameplay/savegame";
+import { MapView } from "./MapView";
 import menu from "../styles/menu.module.css";
 
 /** Live mission summary — active mission + objectives, else available/completed counts. */
@@ -97,11 +99,13 @@ export function PauseMenu({ onOpenSettings }: { onOpenSettings: () => void }) {
     window.setTimeout(() => setSaved(false), 1500);
   };
 
+  const mapActive = tab === "map";
+
   return (
     <div className={menu.screen}>
       <div className={menu.dim} />
       <div className={menu.center}>
-        <Panel className={menu.dialog}>
+        <Panel className={cx(menu.dialog, mapActive && menu.dialogWide)}>
           <div className={menu.dialogHead}>
             <div>
               <div className={menu.dialogKicker}>Paused</div>
@@ -123,8 +127,12 @@ export function PauseMenu({ onOpenSettings }: { onOpenSettings: () => void }) {
               </Button>
             </div>
 
-            <div className={menu.content}>
-              {tab === "stats" ? (
+            <div className={cx(menu.content, mapActive && menu.contentFlush)}>
+              {tab === "map" ? (
+                <div className={menu.mapPane}>
+                  <MapView />
+                </div>
+              ) : tab === "stats" ? (
                 <>
                   <h3 className={menu.sectionTitle}>Stats</h3>
                   <p className={menu.sectionSub}>Your current run at a glance.</p>
@@ -149,14 +157,8 @@ export function PauseMenu({ onOpenSettings }: { onOpenSettings: () => void }) {
                     </div>
                   </div>
                 </>
-              ) : tab === "missions" ? (
-                <MissionsTab />
               ) : (
-                <>
-                  <h3 className={menu.sectionTitle}>Map</h3>
-                  <p className={menu.sectionSub}>The full pan-and-zoom map lands in v3.</p>
-                  <div className={menu.mapStub}>Santa Vista · Verano coast</div>
-                </>
+                <MissionsTab />
               )}
             </div>
           </div>

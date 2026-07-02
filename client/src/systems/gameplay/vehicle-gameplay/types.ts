@@ -6,6 +6,13 @@
 // See `vehicle-gameplay.components.ts` for where these attach to the ECS.
 
 import type { VehicleId } from "@sunbreak/shared";
+import type { ExtVehicleId } from "@/systems/physics/vehicle";
+
+/**
+ * Any spawnable vehicle id: the shared enum PLUS the extended roster (motorcycle / helicopter /
+ * plane / boat) that physics defines as string ids (the shared VehicleId enum can't be edited).
+ */
+export type VehicleSpecId = VehicleId | ExtVehicleId;
 
 /** Seats we model in v1 (front row). Rear seats land with multi-seat in v2. */
 export type SeatId = "driver" | "passenger" | "rearLeft" | "rearRight";
@@ -61,7 +68,7 @@ export interface VehicleHealth {
 /** Rich, HUD-facing snapshot (mirrored non-reactively into `hudRef`, reactively into the store). */
 export interface VehicleHudSnapshot {
   active: boolean; // player is in a vehicle
-  spec: VehicleId | null;
+  spec: VehicleSpecId | null;
   speedKmh: number;
   speedMph: number;
   rpm: number;

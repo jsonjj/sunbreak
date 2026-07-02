@@ -8,10 +8,17 @@
 // view needs a mount point.
 import { ECS, world } from "@/ecs/world";
 import { VehicleBody } from "./VehicleBody";
+import { VehicleLandmarks } from "./VehicleLandmarks";
 
 /** Reused archetype query: every physics-simulated vehicle. */
 const vehicleQuery = world.with("veh_isVehicle");
 
 export function VehiclePhysicsView() {
-  return <ECS.Entities in={vehicleQuery}>{(entity) => <VehicleBody entity={entity} />}</ECS.Entities>;
+  return (
+    <>
+      {/* Static acquisition points (helipad / airstrip / marina) — flat surfaces + landmarks. */}
+      <VehicleLandmarks />
+      <ECS.Entities in={vehicleQuery}>{(entity) => <VehicleBody entity={entity} />}</ECS.Entities>
+    </>
+  );
 }

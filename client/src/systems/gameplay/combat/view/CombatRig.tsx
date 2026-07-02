@@ -10,11 +10,13 @@
 // world-geometry occlusion, on-screen VFX, and the practice targets.
 
 import { useEffect, useMemo, useRef } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRapier } from "@react-three/rapier";
 import { world } from "@/ecs/world";
 import type { ClientEntity } from "@/ecs/clientEntity";
+import { getWeapon } from "@/systems/gameplay/inventory";
 import { combatRuntime } from "../runtime";
 import {
   PROJECTILE_CAP,
@@ -24,13 +26,20 @@ import {
   TARGET_HEALTH,
 } from "../constants";
 import { buildVfxPools, updateVfxPools } from "./vfxPools";
+import { CombatOverlay } from "./CombatOverlay";
 
 interface TargetView {
   e: ClientEntity;
   mesh: THREE.Mesh;
 }
 
-export function CombatRig({ practiceTargets = true }: { practiceTargets?: boolean } = {}) {
+/** A pickup entity as the `combat_weaponPickup` query guarantees it (transform + pickup present). */
+type PickupEntity = ClientEntity & Required<Pick<ClientEntity, "combat_weaponPickup" | "transform">>;
+
+export function CombatRig({
+  practiceTargets = true,
+  hud = true,
+}: { practiceTargets?: boolean; hud?: boolean } = {}) {
   const { world: rWorld, rapier } = useRapier();
   const camera = useThree((s) => s.camera);
 
@@ -39,6 +48,12 @@ export function CombatRig({ practiceTargets = true }: { practiceTargets?: boolea
   const targetsGroup = useMemo(() => new THREE.Group(), []);
   const targetsRef = useRef<TargetView[]>([]);
   const projQuery = useMemo(() => world.with("combat_projectile", "transform"), []);
+
+  // Weapon-pickup rendering (spinning, bobbing, tinted by the weapon accent).
+  const pickupsGroup = useMemo(() => new THREE.Group(), []);
+  const pickupGeo = useMemo(() => new THREE.IcosahedronGeometry(0.26, 0), []);
+  const pickupQuery = useMemo(() => world.with("combat_weaponPickup", "transform"), []);
+  const pickupMeshes = useRef<Map<PickupEntity, THREE.Mesh>>(new Map());
 
   // 1a. Publish Rapier handles to the registry systems.
   useEffect(() => {
@@ -67,6 +82,38 @@ export function CombatRig({ practiceTargets = true }: { practiceTargets?: boolea
       projectileView.dispose();
     };
   }, [pools, projectileView]);
+
+  // 2b. Dispose pickup meshes + geometry on unmount.
+  useEffect(() => {
+    const map = pickupMeshes.current;
+    return () => {
+      for (const [, m] of map) {
+        pickupsGroup.remove(m);
+        (m.material as THREE.Material).dispose();
+      }
+      map.clear();
+      pickupGeo.dispose();
+    };
+  }, [pickupGeo, pickupsGroup]);
+
+  // 2c. Self-mount the combat HUD overlay (crosshair / hitmarker / damage numbers) as a DOM
+  //     sibling of <Canvas>, so it works the moment <CombatRig/> is mounted. Pass hud={false} to
+  //     mount <CombatOverlay/> yourself instead. The overlay's ownership guard makes dupes safe.
+  useEffect(() => {
+    if (!hud || typeof document === "undefined") return;
+    const host = document.createElement("div");
+    host.dataset.combatHud = "1";
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+    root.render(<CombatOverlay />);
+    return () => {
+      // Defer out of React's commit phase to avoid the nested-root unmount warning.
+      queueMicrotask(() => {
+        root.unmount();
+        host.remove();
+      });
+    };
+  }, [hud]);
 
   // 3. Spawn the practice range (combat-owned ECS entities + meshes).
   useEffect(() => {
@@ -130,6 +177,44 @@ export function CombatRig({ practiceTargets = true }: { practiceTargets?: boolea
       }
     }
 
+    // Weapon pickups: lazily build a tinted mesh per entity, then bob + spin it.
+    const pnow = performance.now();
+    const pmap = pickupMeshes.current;
+    for (const e of pickupQuery.entities) {
+      let m = pmap.get(e);
+      if (!m) {
+        const accent = getWeapon(e.combat_weaponPickup!.weaponId)?.accent ?? "#ff9d5c";
+        const mat = new THREE.MeshStandardMaterial({
+          color: accent,
+          emissive: accent,
+          emissiveIntensity: 0.55,
+          metalness: 0.3,
+          roughness: 0.4,
+        });
+        m = new THREE.Mesh(pickupGeo, mat);
+        m.frustumCulled = false;
+        pickupsGroup.add(m);
+        pmap.set(e, m);
+      }
+      const pk = e.combat_weaponPickup!;
+      const taken = (pk.takenAt ?? 0) > 0;
+      m.visible = !taken;
+      if (!taken && e.transform) {
+        const seed = pk.seed ?? 0;
+        const pos = e.transform.position;
+        m.position.set(pos.x, pos.y + 0.9 + Math.sin(pnow * 0.003 + seed) * 0.12, pos.z);
+        m.rotation.y = pnow * 0.0016 + seed;
+      }
+    }
+    // Prune meshes whose entity has despawned.
+    for (const [e, m] of pmap) {
+      if (!pickupQuery.entities.includes(e)) {
+        pickupsGroup.remove(m);
+        (m.material as THREE.Material).dispose();
+        pmap.delete(e);
+      }
+    }
+
     // Weapon VFX.
     updateVfxPools(pools, dt);
   });
@@ -139,6 +224,7 @@ export function CombatRig({ practiceTargets = true }: { practiceTargets?: boolea
       <primitive object={pools.group} />
       <primitive object={projectileView.group} />
       <primitive object={targetsGroup} />
+      <primitive object={pickupsGroup} />
     </>
   );
 }

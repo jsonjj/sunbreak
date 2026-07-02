@@ -46,10 +46,13 @@ export interface RoadGraph {
 // ── Districts (authored input → carried into the doc) ─────────────────────────
 
 export type DistrictKey =
-  | "miracle_row"
-  | "costa_dorada"
-  | "calle_sol"
-  | "the_mint";
+  | "miracle_row" // downtown high-rise core
+  | "costa_dorada" // commercial / neon shopping strip
+  | "calle_sol" // low-rise residential
+  | "the_mint" // industrial + docks
+  | "north_park" // park / plaza (no-build)
+  | "bayfront" // waterfront boardwalk
+  | "airfield"; // airport apron (no-build)
 
 export interface DistrictStyle {
   /** [min, max] floor count for procedural buildings. */
@@ -159,7 +162,7 @@ export interface Crosswalk {
 
 // ── Landmarks (hand-authored hero placements) ─────────────────────────────────
 
-export type LandmarkKind = "tower" | "strip" | "stadium" | "mall";
+export type LandmarkKind = "tower" | "strip" | "stadium" | "mall" | "pier" | "hangar";
 
 export interface Landmark {
   id: string;

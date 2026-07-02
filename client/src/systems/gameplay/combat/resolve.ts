@@ -9,6 +9,7 @@ import type { Hitzone } from "./types";
 import { applyDamageToVitals, surfaceFor, victimKindFor, vitalsOf } from "./damage";
 import { emitDamage, emitDeath } from "./events";
 import { pushImpact } from "./runtime";
+import { sfxImpact } from "./integrations/audio";
 
 export interface HitApply {
   target: ClientEntity;
@@ -62,7 +63,10 @@ export function applyHit(h: HitApply): boolean {
     surface,
   });
 
-  if (h.impactVfx) pushImpact({ ...h.point, nx: h.normal.x, ny: h.normal.y, nz: h.normal.z, surface });
+  if (h.impactVfx) {
+    pushImpact({ ...h.point, nx: h.normal.x, ny: h.normal.y, nz: h.normal.z, surface });
+    sfxImpact(surface, h.point); // surface-aware; the audio bus throttles pellet spam
+  }
 
   if (res.lethal) {
     // Shared death signal. For peds this is redundant-safe: their behaviour also detects

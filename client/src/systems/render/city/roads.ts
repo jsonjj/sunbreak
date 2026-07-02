@@ -10,6 +10,7 @@ import {
   ROAD_WIDTHS,
 } from "./config";
 import { deriveSeed, jitter, mulberry32, type Rng } from "./prng";
+import { isWaterPadded } from "./geography";
 import type { RoadClass, RoadEdge, RoadGraph, RoadNode } from "./types";
 
 export interface CityGrid {
@@ -106,6 +107,11 @@ export function buildRoads(seed: number, arterialX: number[], arterialZ: number[
   const addEdge = (a: number, b: number, klass: RoadClass) => {
     const na = nodes[a]!;
     const nb = nodes[b]!;
+    // Never lay a carriageway across a water body (sea / marina / marsh) — the road grid
+    // stops at the shoreline so nothing floats over the harbour or bleeds into the ocean.
+    const mx = (na.x + nb.x) * 0.5;
+    const mz = (na.z + nb.z) * 0.5;
+    if (isWaterPadded(mx, mz, 5)) return;
     const length = Math.hypot(nb.x - na.x, nb.z - na.z);
     edges.push({ a, b, klass, width: widthFor(klass), lanes: lanesFor(klass), length });
   };

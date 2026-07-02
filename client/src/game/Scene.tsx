@@ -69,12 +69,14 @@ export function Scene() {
       <MissionMarkers />
 
       <PhysicsProvider debug={debug}>
-        {/* Safety floor: a large invisible fixed collider so the player + vehicles never fall
-            through before city/terrain colliders exist. Supersedes the removed v0 ground plane.
-            Also stays as the flat drivable ground for the city core (see <WorldColliders/>). */}
+        {/* Safety floor: the flat drivable ground for the city core + districts (top at y=0, matching
+            the city slab). Shrunk to ±480 (just past the outer districts, well INSIDE the ~542 m
+            coastline) so it no longer extends over the beach/open sea — out there the environment
+            terrain heightfield (WorldColliders) is the ground, letting the coast slope naturally into
+            the water instead of the player/vehicles hovering on a flat slab above the sand. */}
         <RigidBody type="fixed" colliders={false}>
           <CuboidCollider
-            args={[600, 0.5, 600]}
+            args={[480, 0.5, 480]}
             position={[0, -0.5, 0]}
             collisionGroups={groupsFor(Layer.WORLD)}
           />

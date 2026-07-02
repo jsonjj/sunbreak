@@ -121,6 +121,9 @@ export function tickBehavior(dt: number, tickable: (a: PedAgent) => boolean): vo
       }
       case "idle": {
         a.stateT -= dt; // seeded as remaining idle time; counts down to 0
+        // Gentle look-around while loitering (pivots in place; feet stay planted). Bounded because
+        // it integrates a cosine, and desynced per ped via tickPhase.
+        a.heading += Math.cos(a.stateT * 1.3 + a.tickPhase) * dt * 0.2;
         if (a.stateT <= 0) beginWander(e);
         break;
       }

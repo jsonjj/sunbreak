@@ -8,17 +8,22 @@ import {
   BEACH_DEPTH,
   BUILT_HALF,
   ENV_SEED,
-  GLADES_WATER_LEVEL,
   HEIGHTFIELD_RES,
   SEABED_SLOPE,
   WATER_LEVEL,
 } from "./constants";
 import {
+  coastInset,
+  marinaMask,
+  gladesMask as geoGladesMask,
+  LAND_HEIGHT,
+  SHORE_HEIGHT,
+  MARINA,
+  GLADES_FLOOR,
+} from "@/systems/render/city/geography";
+import {
   biomeWeights,
-  bayMask,
   classifyBiome,
-  gladesMask,
-  shorelineZ,
   surfaceTagFor,
   TERRAIN_PALETTE,
   type EnvBiomeId,
@@ -52,46 +57,42 @@ export interface SurfaceSample {
 
 // ---- Height function --------------------------------------------------------------------
 
-/** Terrain elevation (metres) at world (x, z). Negative = below sea level (seabed / bay floor). */
+/**
+ * Terrain elevation (metres) at world (x, z) for the coastal ISLAND. Land is a flat plateau
+ * (kept just under the city ground slab so the slab always wins the depth test — and always
+ * ABOVE the waterline so the ocean can never draw over it), ramping down to a beach at the
+ * wobbly coastline and then to seabed out at sea. Two carved water bodies (Marina, Glades) dip
+ * below the waterline. Negative = below sea level (seabed / harbour / marsh floor).
+ */
 export function sampleHeight(x: number, z: number): number {
-  const inland = shorelineZ(x) - z; // >0 inland, <0 seaward
+  const inset = coastInset(x, z); // >0 inland, ≈0 at the waterline, <0 out at sea
 
   let h: number;
-  if (inland >= 0) {
-    // Beach ramp → dunes → rolling inland hills.
-    const beach = smoothstep(0, BEACH_DEPTH, inland) * 1.6;
-    const dunes =
-      smoothstep(4, BEACH_DEPTH, inland) *
-      (1 - smoothstep(BEACH_DEPTH, BEACH_DEPTH * 2.2, inland)) *
-      ridged(x * 0.03, z * 0.03, ENV_SEED + 11) *
-      1.7;
-    const hills =
-      smoothstep(BEACH_DEPTH * 0.5, BEACH_DEPTH * 3, inland) *
-      (3.5 + 3.0 * (fbm(x * 0.006, z * 0.006, ENV_SEED + 23, 4) * 0.5 + 0.5));
-    const micro = fbm(x * 0.08, z * 0.08, ENV_SEED + 37, 3) * 0.18;
-    h = beach + dunes + hills + micro;
+  if (inset >= BEACH_DEPTH) {
+    // Dry inland plateau. Micro-noise ONLY (kept tiny) so the whole buildable island stays flat
+    // enough that grid-aligned buildings never float or sink and the collision plane is stable.
+    h = LAND_HEIGHT + fbm(x * 0.05, z * 0.05, ENV_SEED + 37, 3) * 0.08;
+  } else if (inset >= 0) {
+    // Beach ramp: waterline height up to the plateau over the beach band.
+    const t = smoothstep(0, BEACH_DEPTH, inset);
+    h = SHORE_HEIGHT + (LAND_HEIGHT - SHORE_HEIGHT) * t + fbm(x * 0.06, z * 0.06, ENV_SEED + 31, 2) * 0.05;
   } else {
-    // Seabed sloping away from shore, gentle ripples.
-    const sea = -inland;
-    h =
-      -0.08 -
-      sea * SEABED_SLOPE +
-      fbm(x * 0.02, z * 0.02, ENV_SEED + 41, 3) * 0.5 -
-      0.3;
+    // Seabed sloping away from the coast, gentle ripples.
+    h = SHORE_HEIGHT + inset * SEABED_SLOPE + fbm(x * 0.02, z * 0.02, ENV_SEED + 41, 3) * 0.45;
   }
 
-  // Carve the bay basin (calm hero-water body): pull terrain below sea level.
-  const bay = bayMask(x, z);
+  // Carve the Marina harbour basin (calm hero-water body): pull terrain below sea level.
+  const bay = marinaMask(x, z);
   if (bay > 0) {
-    const floor = -2.6 + fbm(x * 0.03, z * 0.03, ENV_SEED + 53, 3) * 0.4;
+    const floor = MARINA.floor + fbm(x * 0.03, z * 0.03, ENV_SEED + 53, 3) * 0.4;
     h = h * (1 - bay) + Math.min(h, floor) * bay;
   }
 
   // Flatten the Glades to muddy flats just under standing water, with occasional cypress hummocks.
-  const glades = gladesMask(x, z);
+  const glades = geoGladesMask(x, z);
   if (glades > 0) {
-    const hummock = Math.max(0, ridged(x * 0.05, z * 0.05, ENV_SEED + 67, 3) - 0.55) * 2.4;
-    const floor = GLADES_WATER_LEVEL - 0.35 + hummock + fbm(x * 0.06, z * 0.06, ENV_SEED + 71, 2) * 0.2;
+    const hummock = Math.max(0, ridged(x * 0.05, z * 0.05, ENV_SEED + 67, 3) - 0.55) * 2.2;
+    const floor = GLADES_FLOOR + hummock + fbm(x * 0.06, z * 0.06, ENV_SEED + 71, 2) * 0.2;
     h = h * (1 - glades) + floor * glades;
   }
 

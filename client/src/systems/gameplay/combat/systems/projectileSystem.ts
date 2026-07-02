@@ -9,6 +9,7 @@ import type { WeaponBallistics } from "../weapons";
 import { castCombatRay, forEachDamageableNear } from "../hitscan";
 import { applyHit } from "../resolve";
 import { getMuzzle, pushImpact, type Aim } from "../runtime";
+import { sfxExplosion } from "../integrations/audio";
 import { PROJECTILE_CAP, PROJECTILE_MAX_LIFE_MS } from "../constants";
 
 type W = typeof world;
@@ -116,6 +117,7 @@ function detonate(
 
   // Blast marker (vfx subsystem adds the real explosion off the per-target damage events).
   pushImpact({ x: px, y: py, z: pz, nx: 0, ny: 1, nz: 0, surface: "concrete" });
+  if (p.radius > 0) sfxExplosion({ x: px, y: py, z: pz });
   world.remove(e);
 }
 

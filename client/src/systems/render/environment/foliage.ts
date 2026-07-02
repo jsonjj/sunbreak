@@ -119,9 +119,9 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
     const geo = makeGrassClump(0.7, 0.65, 3);
     const rows = scatterField({
       channel: 1,
-      spacing: 2.4,
-      minHeight: 0.1,
-      maxHeight: 3.4,
+      spacing: 3.2,
+      minHeight: -0.25,
+      maxHeight: 0.5,
       maxSlope: 0.55,
       minScale: 0.55,
       maxScale: 1.15,
@@ -151,8 +151,8 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
     const rows = scatterField({
       channel: 2,
       spacing: 2.1,
-      minHeight: -0.4,
-      maxHeight: 1.2,
+      minHeight: -1.2,
+      maxHeight: -0.05,
       maxSlope: 0.6,
       minScale: 0.7,
       maxScale: 1.4,
@@ -160,7 +160,7 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
       bounds: GLADES_BOUNDS,
       density: (x, z, s) => {
         const g = gladesMask(x, z);
-        return g < 0.3 ? 0 : clamp01(g * 1.15) * (s.height > -0.2 ? 1 : 0.35);
+        return g < 0.3 ? 0 : clamp01(g * 1.15) * (s.height > -0.6 ? 1 : 0.35);
       },
     });
     const group = buildCellGroup("sawgrass", rows, geo, sawMat, { castShadow: false });
@@ -181,9 +181,9 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
     const geo = makePalm();
     const rows = scatterField({
       channel: 3,
-      spacing: 13,
-      minHeight: 0.3,
-      maxHeight: 6,
+      spacing: 14,
+      minHeight: -0.25,
+      maxHeight: 1.0,
       maxSlope: 0.5,
       minScale: 0.8,
       maxScale: 1.45,
@@ -209,8 +209,8 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
     const rows = scatterField({
       channel: 4,
       spacing: 16,
-      minHeight: 0.2,
-      maxHeight: 5,
+      minHeight: -0.7,
+      maxHeight: 1.6,
       maxSlope: 0.6,
       minScale: 0.85,
       maxScale: 1.5,
@@ -236,8 +236,8 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
     const rows = scatterField({
       channel: 5,
       spacing: 14,
-      minHeight: -0.6,
-      maxHeight: 0.9,
+      minHeight: -1.2,
+      maxHeight: -0.05,
       maxSlope: 0.7,
       minScale: 0.8,
       maxScale: 1.35,

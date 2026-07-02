@@ -195,7 +195,9 @@ export interface PedAgent {
 
   // rendering -------------------------------------------------------------------------------
   slot: number; // instance index within this archetype's InstancedMesh
-  animPhase: number; // 0..1 procedural walk-cycle phase (bob/lean; VAT stand-in)
+  animPhase: number; // 0..1 procedural walk-cycle phase (drives the shader stride + bob/lean)
+  bodyW: number; // per-instance build width scale (silhouette variety)
+  bodyH: number; // per-instance build height scale
 
   // lifecycle -------------------------------------------------------------------------------
   age: number; // seconds alive

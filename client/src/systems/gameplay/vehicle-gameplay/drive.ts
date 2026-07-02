@@ -9,6 +9,7 @@ import { VehicleId } from "@sunbreak/shared";
 import { getPlayer, vgQueries } from "./queries";
 import { readDriverAxes } from "./driverInput";
 import { applyAssists, newAssistState, type AssistState } from "./driverAssist";
+import { applyBoatControls, applyFlightControls, resetFlightDrive } from "./flightDrive";
 import { readSpeed } from "./speed";
 import { getSpec } from "./config";
 
@@ -48,9 +49,18 @@ export function driveSystem(_world: unknown, dt: number): void {
       v.veh_input &&
       v.vg_health?.stage !== "wrecked"
     ) {
-      const spec = getSpec(v.veh_spec ?? VehicleId.Sedan);
-      const axes = readDriverAxes();
-      applyAssists(v.veh_input, axes, reading.forwardKmh, spec.topSpeedKmh, steerState(drivenId), dt);
+      // Locomotion family decides the control model. `veh_config.kind` is populated by physics'
+      // spawn intake; on the rare first frame before that it defaults to the ground-car path.
+      const kind = v.veh_config?.kind ?? "car";
+      if (kind === "heli" || kind === "plane") {
+        applyFlightControls(v.veh_input, drivenId, kind === "plane", dt);
+      } else if (kind === "boat") {
+        applyBoatControls(v.veh_input, drivenId, dt);
+      } else {
+        const spec = getSpec(v.veh_spec ?? VehicleId.Sedan);
+        const axes = readDriverAxes();
+        applyAssists(v.veh_input, axes, reading.forwardKmh, spec.topSpeedKmh, steerState(drivenId), dt);
+      }
     }
   }
 }
@@ -58,4 +68,5 @@ export function driveSystem(_world: unknown, dt: number): void {
 /** Cleanup for init()'s disposer. */
 export function resetDrive(): void {
   steerStates.clear();
+  resetFlightDrive();
 }

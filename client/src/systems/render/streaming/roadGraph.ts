@@ -2,7 +2,6 @@
 // (or a full `ChunkSource`); `roadGraphToSource()` adapts a graph into per-chunk descriptors.
 // When nothing is provided, `proceduralSource()` synthesizes a deterministic Santa-Vista-style
 // grid city from the shared world constants so the subsystem runs and renders standalone.
-import { MAP_SIZE } from "@sunbreak/shared";
 import type {
   BuildingDesc,
   BuildingMaterialKey,
@@ -14,6 +13,15 @@ import type {
   RoadSegment,
 } from "./manifest";
 import { CELL, chunkKey } from "./grid";
+import {
+  PLAYABLE_HALF,
+  districtAt,
+  isWater,
+  isWaterPadded,
+} from "@/systems/render/city/geography";
+// Read-only peek at the city doc (no side-effects: imports the store file, not the module index,
+// so this does NOT register the city subsystem). Lets streaming defer to render/city's own mesh.
+import { cityStore } from "@/systems/render/city/store";
 
 // ── Deterministic RNG (per chunk) ───────────────────────────────────────────────────────────
 function hashSeed(cx: number, cz: number): number {
@@ -35,20 +43,36 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-const HALF = MAP_SIZE * 0.5;
-const CELLS = Math.floor(MAP_SIZE / CELL); // e.g. 2000/100 = 20
-const MIN_C = Math.floor(-HALF / CELL);
-const MAX_C = MIN_C + CELLS - 1;
+// Clamp streaming to the playable island (chunks fully out at sea return null below), so the
+// procedural fill can never place a block in the ocean or past the world boundary.
+const MIN_C = Math.floor(-PLAYABLE_HALF / CELL);
+const MAX_C = Math.floor(PLAYABLE_HALF / CELL);
 const DEFAULT_BOUNDS = { minCx: MIN_C, minCz: MIN_C, maxCx: MAX_C, maxCz: MAX_C };
 
 const ROAD_W = 9;
 const SIDEWALK_W = 3;
-const HERO_KEY = "0:0";
+const FLOOR_H = 3.4;
 
-function districtMaterial(distFromCenter: number): BuildingMaterialKey {
-  if (distFromCenter < 260) return "glass"; // downtown towers
-  if (distFromCenter < 620) return "concrete"; // midtown
-  return "brick"; // outer residential
+/** Building material for a world point, matched to the shared district layout. */
+function materialAt(x: number, z: number): BuildingMaterialKey {
+  const d = districtAt(x, z);
+  if (!d) return "concrete";
+  if (d.glass) return "glass"; // downtown towers
+  if (d.zone === "residential") return "brick"; // suburbs
+  return "concrete"; // commercial / industrial
+}
+
+/** True if the four corners + centre of a chunk are ALL water (→ an ocean cell we skip entirely). */
+function chunkAllWater(x0: number, z0: number): boolean {
+  const x1 = x0 + CELL;
+  const z1 = z0 + CELL;
+  return (
+    isWater(x0, z0) &&
+    isWater(x1, z0) &&
+    isWater(x0, z1) &&
+    isWater(x1, z1) &&
+    isWater(x0 + CELL * 0.5, z0 + CELL * 0.5)
+  );
 }
 
 /** Perimeter roads on the south (min-z) and west (min-x) edges so neighbours share edges. */
@@ -87,30 +111,36 @@ function blockBuildings(
   const z0 = cz * CELL;
   const cxw = x0 + CELL * 0.5;
   const czw = z0 + CELL * 0.5;
-  const distC = Math.hypot(cxw, czw);
-  const material = districtMaterial(distC);
 
   // Interior block, inset past the roads/sidewalks.
   const margin = ROAD_W + SIDEWALK_W + 3;
   const bx0 = x0 + margin;
   const bz0 = z0 + margin;
   const span = CELL - margin - 4;
-  const grid = distC < 260 ? 2 : rng() < 0.5 ? 2 : 3; // downtown = bigger footprints
+  const downtown = districtAt(cxw, czw)?.glass ?? false;
+  const grid = downtown ? 2 : rng() < 0.5 ? 2 : 3; // downtown = bigger footprints
   const cellW = span / grid;
 
   const buildings: BuildingDesc[] = [];
   const colliders: ColliderDesc[] = [];
   let maxH = 0;
+  let material: BuildingMaterialKey = "concrete";
   for (let gz = 0; gz < grid; gz++) {
     for (let gx = 0; gx < grid; gx++) {
       if (rng() < 0.12) continue; // occasional empty lot / courtyard
+      const px = bx0 + gx * cellW + cellW * 0.5;
+      const pz = bz0 + gz * cellW + cellW * 0.5;
+      // Match the shared district layout: no fill in parks/airfield/open space or over water.
+      const d0 = districtAt(px, pz);
+      if (!d0 || !d0.buildable) continue;
+      if (isWaterPadded(px, pz, 4)) continue;
+      material = materialAt(px, pz);
+      const [lo, hi] = d0.floorRange;
+      const floors = lo + Math.round(rng() * (hi - lo));
       const pad = 2 + rng() * 2;
       const w = cellW - pad;
       const d = cellW - pad;
-      const baseH = distC < 260 ? 40 : distC < 620 ? 16 : 8;
-      const h = baseH * (0.5 + rng() * 1.6);
-      const px = bx0 + gx * cellW + cellW * 0.5;
-      const pz = bz0 + gz * cellW + cellW * 0.5;
+      const h = Math.max(4, floors * FLOOR_H);
       buildings.push({ pos: [px, 0, pz], size: [w, d], height: h, material });
       colliders.push({ half: [w * 0.5, h * 0.5, d * 0.5], pos: [px, h * 0.5, pz] });
       maxH = Math.max(maxH, h);
@@ -125,33 +155,26 @@ function blockBuildings(
   return { buildings, colliders, proxy };
 }
 
-/** Deterministic procedural city over the shared map extent. */
+/**
+ * Deterministic procedural city over the playable island — the STANDALONE fallback that lets
+ * render/streaming run on its own. In the integrated game render/city already builds the whole
+ * (small, ±480) city as one BatchedMesh, so to avoid a duplicate overlapping city this default
+ * source DEFERS to render/city whenever a city document exists (returns empty chunks). The
+ * integrator can still make streaming the primary renderer by feeding it an explicit source via
+ * streamingApi.setChunkSource(...) / setRoadGraph(...). Hero landmarks are always render/city's.
+ */
 export function proceduralSource(): ChunkSource {
   return {
     bounds: DEFAULT_BOUNDS,
     describe(cx, cz): ChunkDesc | null {
-      const key = chunkKey({ cx, cz });
+      if (cityStore.map) return null; // render/city owns the built world → don't duplicate it
       const x0 = cx * CELL;
       const z0 = cz * CELL;
+      if (chunkAllWater(x0, z0)) return null; // open-sea cell → nothing to stream
+      const key = chunkKey({ cx, cz });
       const rng = mulberry32(hashSeed(cx, cz));
       const roads = edgeRoads(x0, z0);
       const props = edgeProps(x0, z0, rng);
-
-      if (key === HERO_KEY) {
-        // Plaza chunk: hero tower, no block buildings.
-        return {
-          key,
-          cx,
-          cz,
-          buildings: [],
-          roads,
-          props,
-          colliders: [{ half: [12, 60, 12], pos: [x0 + CELL * 0.5, 60, z0 + CELL * 0.5] }],
-          hero: { id: "solaris-tower", pos: [x0 + CELL * 0.5, 0, z0 + CELL * 0.5], height: 120 },
-          proxy: [{ pos: [x0 + CELL * 0.5, 0, z0 + CELL * 0.5], size: [22, 22], height: 120, material: "glass" }],
-        };
-      }
-
       const { buildings, colliders, proxy } = blockBuildings(cx, cz, rng);
       return { key, cx, cz, buildings, roads, props, colliders, proxy };
     },
@@ -210,11 +233,12 @@ export function roadGraphToSource(
   return {
     bounds,
     describe(cx, cz): ChunkDesc | null {
-      const key = chunkKey({ cx, cz });
       const x0 = cx * CELL;
       const z0 = cz * CELL;
       const x1 = x0 + CELL;
       const z1 = z0 + CELL;
+      if (chunkAllWater(x0, z0)) return null; // open-sea cell → nothing to stream
+      const key = chunkKey({ cx, cz });
       const rng = mulberry32(hashSeed(cx, cz));
 
       const roads: RoadSegment[] = [];

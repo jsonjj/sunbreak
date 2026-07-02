@@ -135,6 +135,15 @@ class InputManager {
     if (this.pitch > PITCH_MAX) this.pitch = PITCH_MAX;
   };
 
+  /**
+   * Raw key-down test by `KeyboardEvent.code`. Additive accessor used by extended vehicle/flight
+   * controls (e.g. Q/E rudder-yaw) that have no dedicated InputAction. Reads the same live key
+   * set as {@link isActionDown}; adds no listeners and changes no existing behavior.
+   */
+  isKeyDown(code: string): boolean {
+    return this.keys.has(code);
+  }
+
   isActionDown(a: InputAction): boolean {
     switch (a) {
       case InputAction.MoveForward:

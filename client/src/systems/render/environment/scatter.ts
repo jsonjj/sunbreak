@@ -3,6 +3,7 @@
 // be reused by AI/traffic/mission placement later. No allocation beyond the returned array.
 
 import { BUILT_HALF, ENV_SEED } from "./constants";
+import { groundKindAt } from "@/systems/render/city/geography";
 import { hash2 } from "./noise";
 import { sampleHeight, sampleSlope, surfaceAt, type SurfaceSample } from "./heightfield";
 
@@ -56,6 +57,11 @@ export function scatterField(cfg: ScatterConfig): ScatterInstance[] {
       const hz = hash2(ix, iz, seed + 1);
       const x = b.minX + (ix + 0.5 + (hx - 0.5) * jitter) * cfg.spacing;
       const z = b.minZ + (iz + 0.5 + (hz - 0.5) * jitter) * cfg.spacing;
+
+      // Never scatter env foliage/props on the city's paved ground (dark urban slab) or the
+      // airfield apron — those belong to render/city. (Parks + open coast/marsh still scatter.)
+      const gk = groundKindAt(x, z);
+      if (gk === "urban" || gk === "apron") continue;
 
       // Cheap reject before the fuller surface sample.
       const h = sampleHeight(x, z);

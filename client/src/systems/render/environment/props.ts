@@ -93,8 +93,8 @@ export function buildProps(tier: EnvQualitySettings): PropsBuild {
     const rows = scatterField({
       channel: 11,
       spacing: 11,
-      minHeight: 0.1,
-      maxHeight: 8,
+      minHeight: -0.25,
+      maxHeight: 1.2,
       minScale: 0.5,
       maxScale: 1.8,
       maxCount: Math.floor(240 * d),
@@ -123,8 +123,8 @@ export function buildProps(tier: EnvQualitySettings): PropsBuild {
     const rows = scatterField({
       channel: 12,
       spacing: 9,
-      minHeight: 0.0,
-      maxHeight: 1.4,
+      minHeight: -1.0,
+      maxHeight: -0.05,
       minScale: 0.7,
       maxScale: 1.6,
       maxCount: Math.floor(180 * d),
@@ -141,14 +141,14 @@ export function buildProps(tier: EnvQualitySettings): PropsBuild {
     const rows = scatterField({
       channel: 13,
       spacing: 7,
-      minHeight: -1.8,
-      maxHeight: 0.3,
+      minHeight: -2.4,
+      maxHeight: -0.2,
       minScale: 0.8,
       maxScale: 1.25,
       maxCount: Math.floor(120 * d),
       density: (x, z, s) => {
         const g = gladesMask(x, z);
-        const shallow = s.height < 0.2 && s.height > -1.8 ? 1 : 0;
+        const shallow = s.height < -0.2 && s.height > -2.4 ? 1 : 0;
         return shallow * (g > 0.3 ? 0.5 : 0.18);
       },
     });
@@ -173,11 +173,11 @@ export function buildProps(tier: EnvQualitySettings): PropsBuild {
       channel: 14,
       spacing: 22,
       minHeight: -8,
-      maxHeight: -0.5,
+      maxHeight: -1.4,
       minScale: 0.8,
       maxScale: 1.3,
       maxCount: Math.floor(60 * d),
-      density: (_x, _z, s) => (s.height < -0.6 && s.height > -8 ? 0.5 : 0),
+      density: (_x, _z, s) => (s.height < -1.6 && s.height > -8 ? 0.5 : 0),
     });
     addType("buoy", geo, mat, rows, false, WATER_LEVEL);
   }
@@ -189,8 +189,8 @@ export function buildProps(tier: EnvQualitySettings): PropsBuild {
     const rows = scatterField({
       channel: 15,
       spacing: 16,
-      minHeight: 0.5,
-      maxHeight: 2.6,
+      minHeight: -0.25,
+      maxHeight: 0.3,
       maxSlope: 0.4,
       minScale: 0.9,
       maxScale: 1.25,

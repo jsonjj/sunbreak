@@ -2,6 +2,7 @@
 // the road graph is exposed through: a directed-adjacency helper + nearest-node lookup for
 // traffic/wanted routing, a walkable graph for pedestrians, and a 2D `MapData` for the minimap.
 import { dist } from "./geo";
+import { GLADES, MARINA } from "./geography";
 import type {
   CityMapDoc,
   MapArea,
@@ -12,6 +13,7 @@ import type {
   RoadClass,
   RoadGraph,
   RoadNode,
+  Vec2,
   WalkEdge,
   WalkGraph,
   WalkNode,
@@ -73,7 +75,7 @@ export function toMapData(doc: CityMapDoc): MapData {
 
   const areas: MapArea[] = doc.districts.map((d, i) => ({
     id: i,
-    kind: "district",
+    kind: d.key === "north_park" ? "park" : "district",
     name: d.name,
     poly: d.poly,
     label: {
@@ -81,6 +83,27 @@ export function toMapData(doc: CityMapDoc): MapData {
       z: d.poly.reduce((s, p) => s + p.z, 0) / d.poly.length,
     },
   }));
+
+  // Water bodies (harbour + marsh) as octagon areas so the minimap shows the coastline shapes.
+  const octagon = (cx: number, cz: number, r: number): Vec2[] =>
+    Array.from({ length: 8 }, (_v, k) => {
+      const a = (k / 8) * Math.PI * 2;
+      return { x: cx + Math.cos(a) * r, z: cz + Math.sin(a) * r };
+    });
+  areas.push({
+    id: areas.length,
+    kind: "water",
+    name: "Marina",
+    poly: octagon(MARINA.x, MARINA.z, MARINA.radius),
+    label: { x: MARINA.x, z: MARINA.z },
+  });
+  areas.push({
+    id: areas.length,
+    kind: "water",
+    name: "The Glades",
+    poly: octagon(GLADES.x, GLADES.z, GLADES.radius),
+    label: { x: GLADES.x, z: GLADES.z },
+  });
 
   const pois: MapPoi[] = [];
   let pid = 0;

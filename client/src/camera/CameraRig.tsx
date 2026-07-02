@@ -15,17 +15,23 @@ const ideal = new THREE.Vector3();
 const dir = new THREE.Vector3();
 const look = new THREE.Vector3();
 const sph = new THREE.Spherical();
+const craftQ = new THREE.Quaternion();
+const craftFwd = new THREE.Vector3();
 const HALF_PI = Math.PI / 2;
+
+/** Wrap an angle to (−π, π]. */
+const wrapPi = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 // Reused ECS queries for the seated-camera seam (vehicle-gameplay owns `vg_occupant`; physics
 // owns `veh_isVehicle` + the chassis `rigidBody`). Reading them is order-independent.
 const localPlayerQ = ecsWorld.with("isLocal");
 const vehicleQ = ecsWorld.with("veh_isVehicle", "transform");
 
-/** Third-person follow camera with an over-the-shoulder AIM profile (hold RMB) and a FIRST-PERSON
- *  toggle (V, on foot). A spherical boom driven by mouse look, SmoothDamped, with a Rapier raycast
- *  spring-arm that pulls in when geometry blocks the view. Follows the driven vehicle while seated,
- *  otherwise the on-foot player body. Non-inverted look is owned by InputManager (pitch += …). */
+/** Third-person follow camera with an over-the-shoulder AIM profile (hold RMB), a FIRST-PERSON
+ *  toggle (V, on foot), and an aircraft HEADING-FOLLOW chase (auto-trails the heli/plane nose while
+ *  the mouse can still nudge the view). A spherical boom driven by mouse look, SmoothDamped, with a
+ *  Rapier raycast spring-arm that pulls in when geometry blocks the view. Non-inverted look is owned
+ *  by InputManager (pitch += …). */
 export function CameraRig() {
   const camRef = useRef<THREE.PerspectiveCamera>(null);
   const { world, rapier } = useRapier();
@@ -33,6 +39,8 @@ export function CameraRig() {
   const rayRef = useRef<InstanceType<typeof rapier.Ray> | null>(null);
   const fpRef = useRef(false); // first-person latched on/off
   const prevFpKey = useRef(false);
+  const prevYaw = useRef(0); // mouse yaw last frame (for the aircraft chase offset)
+  const chaseOffset = useRef(0); // manual look offset from "behind the craft" (decays to 0)
 
   useFrame((_, dt) => {
     const cam = camRef.current;
@@ -49,22 +57,36 @@ export function CameraRig() {
     const aiming = !firstPerson && !occ && input.isActionDown(InputAction.Aim);
     const P = firstPerson ? FIRST_PERSON : aiming ? AIM : THIRD_PERSON;
 
-    // Choose the follow target + the body to exclude from the spring-arm ray.
+    // Choose the follow target + the body to exclude from the spring-arm ray. Detect aircraft so
+    // the boom can trail its heading.
     let excludeBody = playerHandle.body ?? undefined;
     let ax: number, ay: number, az: number;
+    let isAircraft = false;
     if (occ) {
       const v = vehicleQ.entities.find((e) => e.netId === occ.vehicleNetId);
       const vb = v?.rigidBody;
+      const kind = v?.veh_config?.kind;
+      isAircraft = kind === "heli" || kind === "plane";
       if (vb) {
         const t = vb.translation();
         ax = t.x;
         ay = t.y;
         az = t.z;
         excludeBody = vb;
+        if (isAircraft) {
+          const r = vb.rotation();
+          craftQ.set(r.x, r.y, r.z, r.w);
+          craftFwd.set(0, 0, 1).applyQuaternion(craftQ); // nose = +Z (matches flight/boat)
+        }
       } else if (v?.transform) {
         ax = v.transform.position.x;
         ay = v.transform.position.y;
         az = v.transform.position.z;
+        if (isAircraft) {
+          const q = v.transform.rotation;
+          craftQ.set(q.x, q.y, q.z, q.w);
+          craftFwd.set(0, 0, 1).applyQuaternion(craftQ);
+        }
       } else {
         const body = playerHandle.body;
         if (!body) return;
@@ -90,6 +112,19 @@ export function CameraRig() {
 
     const yaw = input.yaw;
     const pitch = input.pitch;
+
+    // Boom yaw: mouse-controlled on foot / in cars; aircraft auto-trail BEHIND the craft heading,
+    // with the mouse nudging a temporary offset that eases back to centre (~0.5 s) for free-look.
+    const dyaw = wrapPi(yaw - prevYaw.current);
+    prevYaw.current = yaw;
+    let boomYaw = yaw;
+    if (isAircraft) {
+      chaseOffset.current = wrapPi(chaseOffset.current + dyaw) * Math.exp(-2.5 * dt);
+      boomYaw = Math.atan2(-craftFwd.x, -craftFwd.z) + chaseOffset.current;
+    } else {
+      chaseOffset.current = 0;
+    }
+
     // Horizontal "right" vector for the over-the-shoulder offset (0 unless aiming).
     const rx = Math.cos(yaw);
     const rz = -Math.sin(yaw);
@@ -109,8 +144,8 @@ export function CameraRig() {
       return;
     }
 
-    // ── Third person / aim: spherical boom + collision spring-arm. ──
-    sph.set(P.distance, HALF_PI - pitch, yaw);
+    // ── Third person / aim / aircraft-chase: spherical boom + collision spring-arm. ──
+    sph.set(P.distance, HALF_PI - pitch, boomYaw);
     ideal.setFromSpherical(sph).add(anchor);
     dir.copy(ideal).sub(anchor);
     const maxLen = dir.length() || P.distance;

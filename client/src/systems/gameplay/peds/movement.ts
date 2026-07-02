@@ -152,9 +152,14 @@ export function tickMovement(dt: number, movable: (a: PedAgent) => boolean): voi
     t.position.z = z + a.vz * dt;
     t.position.y = PED_CENTER_Y;
 
-    // Facing + walk-cycle phase (procedural anim driver).
+    // Facing + walk-cycle phase (drives the shader stride). Cadence is derived from the SAME stride
+    // model the crowd shader uses (leg amplitude grows with speed, ref 3.6 m/s — see pedInstances
+    // CROWD_SPEED_REF / crowdMesh legAmp), so the planted foot tracks the ground instead of sliding.
     if (a.speed > 0.05) a.heading = Math.atan2(a.vx, a.vz);
-    a.animPhase = (a.animPhase + a.speed * dt * 0.9) % 1;
+    const s01 = Math.min(1, a.speed / 3.6);
+    const legAmp = 0.05 + 0.8 * s01; // mirrors mix(0.05, 0.85, speed01) in the shader
+    const strideLen = 3.28 * Math.sin(legAmp); // 4 · (hip→foot ≈0.82) · sin(amp) per full cycle
+    a.animPhase = (a.animPhase + (strideLen > 0.02 ? a.speed / strideLen : 0) * dt) % 1;
     a.age += dt;
   }
 }

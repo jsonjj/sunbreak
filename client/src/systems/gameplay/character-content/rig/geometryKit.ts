@@ -70,10 +70,10 @@ export function taperedLimb(
   dir.multiplyScalar(1 / len);
 
   // Shaft along +Y (a at −len/2, b at +len/2) + a sphere cap at each joint for a smooth blend.
-  const shaft = new THREE.CylinderGeometry(rB, rA, len, 12, 1, false);
-  const capA = new THREE.SphereGeometry(rA, 12, 8);
+  const shaft = new THREE.CylinderGeometry(rB, rA, len, 14, 1, false);
+  const capA = new THREE.SphereGeometry(rA, 14, 10);
   capA.translate(0, -len / 2, 0);
-  const capB = new THREE.SphereGeometry(rB, 12, 8);
+  const capB = new THREE.SphereGeometry(rB, 14, 10);
   capB.translate(0, len / 2, 0);
   const merged = mergeGeometries([shaft, capA, capB], false);
   shaft.dispose();
@@ -87,6 +87,26 @@ export function taperedLimb(
   return skinRigid(merged, BONE_INDEX[bone]);
 }
 
+/**
+ * Truncated cone (frustum) centered at bone `at` (+ optional offset), aligned to +Y, skinned
+ * rigidly to `bone`. The building block for skirts, dress hems, hat crowns and tapered shells.
+ */
+export function frustum(
+  at: BoneName,
+  height: number,
+  rTop: number,
+  rBottom: number,
+  bone: BoneName,
+  opts?: { offset?: readonly [number, number, number]; cap?: boolean },
+): THREE.BufferGeometry {
+  const geo = new THREE.CylinderGeometry(rTop, rBottom, height, 16, 1, !(opts?.cap ?? true));
+  const p = restWorld(at);
+  const o = opts?.offset;
+  if (o) p.add(new THREE.Vector3(o[0], o[1], o[2]));
+  geo.translate(p.x, p.y, p.z);
+  return skinRigid(geo, BONE_INDEX[bone]);
+}
+
 /** Ellipsoid centered at bone `at`, skinned rigidly to `bone`. Like `sphere` but always scaled. */
 export function ellipsoid(
   at: BoneName,
@@ -94,7 +114,7 @@ export function ellipsoid(
   bone: BoneName,
   opts?: { offset?: readonly [number, number, number] },
 ): THREE.BufferGeometry {
-  const geo = new THREE.SphereGeometry(1, 16, 12);
+  const geo = new THREE.SphereGeometry(1, 20, 14);
   geo.scale(radius[0], radius[1], radius[2]);
   const p = restWorld(at);
   const o = opts?.offset;
@@ -110,7 +130,7 @@ export function sphere(
   bone: BoneName,
   opts?: { scale?: readonly [number, number, number]; offset?: readonly [number, number, number] },
 ): THREE.BufferGeometry {
-  const geo = new THREE.SphereGeometry(radius, 14, 10);
+  const geo = new THREE.SphereGeometry(radius, 18, 12);
   const s = opts?.scale;
   if (s) geo.scale(s[0], s[1], s[2]);
   const p = restWorld(at);

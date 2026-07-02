@@ -33,6 +33,8 @@ function makeAgent(): PedAgent {
     dist2: 0,
     slot: -1,
     animPhase: 0,
+    bodyW: 1,
+    bodyH: 1,
     age: 0,
     deadAt: 0,
   };

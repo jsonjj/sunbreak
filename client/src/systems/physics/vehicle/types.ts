@@ -21,16 +21,26 @@ export type { RapierRigidBody };
  * direction (uses `reverseForce`). `brake` is dedicated braking, always decelerating.
  */
 export interface DriverInput {
-  /** 0..1 accelerator. */
+  /** 0..1 accelerator (ground); also the plane's 0..1 engine throttle. */
   throttle: number;
-  /** 0..1 dedicated braking. */
+  /** 0..1 dedicated braking (ground); also the boat's reverse. */
   brake: number;
-  /** -1..1 (left..right). */
+  /** -1..1 (left..right) — ground steering, boat rudder. */
   steer: number;
-  /** Rear-wheel handbrake (locks rear + drops rear grip for drifting). */
+  /** Rear-wheel handbrake (locks rear + drops rear grip for drifting); plane wheel-brake. */
   handbrake: boolean;
   /** Flip drive direction to backward (uses `reverseForce`). */
   reverse: boolean;
+
+  // ─── Extended aircraft axes (optional; 0 when absent — ground vehicles ignore them) ───
+  /** -1..1 nose down..up — aircraft elevator / helicopter cyclic (fore-aft). */
+  pitch?: number;
+  /** -1..1 roll left..right — aircraft aileron / helicopter cyclic (lateral). */
+  roll?: number;
+  /** -1..1 yaw left..right — aircraft rudder / helicopter tail rotor. */
+  yaw?: number;
+  /** 0..1 collective — helicopter vertical thrust (0.5 ≈ hover). Planes use `throttle`. */
+  lift?: number;
 }
 
 /** Telemetry published by physics onto `entity.veh_state` (read by HUD / audio / gameplay). */
@@ -49,10 +59,14 @@ export interface VehicleState {
   isDrifting: boolean;
   /** Accumulated drift score (missions / HUD). */
   driftScore: number;
-  /** Any wheel currently touching the ground. */
+  /** Any wheel currently touching the ground (aircraft: near ground / on a pad; boat: in water). */
   grounded: boolean;
-  /** Number of wheels in contact this step (0..N). */
+  /** Number of wheels in contact this step (0..N; 0 for non-wheeled craft). */
   wheelsOnGround: number;
+  /** Height above the local ground/water surface (m) — aircraft/boat telemetry (optional). */
+  altitudeM?: number;
+  /** True while an aircraft is off the ground (optional). */
+  airborne?: boolean;
 }
 
 /** Per-wheel raycast-suspension spec (chassis-local). */
@@ -108,9 +122,88 @@ export interface VehicleArcadeConfig {
   driftMinSpeed: number;
 }
 
+/**
+ * Locomotion family. Decides which solver a vehicle uses:
+ *   • `car` / `bike` → the Rapier raycast wheel controller (suspension + tire forces).
+ *   • `heli` / `plane` → a dynamic rigid body driven by the arcade flight model (flight.ts).
+ *   • `boat` → a dynamic rigid body driven by buoyancy + rudder (boat.ts).
+ */
+export type VehicleKind = "car" | "bike" | "heli" | "plane" | "boat";
+
+/**
+ * Arcade flight tuning (helicopter + fixed-wing). All forces are applied to the chassis body
+ * inside the fixed physics step; none of the wheel/tire fields on {@link VehicleConfig} apply.
+ */
+export interface FlightConfig {
+  /** Fixed-wing = true (thrust along nose + wing lift); false = rotor (collective along body-up). */
+  fixedWing: boolean;
+  /** Max engine/rotor thrust force (N). Heli: full-collective lift; plane: full-throttle thrust. */
+  maxThrust: number;
+  /** Heli only: collective (0..1) that exactly cancels gravity. 0.5 → mid-stick hovers. */
+  hoverCollective: number;
+  /** Plane only: wing-lift coefficient; F_up = liftCoeff · min(vFwd, liftSpeedCap)². */
+  liftCoeff: number;
+  /** Plane only: forward airspeed (m/s) at which lift ≈ weight (rotation / takeoff speed). */
+  takeoffSpeed: number;
+  /** Plane only: cap on the airspeed fed to the lift curve (keeps high-speed lift sane). */
+  liftSpeedCap: number;
+  /** Pitch (elevator/cyclic) control torque, N·m per unit input. */
+  pitchTorque: number;
+  /** Roll (aileron/cyclic) control torque. */
+  rollTorque: number;
+  /** Yaw (rudder/tail-rotor) control torque. */
+  yawTorque: number;
+  /** Plane only: airspeed (m/s) at which control surfaces reach full authority. */
+  controlRefSpeed: number;
+  /** Linear air drag (F = -k · v). */
+  linearDrag: number;
+  /** Angular drag (damps tumbling; higher = more stable/heavier controls). */
+  angularDrag: number;
+  /** Auto-level gain that rights the craft toward upright (arcade forgiveness). */
+  levelAssist: number;
+  /** Weather-vane gain that aligns velocity to the nose (plane keel / heli body). */
+  headingAssist: number;
+  /** Visual rotor/propeller spin rate at full power (rad/s). */
+  rotorSpinRate: number;
+}
+
+/** Arcade watercraft tuning (buoyancy + planing + rudder). Applied in boat.ts each step. */
+export interface BoatConfig {
+  /** World Y of the water surface the hull floats at. */
+  waterLevel: number;
+  /** Forward thrust force at full throttle (N). */
+  thrust: number;
+  /** Reverse thrust force (N). */
+  reverseThrust: number;
+  /** Buoyancy stiffness — restoring force per metre submerged, in units of (mass · g). */
+  buoyancy: number;
+  /** Submersion depth (m) that develops full buoyancy (draft). */
+  draft: number;
+  /** Vertical velocity damping while in water (kills bob). */
+  heaveDamp: number;
+  /** Rudder yaw torque (scaled by forward speed). */
+  steerTorque: number;
+  /** Lateral (sideways) drag — the keel that stops sliding. */
+  lateralDrag: number;
+  /** Forward hydrodynamic drag. */
+  forwardDrag: number;
+  /** Roll induced into a turn (lean), rad per unit steer·speed. */
+  turnBank: number;
+  /** Self-righting torque toward upright. */
+  levelAssist: number;
+  /** Angular drag (pitch/roll/yaw stabilization in water). */
+  angularDrag: number;
+}
+
 /** Full, data-driven handling profile for one vehicle class. */
 export interface VehicleConfig {
   id: VehicleId | string;
+  /** Locomotion family (default `"car"` when omitted). */
+  kind?: VehicleKind;
+  /** Arcade flight tuning — required for `heli` / `plane`, ignored otherwise. */
+  flight?: FlightConfig;
+  /** Arcade watercraft tuning — required for `boat`, ignored otherwise. */
+  boat?: BoatConfig;
   /** Chassis mass (kg). */
   mass: number;
   /** Chassis cuboid half-extents [x=half-width, y=half-height, z=half-length]. */
@@ -208,6 +301,10 @@ export const createEmptyDriverInput = (): DriverInput => ({
   steer: 0,
   handbrake: false,
   reverse: false,
+  pitch: 0,
+  roll: 0,
+  yaw: 0,
+  lift: 0,
 });
 
 export const createInitialVehicleState = (): VehicleState => ({

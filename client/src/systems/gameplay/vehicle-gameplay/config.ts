@@ -4,7 +4,8 @@
 // that's fine, but gameplay never simulates the chassis itself.
 
 import { VehicleId, type Vec3 } from "@sunbreak/shared";
-import type { SeatId } from "./types";
+import { ExtVehicleId } from "@/systems/physics/vehicle";
+import type { SeatId, VehicleSpecId } from "./types";
 
 export interface SeatConfig {
   id: SeatId;
@@ -15,7 +16,7 @@ export interface SeatConfig {
 }
 
 export interface VehicleSpec {
-  id: VehicleId;
+  id: VehicleSpecId;
   label: string;
   /** Asset prefab hint for the render/asset subsystem. Only "sedan" is defined in v0. */
   prefab: "sedan";
@@ -25,6 +26,8 @@ export interface VehicleSpec {
   /** Chassis half-extents (x=half-width, y=half-height, z=half-length) — enter radius + seats. */
   halfExtents: Vec3;
   seats: SeatConfig[];
+  /** Optional planar enter radius override (larger craft need a wider prompt). */
+  enterRadius?: number;
 }
 
 const frontSeats = (): SeatConfig[] => [
@@ -65,14 +68,70 @@ const SUV_SPEC: VehicleSpec = {
   seats: frontSeats(),
 };
 
-const SPECS: Partial<Record<VehicleId, VehicleSpec>> = {
+const frontSeat = (): SeatConfig[] => [
+  { id: "driver", offset: { x: -0.3, y: 0.4, z: 0.1 }, exit: { x: -1.6, y: 0.2, z: 0 } },
+];
+
+const MOTORCYCLE_SPEC: VehicleSpec = {
+  id: ExtVehicleId.Motorcycle,
+  label: "Motorcycle",
+  prefab: "sedan",
+  maxHp: 350,
+  topSpeedKmh: 210,
+  mass: 260,
+  halfExtents: { x: 0.28, y: 0.42, z: 1.05 },
+  seats: frontSeat(),
+  enterRadius: 3.0,
+};
+
+const HELICOPTER_SPEC: VehicleSpec = {
+  id: ExtVehicleId.Helicopter,
+  label: "Helicopter",
+  prefab: "sedan",
+  maxHp: 1600,
+  topSpeedKmh: 240,
+  mass: 2200,
+  halfExtents: { x: 1.1, y: 1.1, z: 2.4 },
+  seats: frontSeats(),
+  enterRadius: 5.5,
+};
+
+const PLANE_SPEC: VehicleSpec = {
+  id: ExtVehicleId.Plane,
+  label: "Light Plane",
+  prefab: "sedan",
+  maxHp: 1400,
+  topSpeedKmh: 320,
+  mass: 1400,
+  halfExtents: { x: 0.9, y: 0.8, z: 3.4 },
+  seats: frontSeats(),
+  enterRadius: 6.0,
+};
+
+const BOAT_SPEC: VehicleSpec = {
+  id: ExtVehicleId.Boat,
+  label: "Speedboat",
+  prefab: "sedan",
+  maxHp: 1200,
+  topSpeedKmh: 120,
+  mass: 1200,
+  halfExtents: { x: 1.35, y: 0.7, z: 3.2 },
+  seats: frontSeats(),
+  enterRadius: 5.0,
+};
+
+const SPECS: Partial<Record<VehicleSpecId, VehicleSpec>> = {
   [VehicleId.Sedan]: SEDAN_SPEC,
   [VehicleId.Coupe]: COUPE_SPEC,
   [VehicleId.Suv]: SUV_SPEC,
+  [ExtVehicleId.Motorcycle]: MOTORCYCLE_SPEC,
+  [ExtVehicleId.Helicopter]: HELICOPTER_SPEC,
+  [ExtVehicleId.Plane]: PLANE_SPEC,
+  [ExtVehicleId.Boat]: BOAT_SPEC,
 };
 
 /** Spec lookup with a guaranteed sedan fallback (physics-agnostic gameplay data). */
-export const getSpec = (id: VehicleId): VehicleSpec => SPECS[id] ?? SEDAN_SPEC;
+export const getSpec = (id: VehicleSpecId): VehicleSpec => SPECS[id] ?? SEDAN_SPEC;
 
 export const getSeat = (spec: VehicleSpec, seat: SeatId): SeatConfig =>
   spec.seats.find((s) => s.id === seat) ?? spec.seats[0] ?? SEDAN_SPEC.seats[0]!;

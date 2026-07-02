@@ -10,8 +10,7 @@
 // This file MUST stay a module (the `import type` below guarantees that), otherwise the
 // `declare module` would replace @sunbreak/shared instead of merging into it.
 
-import type { VehicleId } from "@sunbreak/shared";
-import type { SeatId, VehicleHealth } from "./types";
+import type { SeatId, VehicleHealth, VehicleSpecId } from "./types";
 
 declare module "@sunbreak/shared" {
   interface SimComponents {
@@ -22,8 +21,8 @@ declare module "@sunbreak/shared" {
     // `veh_isVehicle`). Gameplay WRITES `veh_input`/`veh_engineHealth`/`veh_spawnRequest` and
     // READS `veh_state` on those same components — no duplicate declaration here (that caused a
     // `veh_state` type collision). We only own `veh_spec` + the `vg_*` gameplay state below.
-    /** Handling-profile key. Physics selects its tuning from this. */
-    veh_spec?: VehicleId;
+    /** Handling-profile key (enum car OR extended roster: motorcycle/heli/plane/boat). */
+    veh_spec?: VehicleSpecId;
 
     // ── gameplay-owned (vg_) ─────────────────────────────────────────────────
     /** Tag: a gameplay-managed vehicle (the root of every vehicle-gameplay query). */

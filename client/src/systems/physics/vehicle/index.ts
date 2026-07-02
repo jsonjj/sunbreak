@@ -33,6 +33,9 @@ export type {
   WheelSpec,
   VehicleArcadeConfig,
   VehicleConfig,
+  VehicleKind,
+  FlightConfig,
+  BoatConfig,
   VehicleSpawnRequest,
   VehicleHandle,
   RapierVehicleController,
@@ -51,10 +54,15 @@ export {
 } from "./runtime";
 export {
   VEHICLE_PRESETS,
+  EXTENDED_PRESETS,
+  ALL_VEHICLE_PRESETS,
   DEFAULT_VEHICLE_CONFIG,
   resolveVehicleConfig,
   computeChassisInertia,
+  kindOf,
+  ExtVehicleId,
 } from "./presets";
 
 // ─── Render bridge (mounted by the integrator inside <PhysicsProvider>) ───────────────────────
 export { VehiclePhysicsView } from "./VehiclePhysicsView";
+export { VehicleLandmarks, LANDMARKS } from "./VehicleLandmarks";

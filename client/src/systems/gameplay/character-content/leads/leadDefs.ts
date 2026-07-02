@@ -22,17 +22,17 @@ export const CAMI: LeadDef = {
   states: {
     street: {
       bodyId: "slim",
-      palette: { skin: "#eabd98", hair: "#2e2018", clothing: "#2f6b63" },
+      palette: { skin: "#eabd98", hair: "#2e2018", clothing: "#2f6b63", clothing2: "#2c3038" },
       wardrobe: { hair: "hair_long", torso: "torso_tee", legs: "legs_pants", feet: "feet_shoes", hat: null, accessory: null },
     },
     clinic: {
       bodyId: "slim",
-      palette: { skin: "#eabd98", hair: "#2e2018", clothing: "#dfe4e8" },
-      wardrobe: { hair: "hair_bun", torso: "torso_jacket", legs: "legs_pants", feet: "feet_shoes", hat: null, accessory: null },
+      palette: { skin: "#eabd98", hair: "#2e2018", clothing: "#dfe4e8", clothing2: "#6a6f77" },
+      wardrobe: { hair: "hair_bun", torso: "torso_jacket", legs: "legs_pants", feet: "feet_shoes", eyewear: "glasses_round", hat: null, accessory: null },
     },
     party: {
       bodyId: "slim",
-      palette: { skin: "#eabd98", hair: "#33474a", clothing: "#874b6a" },
+      palette: { skin: "#eabd98", hair: "#33474a", clothing: "#874b6a", clothing2: "#3a2a4a" },
       wardrobe: { hair: "hair_long", torso: "torso_tank", legs: "legs_skirt", feet: "feet_shoes", hat: null, accessory: "acc_sling" },
     },
   },
@@ -48,13 +48,13 @@ export const MAC: LeadDef = {
   states: {
     work: {
       bodyId: "heavy",
-      palette: { skin: "#b97f50", hair: "#1b1a19", clothing: "#5b4636" },
+      palette: { skin: "#b97f50", hair: "#1b1a19", clothing: "#5b4636", clothing2: "#2f3f52" },
       wardrobe: { hair: "hair_short", torso: "torso_jacket", legs: "legs_pants", feet: "feet_boots", hat: "hat_cap", accessory: null },
     },
     street: {
       bodyId: "heavy",
-      palette: { skin: "#b97f50", hair: "#1b1a19", clothing: "#3a4a63" },
-      wardrobe: { hair: "hair_short", torso: "torso_tee", legs: "legs_pants", feet: "feet_boots", hat: null, accessory: null },
+      palette: { skin: "#b97f50", hair: "#1b1a19", clothing: "#3a4a63", clothing2: "#2c3038" },
+      wardrobe: { hair: "hair_short", torso: "torso_hoodie", legs: "legs_pants", feet: "feet_boots", hat: null, accessory: null },
     },
   },
 };

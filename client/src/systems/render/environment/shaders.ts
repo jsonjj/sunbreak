@@ -228,6 +228,11 @@ const WATER_FRAGMENT = /* glsl */ `
     alpha = max(alpha, foam);
     alpha *= smoothstep(-0.05, 0.18, depth);
 
+    // Discard fully-transparent fragments so the huge water plane never WRITES DEPTH over land
+    // (depthWrite is on for correct sorting between water bodies). Without this the invisible
+    // plane z-fights the coplanar city ground/terrain — the real cause of "streets flood".
+    if (alpha < 0.02) discard;
+
     gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -239,6 +244,7 @@ export function makeWaterMaterial(
   ht: HeightTextureResult,
   normalTex: THREE.Texture,
   foamTex: THREE.Texture,
+  waterLevel: number,
 ): THREE.ShaderMaterial {
   const preset =
     variant === "wetland"
@@ -310,7 +316,7 @@ export function makeWaterMaterial(
       uHeightRange: { value: ht.range },
       uWorldMin: { value: new THREE.Vector2(ht.worldMin, ht.worldMin) },
       uWorldSize: { value: ht.worldSize },
-      uWaterLevel: { value: 0 },
+      uWaterLevel: { value: waterLevel },
       uShallowDepth: { value: preset.shallowDepth },
       uFoamTex: { value: foamTex },
       uFoam: { value: preset.foam },

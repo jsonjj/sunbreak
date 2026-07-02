@@ -23,6 +23,47 @@ export const DEFAULT_MAX_RANGE = 220;
 
 /** Extra spread multiplier while moving (hip-fire penalty). */
 export const MOVE_SPREAD_MULT = 1.5;
+/** Speed (m/s) above which the player counts as "moving" for the hip-fire penalty. */
+export const MOVE_SPREAD_SPEED = 0.6;
+
+// ── Recoil (kick applied to the shared look angles, then recovered) ────────────────────────────
+/** How much of the accumulated recoil is auto-recovered per second (fraction 0..1 of residual). */
+export const RECOIL_RECOVER_FRACTION = 0.9;
+/** Hard cap on total accumulated vertical recoil so sustained auto-fire can't spin the camera up. */
+export const RECOIL_PITCH_CAP = 0.22; // radians (~12.5°)
+/** Upper clamp on the look pitch while recoil is applied (mirrors InputManager's PITCH_MAX). */
+export const RECOIL_PITCH_LIMIT = 1.1;
+/** Bloom (recoil bloom) contribution to the reticle/hitscan spread cone, at bloom = 1 (deg). */
+export const BLOOM_MAX_SPREAD_DEG = 4.5;
+/** Bloom decay per second when not firing. */
+export const BLOOM_DECAY_PER_S = 2.5;
+
+// ── Reticle (crosshair reflects the live spread) ──────────────────────────────────────────────
+/** Screen pixels of crosshair gap per degree of spread half-angle. */
+export const RETICLE_PX_PER_DEG = 7;
+/** Crosshair gap clamp (px) so it never fully collapses or explodes. */
+export const RETICLE_MIN_GAP = 3;
+export const RETICLE_MAX_GAP = 46;
+/** Extra transient gap added the instant a shot goes off, then eased away (px). */
+export const RETICLE_FIRE_KICK = 6;
+/** Reticle fire-kick decay per second (px/s). */
+export const RETICLE_KICK_DECAY = 60;
+
+// ── Hit feedback (hitmarker + floating damage numbers, drawn by <CombatOverlay/>) ──────────────
+export const HITMARKER_MS = 220;
+export const DAMAGE_NUMBER_MS = 900;
+/** Pool sizes for the DOM feedback overlay (recycled, hard-capped). */
+export const DAMAGE_NUMBER_POOL = 20;
+/** Rise distance for a floating damage number over its lifetime (px). */
+export const DAMAGE_NUMBER_RISE = 46;
+
+// ── World weapon pickups ──────────────────────────────────────────────────────────────────────
+/** Collect radius for a walk-over weapon pickup (m). */
+export const WEAPON_PICKUP_RADIUS = 1.6;
+/** Default respawn delay for a pickup flagged to respawn (ms). */
+export const WEAPON_PICKUP_RESPAWN_MS = 20000;
+/** Proximity poll rate for the pickup system (Hz-equivalent; never per-frame). */
+export const WEAPON_PICKUP_RATE = 1 / 10;
 
 // ── Practice range (self-contained validation targets, spawned by <CombatRig/>) ────────────────
 export const TARGET_COUNT = 6;

@@ -6,7 +6,12 @@
 // `declare module` with no import/export would silently REPLACE the shared module and break its
 // types). Never edit the shared file itself.
 
-import type { CombatProjectile, CombatTargetInfo, CombatWeaponRuntime } from "./types";
+import type {
+  CombatProjectile,
+  CombatTargetInfo,
+  CombatWeaponPickup,
+  CombatWeaponRuntime,
+} from "./types";
 
 declare module "@sunbreak/shared" {
   interface SimComponents {
@@ -21,6 +26,9 @@ declare module "@sunbreak/shared" {
 
     /** Pooled ballistic projectile runtime (RPG rocket / thrown grenade). */
     combat_projectile?: CombatProjectile;
+
+    /** World weapon pickup (grants a weapon + ammo on contact). */
+    combat_weaponPickup?: CombatWeaponPickup;
 
     /** performance.now() at which combat killed this entity (drives cleanup / target respawn). */
     combat_deadAt?: number;

@@ -70,7 +70,8 @@ export function ensureEnvironmentBuilt(): EnvBuild {
   const albedo = safeBuild("tex:albedo", makeDetailAlbedo);
   const normal = safeBuild("tex:normal", makeDetailNormal);
   const roughness = safeBuild("tex:roughness", makeRoughness);
-  const heightTex = safeBuild("tex:height", () => makeHeightTexture(256));
+  // 512² over the larger island → ~2.5 m/texel shoreline mask (crisper water/land edge).
+  const heightTex = safeBuild("tex:height", () => makeHeightTexture(512));
   const waterNormal = safeBuild("tex:waterNormal", makeWaterNormal);
   const foam = safeBuild("tex:foam", makeFoamTexture);
 

@@ -43,7 +43,7 @@ export function buildWater(tex: WaterTextures, tier: EnvQualitySettings): WaterB
   // --- Open ocean (extends well past the built terrain toward the horizon) ---
   const oceanSize = Math.max(4000, BUILT_HALF * 6);
   const oceanGeo = buildWaterPlane(oceanSize, tier.oceanSegments);
-  const oceanMat = makeWaterMaterial("ocean", tex.height, tex.normal, tex.foam);
+  const oceanMat = makeWaterMaterial("ocean", tex.height, tex.normal, tex.foam, WATER_LEVEL);
   const ocean = new THREE.Mesh(oceanGeo, oceanMat);
   ocean.name = "env:ocean";
   ocean.position.set(0, WATER_LEVEL, 0);
@@ -51,9 +51,9 @@ export function buildWater(tex: WaterTextures, tier: EnvQualitySettings): WaterB
   ocean.frustumCulled = false;
 
   // --- Glades wetland (murky, non-reflective, translucent) ---
-  const wetSize = GLADES_RADIUS * 2.4;
+  const wetSize = GLADES_RADIUS * 2.0;
   const wetGeo = buildWaterPlane(wetSize, 48);
-  const wetMat = makeWaterMaterial("wetland", tex.height, tex.normal, tex.foam);
+  const wetMat = makeWaterMaterial("wetland", tex.height, tex.normal, tex.foam, GLADES_WATER_LEVEL);
   const wetland = new THREE.Mesh(wetGeo, wetMat);
   wetland.name = "env:wetland";
   wetland.position.set(GLADES_CENTER.x, GLADES_WATER_LEVEL, GLADES_CENTER.z);

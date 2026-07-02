@@ -19,7 +19,8 @@ import {
 import { getNav, randomNeighbor } from "./nav";
 import { acquireEntity, returnEntity } from "./pool";
 import { setAgentTarget } from "./reactions";
-import { allocSlot, freeSlot, jitterColor, setInstanceColor } from "./render/pedInstances";
+import { allocSlot, freeSlot, setInstanceAppearance } from "./render/pedInstances";
+import { crowdLook } from "./render/crowdColors";
 import { assignTickPhase, currentCap } from "./lod";
 import { rand, weightedPick } from "./rng";
 import { getPlayer, pedQuery, viewRef } from "./queries";
@@ -62,7 +63,8 @@ export function spawnOne(px: number, pz: number): boolean {
   a.vx = 0;
   a.vz = 0;
   a.speed = 0;
-  a.maxSpeed = def.walk;
+  // Per-ped walk-speed jitter so a crowd doesn't march at one uniform pace.
+  a.maxSpeed = def.walk * (0.82 + rand() * 0.34);
   a.heading = rand() * Math.PI * 2;
   a.state = "wander";
   a.stateT = 0;
@@ -74,6 +76,9 @@ export function spawnOne(px: number, pz: number): boolean {
   a.dist2 = 0;
   a.slot = slot;
   a.animPhase = rand();
+  const look = crowdLook(arch, rand);
+  a.bodyW = look.bodyW;
+  a.bodyH = look.bodyH;
   a.age = 0;
   a.deadAt = 0;
   assignTickPhase(a, rand);
@@ -94,7 +99,7 @@ export function spawnOne(px: number, pz: number): boolean {
   t.rotation.w = 1;
 
   world.add(e);
-  setInstanceColor(arch, slot, jitterColor(arch, rand));
+  setInstanceAppearance(arch, slot, look);
 
   const next = randomNeighbor(node, rand, -1);
   if (next >= 0) setAgentTarget(a, next);

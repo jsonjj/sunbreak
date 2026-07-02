@@ -47,14 +47,17 @@ export const charDriveSystem: System<W> = {
   },
 };
 
-/** Advance every character mixer. */
+/** Advance every character animator (mixer + the procedural overlay). Falls back to a bare mixer
+ *  tick for any entity whose live animator handle is missing. */
 export const charMixerSystem: System<W> = {
   name: "char/mixers",
   phase: "render",
   order: 10,
   fn: (_w, dt) => {
     for (const e of animated.entities) {
-      e.mixer.update(dt);
+      const inst = getCharacterInstance(e as ClientEntity);
+      if (inst) inst.update(dt);
+      else e.mixer.update(dt);
     }
   },
 };

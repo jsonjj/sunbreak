@@ -9,9 +9,9 @@ import { MoneyCounter } from "./MoneyCounter";
 import { WantedStars } from "./WantedStars";
 import { WeaponWidget } from "./WeaponWidget";
 import { Speedometer } from "./Speedometer";
-import { Crosshair } from "./Crosshair";
 import { Toasts } from "./Toasts";
 import { InteractionPrompt } from "./InteractionPrompt";
+import { ObjectiveTracker } from "./ObjectiveTracker";
 import { DebugOverlay } from "./DebugOverlay";
 
 const IDLE_MS = 6000;
@@ -58,6 +58,10 @@ export function GameHud({ cinematic = false }: { cinematic?: boolean }) {
       {debug ? <DebugOverlay /> : null}
       <Toasts />
 
+      <div className={cx(styles.corner, styles.tl)}>
+        <ObjectiveTracker />
+      </div>
+
       <div className={cx(styles.corner, styles.tr, styles.fadeable)}>
         <MoneyCounter />
         <WantedStars />
@@ -73,7 +77,7 @@ export function GameHud({ cinematic = false }: { cinematic?: boolean }) {
         <WeaponWidget />
       </div>
 
-      {!cinematic ? <Crosshair /> : null}
+      {/* Reticle is drawn by combat's <CombatOverlay/> (spread-aware) — no static HUD crosshair here. */}
 
       <div className={cx(styles.corner, styles.bc)}>
         <InteractionPrompt />

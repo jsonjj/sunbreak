@@ -10,6 +10,7 @@ import type { ClientEntity } from "@/ecs/clientEntity";
 import { useUiStore } from "@/stores/ui.store";
 import { ENTER_RADIUS, getSeat, getSpec } from "./config";
 import { getPlayer, getVehicle, vgQueries } from "./queries";
+import { forgetFlightState } from "./flightDrive";
 import { freezePlayer, unfreezePlayer } from "./playerBridge";
 import { useVehicleStore } from "./store";
 import type { SeatId } from "./types";
@@ -77,7 +78,14 @@ function exitVehicle(player: ClientEntity, seat: SeatId, vehicleNetId: number): 
     di.steer = 0;
     di.reverse = false;
     di.handbrake = true; // re-park
+    // Zero the aircraft axes too so an exited heli/plane doesn't keep thrusting/climbing away.
+    di.pitch = 0;
+    di.roll = 0;
+    di.yaw = 0;
+    di.lift = 0;
   }
+  // Clear the driver's persistent collective/throttle so re-entering starts from idle.
+  forgetFlightState(vehicleNetId);
 
   if (player.vg_occupant) world.removeComponent(player, "vg_occupant");
   unfreezePlayer(player, exitWorld);
@@ -100,15 +108,16 @@ export function enterExitSystem(): void {
     return;
   }
 
-  // On foot: nearest non-wrecked vehicle within reach.
+  // On foot: nearest non-wrecked vehicle within its own reach radius (large craft reach further).
   let nearest: ClientEntity | undefined;
-  let best = ENTER_RADIUS;
+  let bestD = Infinity;
   for (const v of vgQueries.vehicles.entities) {
     if (!v.transform || v.netId === undefined) continue;
     if (v.vg_health?.stage === "wrecked") continue;
+    const radius = getSpec(v.veh_spec ?? VehicleId.Sedan).enterRadius ?? ENTER_RADIUS;
     const d = planarDist(player.transform.position, v.transform.position);
-    if (d < best) {
-      best = d;
+    if (d <= radius && d < bestD) {
+      bestD = d;
       nearest = v;
     }
   }

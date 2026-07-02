@@ -11,8 +11,10 @@ import type { ClientEntity } from "@/ecs/clientEntity";
 import { VG_NETID_BASE, WRECK_DESPAWN_SEC, getSpec } from "./config";
 import { initHealth } from "./damage";
 import { getPlayer, getVehicle, vgQueries } from "./queries";
-import { PARKED_SPAWNS } from "./spawns";
+import { VEHICLE_SPAWNS } from "./spawns";
+import type { VehicleSpecId } from "./types";
 import { clearSpeedCache, forgetSpeed } from "./speed";
+import { forgetFlightState } from "./flightDrive";
 import { useVehicleStore } from "./store";
 import { emptyDriverInput } from "./types";
 import { nowSec, quatFromYaw } from "./util";
@@ -29,13 +31,13 @@ export interface SpawnPlace {
 type Target = number | ClientEntity;
 
 let nextNetId = VG_NETID_BASE;
-const freeList = new Map<VehicleId, ClientEntity[]>();
+const freeList = new Map<VehicleSpecId, ClientEntity[]>();
 
 const resolve = (t: Target): ClientEntity | undefined =>
   typeof t === "number" ? getVehicle(t) : t;
 
 /** Write a fresh set of vehicle components onto an entity (used by spawn + pool reuse). */
-function configureVehicle(e: ClientEntity, spec: VehicleId, place: SpawnPlace): ClientEntity {
+function configureVehicle(e: ClientEntity, spec: VehicleSpecId, place: SpawnPlace): ClientEntity {
   const s = getSpec(spec);
   const restY = place.y ?? s.halfExtents.y + 0.15;
   e.netId ??= nextNetId++;
@@ -49,7 +51,9 @@ function configureVehicle(e: ClientEntity, spec: VehicleId, place: SpawnPlace): 
     rotation: quatFromYaw(place.yaw ?? 0),
   };
   e.velocity = { linear: { x: 0, y: 0, z: 0 }, angular: { x: 0, y: 0, z: 0 } };
-  e.vehicle = { id: spec, seats: s.seats.length, occupants: [], engineOn: false, speedKmh: 0 };
+  // `VehicleComp.id` is the shared VehicleId enum; extended (string) ids ride through as a tag —
+  // no cross-subsystem consumer switches on it exhaustively (verified: only label/audio display).
+  e.vehicle = { id: spec as VehicleId, seats: s.seats.length, occupants: [], engineOn: false, speedKmh: 0 };
   e.spawn = { prefab: s.prefab };
   e.veh_spec = spec;
   // Hand off to vehicle-physics: this spawn request is promoted into a full Rapier vehicle
@@ -64,7 +68,7 @@ function configureVehicle(e: ClientEntity, spec: VehicleId, place: SpawnPlace): 
 }
 
 /** Create a new gameplay vehicle entity. Physics + render subsystems pick it up via its comps. */
-export function spawnVehicle(spec: VehicleId, place: SpawnPlace): ClientEntity {
+export function spawnVehicle(spec: VehicleSpecId, place: SpawnPlace): ClientEntity {
   const e = configureVehicle({}, spec, place);
   world.add(e);
   return e;
@@ -83,6 +87,7 @@ export function despawnVehicle(target: Target): void {
       useVehicleStore.getState().patch({ fsm: "onFoot", occupancy: null, activeVehicleId: null });
     }
     forgetSpeed(netId);
+    forgetFlightState(netId);
     const pool = freeList.get(e.veh_spec ?? VehicleId.Sedan);
     if (pool) {
       const i = pool.indexOf(e);
@@ -94,7 +99,7 @@ export function despawnVehicle(target: Target): void {
 
 // ── Free-list pool (v2 traffic/mission surface) ──────────────────────────────────────────
 /** Reuse a released vehicle of `spec` if one is available, otherwise spawn a fresh one. */
-export function acquireVehicle(spec: VehicleId, place: SpawnPlace): ClientEntity {
+export function acquireVehicle(spec: VehicleSpecId, place: SpawnPlace): ClientEntity {
   const pool = freeList.get(spec);
   const reused = pool?.pop();
   if (reused) {
@@ -109,7 +114,10 @@ export function acquireVehicle(spec: VehicleId, place: SpawnPlace): ClientEntity
 export function releaseVehicle(target: Target): void {
   const e = resolve(target);
   if (!e) return;
-  if (e.netId !== undefined) forgetSpeed(e.netId);
+  if (e.netId !== undefined) {
+    forgetSpeed(e.netId);
+    forgetFlightState(e.netId);
+  }
   world.remove(e);
   const spec = e.veh_spec ?? VehicleId.Sedan;
   const pool = freeList.get(spec) ?? [];
@@ -125,8 +133,8 @@ export function spawnBootstrapSystem(): void {
   if (bootstrapped) return;
   const player = getPlayer();
   if (!player?.transform) return; // wait for <PlayerController> to spawn the player
-  for (const p of PARKED_SPAWNS) {
-    spawnVehicle(p.spec, { x: p.x, z: p.z, yaw: p.yaw, parked: true });
+  for (const p of VEHICLE_SPAWNS) {
+    spawnVehicle(p.spec, { x: p.x, z: p.z, y: p.y, yaw: p.yaw, parked: true });
   }
   bootstrapped = true;
 }

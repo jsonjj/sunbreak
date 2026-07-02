@@ -18,13 +18,14 @@ import "./contracts";
 import { fireSystem } from "./systems/fireSystem";
 import { projectileSystem } from "./systems/projectileSystem";
 import { targetSystem } from "./systems/targetSystem";
+import { weaponPickupSystem } from "./systems/weaponPickupSystem";
 import { combatHudSyncSystem } from "./systems/hudSyncSystem";
 
 type W = typeof world;
 
 export const combat: SubsystemModule<W> = {
   id: "gameplay/combat",
-  systems: [fireSystem, projectileSystem, targetSystem, combatHudSyncSystem],
+  systems: [fireSystem, projectileSystem, targetSystem, weaponPickupSystem, combatHudSyncSystem],
 };
 
 registerModule(combat); // required side effect — makes combat live
@@ -40,7 +41,53 @@ export type {
   Hitzone,
 } from "./types";
 /** Ballistics table (data-driven weapon feel), keyed by inventory weapon ids. */
-export { COMBAT_WEAPONS, getCombatWeapon } from "./weapons";
-export type { WeaponBallistics } from "./weapons";
-/** INTEGRATOR: mount this once inside <PhysicsProvider> to enable world occlusion + VFX + range. */
+export { COMBAT_WEAPONS, getCombatWeapon, fireIntervalMs } from "./weapons";
+export type {
+  WeaponBallistics,
+  WeaponSfxKind,
+  RecoilSpec,
+  TracerSpec,
+  MuzzleSpec,
+  DamageFalloff,
+} from "./weapons";
+
+// ── WEAPON CATALOG (ids + display names + price + ammo + full stats) ──────────────────────────
+// The single sheet a gun store / pickup author reads. Fuses inventory identity + combat
+// ballistics + combat-owned prices, and maps the economy storefront ids (`wpn_pistol` …).
+export {
+  COMBAT_CATALOG,
+  combatCatalogList,
+  purchasableWeapons,
+  getCombatCatalogEntry,
+  weaponPrice,
+  ammoBoxFor,
+  weaponIdForShopItem,
+  SHOP_ITEM_TO_WEAPON,
+} from "./catalog";
+export type { CombatCatalogEntry, AmmoBox, WeaponTier } from "./catalog";
+
+// ── ACQUISITION API — INTEGRATOR: call these from gun stores, pickups, and rewards ─────────────
+// `giveWeapon(id)` / `addAmmo(...)` grant into inventory (the ammo/mag authority); validated
+// against the catalog. `giveWeaponFromShopItem("wpn_pistol")` bridges the economy id namespace.
+export {
+  giveWeapon,
+  giveWeaponFromShopItem,
+  addAmmo,
+  giveAmmoForWeapon,
+  giveAmmoBox,
+  hasWeapon,
+  equipWeapon,
+} from "./integrations/acquisition";
+export type { GiveWeaponOptions } from "./integrations/acquisition";
+
+// ── WORLD WEAPON PICKUPS — INTEGRATOR: place these anywhere in the world ───────────────────────
+export { spawnWeaponPickup } from "./systems/weaponPickupSystem";
+export type { SpawnPickupOptions } from "./systems/weaponPickupSystem";
+export type { CombatWeaponPickup } from "./types";
+
+/** INTEGRATOR: mount this once inside <PhysicsProvider> to enable world occlusion + VFX + range +
+ *  pickups. It self-mounts <CombatOverlay/> (crosshair/hitmarker/damage numbers) unless hud=false. */
 export { CombatRig } from "./view/CombatRig";
+/** INTEGRATOR (optional): mount the combat HUD yourself as a DOM sibling of <Canvas> (hud={false} on
+ *  <CombatRig/>). Duplicates are safe — only one instance ever animates. */
+export { CombatOverlay } from "./view/CombatOverlay";

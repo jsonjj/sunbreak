@@ -1,17 +1,16 @@
-// Biome model for Verano's coastal fabric. Pure functions of world position (+ height/slope)
-// so terrain colour, foliage/prop density, and water tint all derive deterministically.
-// NOTE: one-directional dependency — biomes imports constants/noise only; heightfield imports
-// biomes (never the reverse) to avoid a cycle.
+// Biome model for Santa Vista's coastal island. Pure functions of world position (+ height/
+// slope) so terrain colour, foliage/prop density, and water tint all derive deterministically.
+// The macro land/water shape (coastline + carved water bodies) comes from the shared island
+// geography (city/geography); this module only classifies + colours it.
+// NOTE: one-directional dependency — biomes imports geography + constants/noise only; heightfield
+// imports biomes (never the reverse) to avoid a cycle.
 
+import { BEACH_DEPTH, WATER_LEVEL } from "./constants";
 import {
-  BAY_CENTER,
-  BAY_RADIUS,
-  BEACH_DEPTH,
-  GLADES_CENTER,
-  GLADES_RADIUS,
-  SHORE_Z,
-  WATER_LEVEL,
-} from "./constants";
+  coastInset,
+  gladesMask as geoGladesMask,
+  marinaMask,
+} from "@/systems/render/city/geography";
 import { clamp01, fbm, smoothstep } from "./noise";
 
 export type EnvBiomeId = "ocean" | "beach" | "bay" | "glades" | "inland";
@@ -27,30 +26,14 @@ export interface SurfaceWeights {
 /** Dominant walkable surface tag — consumed by player footsteps / vehicle wheels / audio. */
 export type SurfaceTag = "sand" | "wetSand" | "grass" | "mud" | "rock" | "water" | "seabed";
 
-const dist = (x: number, z: number, cx: number, cz: number): number =>
-  Math.hypot(x - cx, z - cz);
-
-/** Wobbly waterline latitude at a given x (metres, +Z = seaward). */
-export function shorelineZ(x: number): number {
-  return (
-    SHORE_Z +
-    18 * Math.sin(x * 0.0065) +
-    9 * fbm(x * 0.02, 0, 7717, 3) +
-    4 * Math.sin(x * 0.03 + 1.3)
-  );
-}
-
-/** 0 inland → 1 deep in the Glades wetland footprint. */
+/** 0 inland → 1 deep in the Glades marsh footprint (re-exported from the shared geography). */
 export function gladesMask(x: number, z: number): number {
-  const d = dist(x, z, GLADES_CENTER.x, GLADES_CENTER.z);
-  const edge = GLADES_RADIUS * (0.85 + 0.25 * fbm(x * 0.01, z * 0.01, 3301, 3));
-  return 1 - smoothstep(edge * 0.55, edge, d);
+  return geoGladesMask(x, z);
 }
 
-/** 0 outside → 1 inside the bay bowl (the single hero-reflector body). */
+/** 0 outside → 1 inside the Marina harbour bowl (the single hero-reflector body). */
 export function bayMask(x: number, z: number): number {
-  const d = dist(x, z, BAY_CENTER.x, BAY_CENTER.z);
-  return 1 - smoothstep(BAY_RADIUS * 0.6, BAY_RADIUS, d);
+  return marinaMask(x, z);
 }
 
 /** Region classification from position + terrain height. */
@@ -58,36 +41,36 @@ export function classifyBiome(x: number, z: number, height: number): EnvBiomeId 
   if (bayMask(x, z) > 0.5 && height < WATER_LEVEL + 0.4) return "bay";
   if (gladesMask(x, z) > 0.45) return "glades";
   if (height < WATER_LEVEL - 0.15) return "ocean";
-  if (z > shorelineZ(x) - BEACH_DEPTH && height < WATER_LEVEL + 3.2) return "beach";
+  if (coastInset(x, z) < BEACH_DEPTH && height < WATER_LEVEL + 2.4) return "beach";
   return "inland";
 }
 
 /**
  * Material weights for colouring + scatter density. `slope` is 0 (flat) → 1 (vertical),
- * `height` is metres above/below sea level.
+ * `height` is metres above/below sea level. Sand hugs the coastline, grass fills inland.
  */
 export function biomeWeights(
   x: number,
   z: number,
-  height: number,
+  _height: number,
   slope: number,
 ): SurfaceWeights {
   const glades = gladesMask(x, z);
-  const seaProximity = 1 - clamp01((height - WATER_LEVEL) / 2.2); // near/below water → sandy/muddy
+  const inset = coastInset(x, z);
+  // 1 right at the waterline → 0 well inland: keeps a sandy coastal band, grass beyond it.
+  const coastFactor = 1 - clamp01(inset / (BEACH_DEPTH * 1.6));
   const rocky = smoothstep(0.55, 0.85, slope);
 
-  // Base: sand near the water, grass higher inland.
-  let sand = clamp01(seaProximity) * (1 - glades);
-  let grass = clamp01((height - WATER_LEVEL) / 6) * (1 - glades);
-  let mud = glades * (0.7 + 0.3 * clamp01(seaProximity));
-  let rock = rocky;
+  let sand = coastFactor * (1 - glades);
+  let grass = (1 - coastFactor) * (1 - glades);
+  let mud = glades * (0.7 + 0.3 * coastFactor);
+  const rock = rocky;
 
   // Micro-variation so the splat isn't banded.
   const v = fbm(x * 0.05, z * 0.05, 9091, 3) * 0.5 + 0.5;
   grass *= 0.7 + 0.6 * v;
   sand *= 0.8 + 0.4 * (1 - v);
 
-  // Steep slopes are rock regardless of biome.
   grass *= 1 - rock;
   sand *= 1 - rock;
   mud *= 1 - rock * 0.5;
@@ -104,7 +87,7 @@ export function surfaceTagFor(
 ): SurfaceTag {
   if (height < WATER_LEVEL - 0.05) return "seabed";
   if (slope > 0.7 && w.rock >= w.grass) return "rock";
-  const near = height < WATER_LEVEL + 0.35;
+  const near = height < WATER_LEVEL + 0.6;
   if (w.mud >= w.sand && w.mud >= w.grass) return "mud";
   if (w.grass >= w.sand && w.grass >= w.rock) return "grass";
   return near ? "wetSand" : "sand";

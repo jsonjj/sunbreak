@@ -38,6 +38,10 @@ export class VehicleHandleImpl implements VehicleHandle {
   wheels: THREE.Object3D[] = [];
   /** Visual root (the `three` view component). */
   visual: THREE.Object3D | null = null;
+  /** Spinning rotor/propeller visual groups (aircraft) — animated by the dynamic controller. */
+  rotors: THREE.Object3D[] = [];
+  /** Accumulated rotor/prop spin angle (rad). */
+  rotorAngle = 0;
   readonly netId?: number;
 
   // --- per-step mutable state (owned by handling.ts) ---

@@ -3,6 +3,7 @@
 // reserved landmark footprint sits.
 import { hHalfWidth, vHalfWidth, type CityGrid } from "./roads";
 import { landmarkReservesFootprint } from "./districts";
+import { isWaterPadded } from "./geography";
 import {
   polygonBounds,
   rectArea,
@@ -47,6 +48,10 @@ export function buildBlocks(
       const centroid = rectCentroid(rect);
       const district = districtAt(centroid.x, centroid.z, districts);
       if (!district) continue;
+
+      // Drop blocks that sit in a water body so buildings/lots never spawn in the harbour,
+      // marsh or sea (roads are already pruned there too).
+      if (isWaterPadded(centroid.x, centroid.z, 3)) continue;
 
       if (reserved.some((r) => rectsOverlap(r, rect, 2))) continue;
 

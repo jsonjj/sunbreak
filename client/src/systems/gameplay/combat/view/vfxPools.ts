@@ -122,7 +122,9 @@ export function updateVfxPools(pools: VfxPools, dt: number): void {
     _v.set(dx / len, dy / len, dz / len);
     _q.setFromUnitVectors(Z, _v);
     it.mesh.quaternion.copy(_q);
-    it.mesh.scale.set(1, 1, len);
+    const w = r.width ?? 1;
+    it.mesh.scale.set(w, w, len);
+    it.mat.color.setHex(r.color ?? 0xffd9a0);
     it.mesh.visible = true;
     it.active = true;
     it.age = 0;
@@ -136,7 +138,8 @@ export function updateVfxPools(pools: VfxPools, dt: number): void {
     pools.mi = (pools.mi + 1) % pools.muzzles.length;
     if (!it) continue;
     it.mesh.position.set(r.x, r.y, r.z);
-    it.mesh.scale.setScalar(1.4);
+    it.mesh.scale.setScalar(1.4 * (r.scale ?? 1));
+    it.mat.color.setHex(r.color ?? 0xfff0b0);
     it.mesh.visible = true;
     it.active = true;
     it.age = 0;

@@ -81,6 +81,26 @@ export interface CombatTargetInfo {
   home: Vec3;
 }
 
+/**
+ * A world weapon pickup (ECS `combat_weaponPickup`) the player collects by walking over it.
+ * The integrator spawns these via `spawnWeaponPickup(...)`; `weaponPickupSystem` grants the
+ * weapon + ammo through the inventory acquisition path on contact.
+ */
+export interface CombatWeaponPickup {
+  /** Inventory weapon id to grant (must exist in the combat catalog / inventory). */
+  weaponId: string;
+  /** Reserve ammo added on collect. Omit to use the weapon's `startingReserve`. */
+  ammo?: number;
+  /** Auto-equip the weapon the moment it is collected. */
+  equip?: boolean;
+  /** ms until the pickup reappears after being taken. 0 / omitted = one-shot (despawns). */
+  respawnMs?: number;
+  /** performance.now() when it was last collected (0 = currently available). */
+  takenAt?: number;
+  /** Random phase so a field of pickups bobs/spins out of sync (cosmetic; view-only). */
+  seed?: number;
+}
+
 /** Normalised view of the equipped weapon (resolved from `inv_equipped` or the inventory store). */
 export interface EquippedView {
   weaponId: string;

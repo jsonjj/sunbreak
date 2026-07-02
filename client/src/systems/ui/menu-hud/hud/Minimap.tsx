@@ -1,195 +1,277 @@
 import { useEffect, useRef } from "react";
-import type { BlipKind } from "@sunbreak/shared";
-import { toggleClass } from "../lib/cx";
-import { playerQuery, hudBlipQuery } from "../lib/ecs";
-import { yawFromQuat } from "../lib/quat";
-import { useHudStore } from "../lib/stores";
-import { useHudTransient } from "../lib/useHudTransient";
+import { input } from "@/input/InputManager";
+import { getEnv } from "@/systems/gameplay/daynight";
+import { useGameStore, useHudStore, useSettingsStore, useUiStore } from "../lib/stores";
+import { IconMap } from "../lib/icons";
 import styles from "../styles/hud.module.css";
+import { readPlayerCam } from "../map/playerCam";
+import { getBasemap, worldToBasePx } from "../map/basemap";
+import { getHudMapState, tickRoute } from "../map/blipStore";
+import { eachEcsBlip } from "../map/ecsBlips";
+import { eachLegacyBlip } from "../map/legacyBlips";
+import { districtNameAt } from "../map/cityData";
+import {
+  bearingOf,
+  clamp,
+  clampToRing,
+  compassWord,
+  damp,
+  dist,
+  formatDistance,
+  northScreenAngle,
+} from "../map/geometry";
+import {
+  drawBlip,
+  drawCompass,
+  drawHeatArc,
+  drawPlayerArrow,
+  drawRoute,
+} from "../map/draw";
+import {
+  HEAT_COLOR,
+  MAX_HEAT,
+  ROUTE_COLOR,
+  ROUTE_COLOR_CB,
+  ROUTE_GLOW,
+  ROUTE_GLOW_CB,
+  ZOOM_MAX_M,
+  ZOOM_MIN_M,
+  blipColor,
+} from "../map/palette";
+import type { MapBlip } from "../map/types";
 
-const TAU = Math.PI * 2;
-const RANGE = 105; // world metres from centre to rim
-const FPS = 30;
-const FRAME_MS = 1000 / FPS;
-
-const BLIP_COLOR: Record<BlipKind, string> = {
-  player: "#ffffff",
-  mission: "#ffb85c",
-  vehicle: "#4aa8ff",
-  enemy: "#ff5a5f",
-  shop: "#6fe0a6",
-  waypoint: "#b98bff",
+const HZ = 40;
+const RING_ACCENT = "#ff8a4c";
+const WP_BLIP: MapBlip = {
+  id: "__wp",
+  x: 0,
+  z: 0,
+  kind: "waypoint",
+  waypointable: false,
+  minimap: true,
+  map: true,
+  clampToEdge: true,
+  priority: 999,
+  sonar: false,
 };
 
+function readClock(): string | null {
+  try {
+    const env = getEnv();
+    if (!env) return null;
+    const h = env.hour % 24;
+    const m = env.minute % 60;
+    return `${h < 10 ? "0" : ""}${h}:${m < 10 ? "0" : ""}${m}`;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Bottom-left rotating-cone radar. A DPR-aware 2D <canvas> redrawn on rAF (~30fps) reading
- * the player transform + blips straight from the ECS world and the HUD store — it never causes
- * a React render. North-up map with a heading player cone; wanted heat tints the rim.
+ * GTA-style rotating minimap. A DPR-aware circular <canvas> driven by its own throttled RAF loop
+ * (never causes a React render): blits one rotated crop of the baked city basemap, then draws the
+ * GPS route, edge-clamped blips (store API + live ECS `hud_blip` entities), the waypoint, the fixed
+ * player arrow, the pursuit-heat arc and a compass pip. North-up + zoom come from the map store.
  */
 export function Minimap() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wantedRef = useRef<HTMLDivElement>(null);
-  const sizeRef = useRef({ w: 188, h: 188, dpr: 1 });
+  const clockRef = useRef<HTMLSpanElement>(null);
+  const placeRef = useRef<HTMLDivElement>(null);
+  const srRef = useRef<HTMLDivElement>(null);
 
-  // wanted rim tint (transient, no re-render)
-  useHudTransient(
-    (s) => s.heat,
-    (heat) => toggleClass(wantedRef.current, styles.on, heat > 0),
-  );
+  const openMap = () => {
+    useGameStore.getState().pause();
+    useUiStore.getState().setPauseTab("map");
+    input.releaseLock();
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const resize = () => {
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const w = canvas.clientWidth || 188;
-      const h = canvas.clientHeight || 188;
-      sizeRef.current = { w, h, dpr };
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-    };
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
+    const reduceMotion =
+      typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let raf = 0;
-    let last = 0;
+    let lastDraw = 0;
+    let tPrev = performance.now();
+    let lastText = 0;
+    let zoomM = getHudMapState().zoomMeters;
 
-    const drawBlip = (
-      cx: number,
-      cy: number,
-      scale: number,
-      radius: number,
-      dxWorld: number,
-      dzWorld: number,
-      color: string,
-      big: boolean,
-    ) => {
-      let sx = dxWorld * scale;
-      let sy = dzWorld * scale;
-      const dist = Math.hypot(sx, sy);
-      const rim = radius - 7;
-      const edge = dist > rim;
-      if (edge && dist > 0) {
-        const k = rim / dist;
-        sx *= k;
-        sy *= k;
+    const frame = (now: number): void => {
+      raf = requestAnimationFrame(frame);
+      if (now - lastDraw < 1000 / HZ) return;
+      lastDraw = now;
+      const dt = clamp((now - tPrev) / 1000, 0, 0.1);
+      tPrev = now;
+
+      const cssSize = canvas.clientWidth || 200;
+      const dpr = Math.min(typeof devicePixelRatio !== "undefined" ? devicePixelRatio : 1, 2);
+      const backing = Math.round(cssSize * dpr);
+      if (canvas.width !== backing) {
+        canvas.width = backing;
+        canvas.height = backing;
       }
-      const px = cx + sx;
-      const py = cy + sy;
-      const r = big ? 4.2 : 3.2;
-      ctx.beginPath();
-      ctx.arc(px, py, r, 0, TAU);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = edge ? 0.65 : 1;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(0,0,0,0.55)";
-      ctx.stroke();
-    };
-
-    const render = (t: number) => {
-      raf = requestAnimationFrame(render);
-      if (t - last < FRAME_MS) return;
-      last = t;
-
-      const { w, h, dpr } = sizeRef.current;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
+      ctx.clearRect(0, 0, cssSize, cssSize);
 
-      const cx = w / 2;
-      const cy = h / 2;
-      const radius = Math.min(w, h) / 2;
-      const scale = radius / RANGE;
+      const R = cssSize / 2;
+      const st = getHudMapState();
+      const cam = readPlayerCam();
+      const colorBlind = useSettingsStore.getState().accessibility.colorblind !== "none";
+      const heat = useHudStore.getState().heat;
 
-      // range rings + graticule (north-up)
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(255,255,255,0.07)";
-      for (const rr of [radius * 0.5, radius * 0.82]) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, rr, 0, TAU);
-        ctx.stroke();
-      }
-      ctx.beginPath();
-      ctx.moveTo(cx, cy - radius);
-      ctx.lineTo(cx, cy + radius);
-      ctx.moveTo(cx - radius, cy);
-      ctx.lineTo(cx + radius, cy);
-      ctx.stroke();
+      tickRoute(dt);
 
-      const player = playerQuery.entities[0];
-      if (!player) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, 3, 0, TAU);
-        ctx.fillStyle = "rgba(255,255,255,0.5)";
-        ctx.fill();
+      if (!cam.valid) {
+        drawAcquiring(ctx, R);
         return;
       }
 
-      const pos = player.transform.position;
-      const px = pos.x;
-      const pz = pos.z;
-      const heading =
-        typeof player.movement?.facing === "number"
-          ? player.movement.facing
-          : yawFromQuat(player.transform.rotation);
+      const targetM = st.autoZoom
+        ? clamp(52 + cam.speed * 7, ZOOM_MIN_M, ZOOM_MAX_M)
+        : st.zoomMeters;
+      zoomM = reduceMotion ? targetM : damp(zoomM, targetM, 6, dt);
 
-      // store blips (world coords)
-      for (const b of useHudStore.getState().blips) {
-        if (b.kind === "player") continue;
-        drawBlip(cx, cy, scale, radius, b.x - px, b.z - pz, BLIP_COLOR[b.kind], b.kind === "mission");
-      }
-      // ECS-tagged blips (live positions)
-      for (const e of hudBlipQuery.entities) {
-        if (e.hud_blipHidden || !e.hud_blip) continue;
-        const color = e.hud_blip.color ?? BLIP_COLOR[e.hud_blip.kind];
-        drawBlip(
-          cx,
-          cy,
-          scale,
-          radius,
-          e.transform.position.x - px,
-          e.transform.position.z - pz,
-          color,
-          e.hud_blip.kind === "mission" || e.hud_blip.kind === "enemy",
-        );
-      }
+      const pxPerM = R / zoomM;
+      const theta = st.northUp ? 0 : cam.heading;
+      const cos = Math.cos(theta);
+      const sin = Math.sin(theta);
+      const toScreen = (wx: number, wz: number): { x: number; y: number } => {
+        const ox = (wx - cam.x) * pxPerM;
+        const oy = (wz - cam.z) * pxPerM;
+        return { x: R + (ox * cos - oy * sin), y: R + (ox * sin + oy * cos) };
+      };
 
-      // player heading cone at centre
+      // ── Clipped, rotating map layer ──
       ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(heading);
       ctx.beginPath();
-      ctx.moveTo(0, -8.5);
-      ctx.lineTo(6, 6.5);
-      ctx.lineTo(0, 3.5);
-      ctx.lineTo(-6, 6.5);
-      ctx.closePath();
-      ctx.fillStyle = "#ff8a5c";
-      ctx.fill();
-      ctx.lineWidth = 1.4;
-      ctx.strokeStyle = "rgba(255,255,255,0.9)";
-      ctx.stroke();
-      ctx.restore();
+      ctx.arc(R, R, R, 0, Math.PI * 2);
+      ctx.clip();
+
+      ctx.fillStyle = "#0b0e18";
+      ctx.fillRect(0, 0, cssSize, cssSize);
+
+      const base = getBasemap();
+      if (base) {
+        const ppx = worldToBasePx(base, cam.x, cam.z);
+        const basemapScale = pxPerM / base.pxPerMeter;
+        ctx.save();
+        ctx.translate(R, R);
+        ctx.rotate(theta);
+        ctx.scale(basemapScale, basemapScale);
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(base.canvas, -ppx.x, -ppx.y);
+        ctx.restore();
+      }
+
+      if (st.route && st.route.ok && st.route.path.length > 1) {
+        drawRoute(ctx, st.route.path, toScreen, {
+          color: colorBlind ? ROUTE_COLOR_CB : ROUTE_COLOR,
+          glow: colorBlind ? ROUTE_GLOW_CB : ROUTE_GLOW,
+          width: 4,
+          dashPhase: now / 26,
+        });
+      }
+
+      const drawOne = (b: MapBlip): void => {
+        if (b.minimap === false || b.kind === "player") return;
+        const s = toScreen(b.x, b.z);
+        const ring = clampToRing(s.x - R, s.y - R, R, 9);
+        if (ring.clamped && b.clampToEdge === false) return;
+        drawBlip(ctx, R + ring.x, R + ring.y, b, {
+          size: 5,
+          colorBlind,
+          clamped: ring.clamped,
+          angle: ring.angle,
+          playerY: cam.y,
+          time: now,
+        });
+      };
+      for (const b of st.blips.values()) drawOne(b);
+      eachEcsBlip(drawOne);
+      eachLegacyBlip(drawOne);
+
+      // Waypoint marker (drawn even though it isn't a stored blip).
+      if (st.waypoint) {
+        WP_BLIP.x = st.waypoint.x;
+        WP_BLIP.z = st.waypoint.z;
+        const s = toScreen(st.waypoint.x, st.waypoint.z);
+        const ring = clampToRing(s.x - R, s.y - R, R, 10);
+        drawBlip(ctx, R + ring.x, R + ring.y, WP_BLIP, {
+          size: 6,
+          colorBlind,
+          clamped: ring.clamped,
+          angle: ring.angle,
+        });
+      }
+
+      // Player arrow: fixed pointing up in rotate mode; rotates to heading in north-up mode.
+      drawPlayerArrow(ctx, R, R, st.northUp ? -cam.heading : 0, 7.5, blipColor("player", colorBlind));
+
+      // ── Ring chrome (drawn inside the clip so nothing spills past the circular frame) ──
+      drawHeatArc(ctx, R, R, R - 3, heat, MAX_HEAT, HEAT_COLOR, now);
+      drawCompass(ctx, R, R, R - 10, northScreenAngle(theta), RING_ACCENT);
+      ctx.restore(); // end clip
+
+      // ── Throttled text readouts ──
+      if (now - lastText > 260) {
+        lastText = now;
+        if (clockRef.current) {
+          const clock = readClock();
+          clockRef.current.textContent = clock ?? "";
+        }
+        if (placeRef.current) placeRef.current.textContent = districtNameAt(cam.x, cam.z);
+        if (srRef.current) {
+          if (st.waypoint) {
+            const d = formatDistance(dist(cam.x, cam.z, st.waypoint.x, st.waypoint.z));
+            const word = compassWord(bearingOf(st.waypoint.x - cam.x, st.waypoint.z - cam.z));
+            srRef.current.textContent = `Waypoint ${d} ${word}. ${districtNameAt(cam.x, cam.z)}.`;
+          } else {
+            srRef.current.textContent = `${districtNameAt(cam.x, cam.z)}.`;
+          }
+        }
+      }
     };
 
-    raf = requestAnimationFrame(render);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-    };
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return (
-    <div className={styles.radar} role="img" aria-label="Minimap">
-      <canvas ref={canvasRef} className={styles.radarCanvas} />
-      <div className={styles.radarVignette} />
-      <div ref={wantedRef} className={styles.radarWanted} />
-      <span className={styles.radarNorth}>N</span>
+    <div className={styles.minimap} role="img" aria-label="Minimap">
+      <canvas ref={canvasRef} className={styles.minimapCanvas} />
+      <div className={styles.minimapRing} aria-hidden />
+      <span ref={clockRef} className={styles.minimapClock} aria-hidden />
+      <button
+        type="button"
+        className={styles.minimapExpand}
+        title="Open map (M)"
+        aria-label="Open full map"
+        onClick={openMap}
+      >
+        <IconMap size={14} />
+      </button>
+      <div ref={placeRef} className={styles.minimapReadout}>
+        Santa Vista
+      </div>
+      <div ref={srRef} className={styles.minimapSr} role="status" aria-live="polite" />
     </div>
   );
+}
+
+function drawAcquiring(ctx: CanvasRenderingContext2D, R: number): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(R, R, R, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = "#0b0d12";
+  ctx.fillRect(0, 0, R * 2, R * 2);
+  ctx.fillStyle = "rgba(244,246,251,0.45)";
+  ctx.font = "600 11px ui-sans-serif, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("ACQUIRING GPS", R, R);
+  ctx.restore();
 }

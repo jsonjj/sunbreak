@@ -5,6 +5,7 @@
 import { SIDEWALK_WIDTH, STREETLIGHT_SPACING, TREE_SPACING } from "./config";
 import { chance, deriveSeed, jitter, mulberry32, range } from "./prng";
 import { dist, lerp, polygonBounds } from "./geo";
+import { districtGround } from "./geography";
 import { tileIdAt, type TileGrid } from "./tiling";
 import type {
   BlockSpec,
@@ -68,6 +69,8 @@ export function buildProps(
 
   for (const block of blocks) {
     const rng = mulberry32(deriveSeed(seed, `props:${block.id}`));
+    // No street trees on the airfield apron (runways/taxiways stay clear); lights still line it.
+    const allowTrees = districtGround(block.district) !== "apron";
     const r = polygonBounds(block.poly);
     const corners: Array<readonly [number, number]> = [
       [r.x0, r.z0],
@@ -93,7 +96,7 @@ export function buildProps(
         lights.push(px, 0, pz, inwardYaw, 1, 1, 1, tileIdAt(tileGrid, px, pz));
       }
 
-      const treeCount = Math.max(0, Math.floor(len / TREE_SPACING));
+      const treeCount = allowTrees ? Math.max(0, Math.floor(len / TREE_SPACING)) : 0;
       for (let k = 0; k < treeCount; k++) {
         if (!chance(rng, 0.7)) continue;
         const t = (k + 0.5) / treeCount;

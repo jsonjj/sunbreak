@@ -3,54 +3,59 @@
 // deterministically from these + shared world constants so client and server agree.
 
 import { CHUNK_SIZE, MAP_SIZE } from "@sunbreak/shared";
+import {
+  BUILT_HALF as GEO_BUILT_HALF,
+  GLADES as GEO_GLADES,
+  GLADES_LEVEL as GEO_GLADES_LEVEL,
+  MARINA as GEO_MARINA,
+  WATER_LEVEL as GEO_WATER_LEVEL,
+  BEACH_WIDTH as GEO_BEACH_WIDTH,
+} from "@/systems/render/city/geography";
 
 /** Master seed for every deterministic generator in this subsystem (noise, scatter). */
 export const ENV_SEED = 0x5c0d98d8;
 
-/** Water plane elevation in metres. Terrain below this is seabed / submerged. */
-export const WATER_LEVEL = 0;
+/** Water plane elevation in metres (canonical, from the shared island geography). Kept BELOW the
+ *  flat city ground so the ocean plane can only ever draw over genuine sea — see ./water. */
+export const WATER_LEVEL = GEO_WATER_LEVEL;
 
-/**
- * Bounded coastal area we actually build meshes for in v1 (Costa Dorada strip + bay).
- * The full playable target is {@link MAP_SIZE}; streaming beyond this bound is a v2 concern,
- * so we clamp the built extent to keep boot-time geometry + memory sane.
- */
-export const BUILT_EXTENT = Math.min(1024, MAP_SIZE); // metres (square, centred on origin)
+/** Half-extent of the built terrain area (metres). Sourced from the shared geography so terrain
+ *  reaches past the world boundary walls (open ocean renders beyond, toward the horizon). */
+export const BUILT_HALF = GEO_BUILT_HALF;
 
 /** Terrain tile edge length (metres). A divisor-friendly fraction of the streaming chunk. */
 export const TILE_SIZE = 128;
 
-/** Tiles per axis across the built extent (kept odd-friendly; centred on origin). */
-export const TILES_PER_AXIS = Math.max(1, Math.round(BUILT_EXTENT / TILE_SIZE));
+/** Tiles per axis across the built extent (centred on origin, sized to cover ±BUILT_HALF). */
+export const TILES_PER_AXIS = Math.max(1, Math.round((BUILT_HALF * 2) / TILE_SIZE));
 
-/** Half-extent helper (metres) of the built terrain area. */
-export const BUILT_HALF = (TILES_PER_AXIS * TILE_SIZE) / 2;
+/** Full built extent (metres, square, centred on origin). */
+export const BUILT_EXTENT = Math.min(TILES_PER_AXIS * TILE_SIZE, MAP_SIZE);
 
 /** Consolidated heightfield resolution handed to physics (samples per axis, inclusive grid). */
-export const HEIGHTFIELD_RES = 129; // 128 cells + 1
+export const HEIGHTFIELD_RES = 161; // 160 cells + 1 (covers the larger island at ~8 m spacing)
 
 // ---- Shoreline / bay / wetland layout (world XZ, metres) --------------------------------
-// Convention: +X east, +Z south, -Z north, +Y up. Ocean lies to the south (+Z); the beach
-// strip and inland terrain to the north (-Z). Spawn (0,2,6) sits just inland of the waterline.
+// Convention: +X east, +Z south, -Z north, +Y up. The world is an ISLAND (see city/geography):
+// the coastline is a wobbly rounded rectangle around the whole city; open sea lies beyond it,
+// with a carved south-west Marina harbour and a north-east Glades marsh.
 
-// Waterline sits just south of the spawn point (0,2,6) so the player starts on gentle sand
-// (~0 m) — visuals line up with the v0 ground plane until physics builds the heightfield collider.
-export const SHORE_Z = 8; // nominal waterline latitude (before per-x wobble)
-export const BEACH_DEPTH = 46; // metres of beach band north of the waterline
-export const SEABED_SLOPE = 0.05; // how fast the seabed drops going out to sea
+export const BEACH_DEPTH = GEO_BEACH_WIDTH; // metres of beach ramp between plateau and waterline
+export const SEABED_SLOPE = 0.06; // how fast the seabed drops going out to sea
 
-/** Bay / marina centre — the single hero-reflector water body (near-shore, west of spawn). */
-export const BAY_CENTER = { x: -150, z: 52 } as const;
-export const BAY_RADIUS = 92;
+/** Marina harbour centre — the single hero-reflector water body (south-west docks). */
+export const BAY_CENTER = { x: GEO_MARINA.x, z: GEO_MARINA.z } as const;
+export const BAY_RADIUS = GEO_MARINA.radius;
 
-/** Glades wetland region — murky shallow water + sawgrass/cypress/mangrove (to the west). */
-export const GLADES_CENTER = { x: 300, z: -150 } as const;
-export const GLADES_RADIUS = 220;
-export const GLADES_WATER_LEVEL = 0.15; // shallow standing water sits just above sea level
+/** Glades marsh region — murky shallow water + sawgrass/cypress/mangrove (north-east coast). */
+export const GLADES_CENTER = { x: GEO_GLADES.x, z: GEO_GLADES.z } as const;
+export const GLADES_RADIUS = GEO_GLADES.radius;
+export const GLADES_WATER_LEVEL = GEO_GLADES_LEVEL; // shallow standing-water surface
 
-// Scatter search regions — bounding foliage/prop candidates to the biome footprint keeps the
+// Scatter search regions — bounding foliage/prop candidates to a footprint keeps the
 // deterministic scatter cheap at boot (avoids sampling the whole map for localized species).
-export const COAST_BOUNDS = { minX: -BUILT_HALF, maxX: BUILT_HALF, minZ: -90, maxZ: 110 };
+// The beach ring hugs the whole coastline, so coastal scatter searches the full built extent.
+export const COAST_BOUNDS = { minX: -BUILT_HALF, maxX: BUILT_HALF, minZ: -BUILT_HALF, maxZ: BUILT_HALF };
 export const GLADES_BOUNDS = {
   minX: Math.max(-BUILT_HALF, GLADES_CENTER.x - GLADES_RADIUS * 1.2),
   maxX: Math.min(BUILT_HALF, GLADES_CENTER.x + GLADES_RADIUS * 1.2),

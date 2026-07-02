@@ -1,6 +1,10 @@
 // UPDATE-phase fire loop. Reads aim/fire/reload from the shared input snapshot, resolves the
 // equipped weapon from inventory, gates by fire-rate + ammo + reload FSM, then hitscans (Rapier +
 // analytic capsule), throws a projectile, or swings melee. Damage/death is applied via `applyHit`.
+//
+// FEEL: every frame it recovers recoil + refreshes the live reticle spread; every shot kicks the
+// aim (recoil), blooms the cone, spawns muzzle/tracer VFX, and fires the audio SFX events. Empty
+// pulls dry-fire; reload starts rack the reload sound.
 
 import type { System } from "@sunbreak/shared";
 import { DEG2RAD, InputAction } from "@sunbreak/shared";
@@ -13,23 +17,33 @@ import { computeDamage } from "../damage";
 import { castCombatRay, forEachDamageableNear } from "../hitscan";
 import { applyHit } from "../resolve";
 import {
+  applyRecoilKick,
   getAim,
   getMuzzle,
   playerForward,
   pushImpact,
   pushMuzzle,
   pushTracer,
+  recoverRecoil,
+  reticle,
   type Aim,
 } from "../runtime";
 import { canReload, readEquipped, reloadEquipped, setReloadingTag, spendRound } from "../integrations/inventory";
+import { sfxDryFire, sfxGunfire, sfxImpact, sfxReload } from "../integrations/audio";
 import { spawnProjectile } from "./projectileSystem";
-import { MOVE_SPREAD_MULT } from "../constants";
+import {
+  BLOOM_DECAY_PER_S,
+  BLOOM_MAX_SPREAD_DEG,
+  MOVE_SPREAD_MULT,
+  MOVE_SPREAD_SPEED,
+  RETICLE_FIRE_KICK,
+  RETICLE_KICK_DECAY,
+} from "../constants";
 
 type W = typeof world;
 
-const BLOOM_DECAY_PER_S = 2.5;
-const BLOOM_MAX_SPREAD_DEG = 4.5;
 const MELEE_CONE_COS = Math.cos(70 * DEG2RAD);
+const DEFAULT_RECOVER_DEG_PER_S = 12; // fallback so residual recoil never gets stuck (e.g. melee swap)
 
 // Module scratch — zero per-frame allocation.
 const aim: Aim = { ox: 0, oy: 0, oz: 0, dx: 0, dy: 0, dz: 0 };
@@ -174,9 +188,20 @@ export const fireSystem: System<W> = {
 
     const b = getCombatWeapon(eq.weaponId);
     const attackerNetId = player.netId ?? 1;
+    const aimDown = input.isActionDown(InputAction.Aim);
+    const moving = (player.movement?.speed ?? 0) > MOVE_SPREAD_SPEED;
 
-    // Bloom decays whenever we're not adding to it.
+    // ── Per-frame feel upkeep (independent of whether we fire this frame) ────────────────────────
+    recoverRecoil(dt, b.recoil.recoverDegPerSec > 0 ? b.recoil.recoverDegPerSec : DEFAULT_RECOVER_DEG_PER_S);
     if (rt.bloom > 0) rt.bloom = Math.max(0, rt.bloom - dt * BLOOM_DECAY_PER_S);
+    if (reticle.kick > 0) reticle.kick = Math.max(0, reticle.kick - dt * RETICLE_KICK_DECAY);
+
+    const spreadDeg =
+      b.spreadDeg * (aimDown ? b.adsSpreadMul : 1) * (moving ? MOVE_SPREAD_MULT : 1) +
+      rt.bloom * BLOOM_MAX_SPREAD_DEG;
+    reticle.spreadDeg = spreadDeg;
+    reticle.ads = aimDown;
+    reticle.active = eq.isMelee || eq.mag > 0;
 
     // ── Reload FSM ────────────────────────────────────────────────────────────────────────────
     if (rt.state === "reloading") {
@@ -194,6 +219,7 @@ export const fireSystem: System<W> = {
       rt.state = "reloading";
       rt.reloadEndsAt = now + b.reloadMs;
       setReloadingTag(player, true);
+      sfxReload(getMuzzle(muzzle) ? { x: muzzle.x, y: muzzle.y, z: muzzle.z } : undefined);
       return;
     }
 
@@ -201,13 +227,25 @@ export const fireSystem: System<W> = {
     const wantFire = b.auto ? fireDown : fireDown && !prevTrigger;
     if (!wantFire) return;
     if (now - rt.lastShotAt < fireIntervalMs(b)) return;
-    if (!eq.isMelee && eq.mag <= 0) return; // empty; the auto-reload branch above handles it
+    if (!eq.isMelee && eq.mag <= 0) {
+      if (fireDown && !prevTrigger) sfxDryFire(); // click on an empty pull
+      return;
+    }
 
     rt.lastShotAt = now;
     if (!eq.isMelee && !spendRound(1)) return; // inventory is the ammo authority
 
     rt.bloom = Math.min(1, rt.bloom + b.bloom);
+    reticle.kick += RETICLE_FIRE_KICK;
+    reticle.lastShotAt = now;
     if (!getAim(aim)) return;
+
+    // Recoil kick (steadied while ADS; horizontal sign is random).
+    if (b.recoil.pitch > 0 || b.recoil.yaw > 0) {
+      const rmul = aimDown ? b.recoil.adsMul : 1;
+      const yawKick = (Math.random() * 2 - 1) * b.recoil.yaw * rmul;
+      applyRecoilKick(b.recoil.pitch * rmul, yawKick);
+    }
 
     if (b.fireMode === "melee") {
       doMelee(player, b, eq.weaponId, attackerNetId);
@@ -215,7 +253,11 @@ export const fireSystem: System<W> = {
     }
 
     getMuzzle(muzzle);
-    pushMuzzle({ x: muzzle.x, y: muzzle.y, z: muzzle.z });
+    // Muzzle flash for guns + launchers; skip for thrown weapons (a grenade toss has no flash).
+    if (b.fireMode === "hitscan" || b.muzzle) {
+      pushMuzzle({ x: muzzle.x, y: muzzle.y, z: muzzle.z, color: b.muzzle?.color, scale: b.muzzle?.scale });
+    }
+    sfxGunfire(b.sfxKind, { x: muzzle.x, y: muzzle.y, z: muzzle.z });
 
     if (b.fireMode === "projectile") {
       spawnProjectile(player, aim, b, eq.weaponId, now);
@@ -223,17 +265,23 @@ export const fireSystem: System<W> = {
     }
 
     // ── Hitscan (single ray or shotgun pellets) ─────────────────────────────────────────────────
-    const aimDown = input.isActionDown(InputAction.Aim);
-    const moving = (player.movement?.speed ?? 0) > 0.6;
-    const spreadDeg =
-      b.spreadDeg * (aimDown ? b.adsSpreadMul : 1) * (moving ? MOVE_SPREAD_MULT : 1) +
-      rt.bloom * BLOOM_MAX_SPREAD_DEG;
     const spreadRad = spreadDeg * DEG2RAD;
+    const tracerColor = b.tracer?.color;
+    const tracerWidth = b.tracer?.width;
 
     for (let p = 0; p < b.pellets; p++) {
       spreadDir(aim.dx, aim.dy, aim.dz, spreadRad, pelletDir);
       const hit = castCombatRay(aim.ox, aim.oy, aim.oz, pelletDir.x, pelletDir.y, pelletDir.z, b.rangeM, player);
-      pushTracer({ x0: muzzle.x, y0: muzzle.y, z0: muzzle.z, x1: hit.point.x, y1: hit.point.y, z1: hit.point.z });
+      pushTracer({
+        x0: muzzle.x,
+        y0: muzzle.y,
+        z0: muzzle.z,
+        x1: hit.point.x,
+        y1: hit.point.y,
+        z1: hit.point.z,
+        color: tracerColor,
+        width: tracerWidth,
+      });
       if (hit.entity) {
         applyHit({
           target: hit.entity,
@@ -259,6 +307,7 @@ export const fireSystem: System<W> = {
           nz: hit.normal.z,
           surface: "concrete",
         });
+        sfxImpact("concrete", { x: hit.point.x, y: hit.point.y, z: hit.point.z });
       }
     }
   },

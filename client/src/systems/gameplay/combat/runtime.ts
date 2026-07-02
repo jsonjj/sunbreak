@@ -6,11 +6,18 @@
 // need the rig.
 
 import * as THREE from "three";
+import { DEG2RAD } from "@sunbreak/shared";
 import type { RapierContext, RapierRigidBody } from "@react-three/rapier";
 import { input } from "@/input/InputManager";
 import { playerHandle } from "@/player/playerHandle";
 import type { CombatSurface } from "./types";
-import { EYE_HEIGHT, MUZZLE_FORWARD, MUZZLE_HEIGHT } from "./constants";
+import {
+  EYE_HEIGHT,
+  MUZZLE_FORWARD,
+  MUZZLE_HEIGHT,
+  RECOIL_PITCH_CAP,
+  RECOIL_PITCH_LIMIT,
+} from "./constants";
 
 export type RapierWorld = RapierContext["world"];
 export type RapierNamespace = RapierContext["rapier"];
@@ -100,6 +107,10 @@ export interface TracerReq {
   x1: number;
   y1: number;
   z1: number;
+  /** Hex tint (defaults to the pool's warm tracer color). */
+  color?: number;
+  /** Beam thickness scale (1 = default). */
+  width?: number;
 }
 export interface ImpactReq {
   x: number;
@@ -114,6 +125,10 @@ export interface MuzzleReq {
   x: number;
   y: number;
   z: number;
+  /** Hex tint (defaults to the pool's muzzle color). */
+  color?: number;
+  /** Flash scale (1 = default). */
+  scale?: number;
 }
 
 const CAP = 96; // drop requests if the rig isn't draining (prevents unbounded growth when unmounted)
@@ -138,3 +153,57 @@ export function pushMuzzle(req: MuzzleReq): void {
 export function shooterBody(): RapierRigidBody | null {
   return playerHandle.body;
 }
+
+// ── Recoil (kicks the SHARED look angles up + sideways, then recovers over time) ────────────────
+// We mutate `input.yaw/pitch` — the same angles the camera + player facing read — so a shot makes
+// the whole view climb, and the accumulated kick is eased back so the reticle settles. Only the
+// *residual we added* is ever recovered, so it never fights the player's own mouse aim beyond it.
+const PITCH_MIN = -0.6; // mirrors InputManager's clamp floor
+
+/** How much recoil we've injected into the look angles and still owe back (radians). */
+export const recoil = { pitch: 0, yaw: 0 };
+
+/** Kick the aim by `pitchDeg` up and `yawDeg` sideways (caller supplies the random sign). */
+export function applyRecoilKick(pitchDeg: number, yawDeg: number): void {
+  const pitchRad = pitchDeg * DEG2RAD;
+  const before = input.pitch;
+  input.pitch = Math.min(RECOIL_PITCH_LIMIT, input.pitch + pitchRad);
+  const appliedPitch = input.pitch - before;
+  recoil.pitch = Math.min(RECOIL_PITCH_CAP, recoil.pitch + appliedPitch);
+
+  const yawRad = yawDeg * DEG2RAD;
+  input.yaw += yawRad;
+  recoil.yaw += yawRad;
+}
+
+/** Ease the injected recoil back to zero at `degPerSec`; runs every frame. */
+export function recoverRecoil(dt: number, degPerSec: number): void {
+  if (recoil.pitch === 0 && recoil.yaw === 0) return;
+  const step = Math.max(0, degPerSec) * DEG2RAD * dt;
+
+  if (recoil.pitch > 0) {
+    const d = Math.min(recoil.pitch, step);
+    input.pitch -= d;
+    recoil.pitch -= d;
+    if (input.pitch < PITCH_MIN) input.pitch = PITCH_MIN;
+  }
+  if (recoil.yaw !== 0) {
+    const d = recoil.yaw > 0 ? Math.min(recoil.yaw, step) : Math.max(recoil.yaw, -step);
+    input.yaw -= d;
+    recoil.yaw -= d;
+  }
+}
+
+// ── Reticle read-model (crosshair reflects the LIVE spread; drawn by <CombatOverlay/>) ──────────
+export const reticle: {
+  /** Current spread half-angle (deg) including ADS, movement, and recoil bloom. */
+  spreadDeg: number;
+  /** Aiming down sights right now. */
+  ads: boolean;
+  /** Transient extra gap (px) added on each shot, eased away by the overlay. */
+  kick: number;
+  /** performance.now() of the last shot (for the muzzle/pulse flash). */
+  lastShotAt: number;
+  /** False for melee / no ammo — the overlay can dim/hide accordingly. */
+  active: boolean;
+} = { spreadDeg: 0, ads: false, kick: 0, lastShotAt: 0, active: true };
