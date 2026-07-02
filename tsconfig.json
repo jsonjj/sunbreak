@@ -1,0 +1,5 @@
+{
+  "//": "Inert root config. Each package is type-checked independently via `pnpm -r typecheck` (shared is consumed as TS source, so no project references are needed).",
+  "files": [],
+  "include": []
+}

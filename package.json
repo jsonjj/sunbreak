@@ -1,0 +1,26 @@
+{
+  "name": "sunbreak",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n client,server -c cyan,magenta \"pnpm --filter @sunbreak/client dev\" \"pnpm --filter @sunbreak/server dev\"",
+    "dev:client": "pnpm --filter @sunbreak/client dev",
+    "dev:server": "pnpm --filter @sunbreak/server dev",
+    "build": "pnpm --filter @sunbreak/client build",
+    "build:all": "pnpm -r build",
+    "preview": "pnpm --filter @sunbreak/client preview",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r exec rm -rf dist node_modules/.vite"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

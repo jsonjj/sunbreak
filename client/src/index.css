@@ -1,0 +1,201 @@
+:root {
+  --bg: #0b0d12;
+  --ink: #f4f6fb;
+  --muted: rgba(244, 246, 251, 0.62);
+  --hairline: rgba(255, 255, 255, 0.14);
+  --glass: rgba(16, 19, 28, 0.55);
+  --accent: #ff8a4c;
+  --accent-2: #ffd166;
+  --radius: 14px;
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.app-root {
+  position: fixed;
+  inset: 0;
+}
+
+canvas {
+  display: block;
+  outline: none;
+  touch-action: none;
+}
+
+/* ---------- HUD (DOM sibling of the canvas; never re-enters the R3F tree) ---------- */
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud__brand {
+  position: absolute;
+  top: 20px;
+  left: 22px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.hud__logo {
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  font-size: 15px;
+  background: linear-gradient(92deg, var(--accent-2), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hud__tag {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.hud__crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+}
+
+.hud__stats {
+  position: absolute;
+  right: 22px;
+  bottom: 22px;
+  display: flex;
+  gap: 10px;
+}
+.stat {
+  min-width: 84px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--hairline);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat__label {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+.stat__value {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hud__controls {
+  position: absolute;
+  left: 22px;
+  bottom: 22px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--hairline);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--muted);
+  font-size: 12.5px;
+  box-shadow: var(--shadow);
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--hairline);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+/* ---------- Click-to-play capture overlay ---------- */
+.capture {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(120% 90% at 50% 8%, rgba(255, 138, 76, 0.16), transparent 55%),
+    radial-gradient(120% 100% at 50% 120%, rgba(28, 34, 82, 0.55), transparent 60%),
+    rgba(6, 8, 13, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+.capture__card {
+  width: min(440px, 86vw);
+  padding: 34px 34px 30px;
+  border-radius: 18px;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(24, 27, 38, 0.9), rgba(14, 16, 24, 0.9));
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow);
+}
+.capture__kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.capture__title {
+  margin: 0 0 10px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.capture__sub {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.capture__hint {
+  font-size: 12px;
+  color: var(--muted);
+  border-top: 1px solid var(--hairline);
+  padding-top: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}

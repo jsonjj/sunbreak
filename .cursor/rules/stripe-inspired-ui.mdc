@@ -1,0 +1,43 @@
+---
+description: Premium, Stripe-inspired product design direction for all SUNBREAK UI (HUD, menus, overlays, landing/marketing surfaces). Apply whenever building, redesigning, improving, styling, or polishing any web/app UI in this project.
+globs: client/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# SUNBREAK UI — Premium, Stripe-inspired design direction
+
+When building or polishing any UI in this project (HUD overlays, menus, settings, pause
+screens, onboarding, marketing/landing surfaces), use a **premium, Stripe-inspired product
+design direction**. Do **not** copy Stripe directly — no Stripe logos, exact layouts, exact
+gradients, exact colors, exact copy, or anything mistakable for Stripe. Adapt the *principles*
+to SUNBREAK's sun-soaked "Verano" identity.
+
+## Principles
+
+- **Confident product storytelling** — clear hierarchy, generous spacing, purposeful sections.
+- **Beautiful gradients used with restraint** — subtle, atmospheric, never garish; one hero
+  gradient max per surface, layered over calm neutrals.
+- **Strong visual hierarchy** — one clear focal point per screen; size, weight, and color carry
+  meaning.
+- **Clean typography** — a crisp sans (system UI stack is fine), tight but readable line-height,
+  consistent type scale, tabular numbers for HUD readouts (health, speed, cash).
+- **Polished cards & surfaces** — soft shadows, ~12–16px radii, thin 1px hairline borders,
+  translucent "glass" panels (backdrop-blur) for in-game overlays so the 3D scene shows through.
+- **Responsive layouts** — fluid, works from laptop to ultrawide; HUD anchors to safe-area edges.
+- **Clear user flows** — obvious primary action, minimal friction (e.g. a single "click to play"
+  capture prompt), unmistakable focus/hover/active states.
+- **Motion with intent** — short, eased transitions (150–250ms); respect `prefers-reduced-motion`
+  and the in-game "reduce shake/flashing" accessibility settings.
+
+## SUNBREAK specifics
+
+- **Identity:** warm sunset palette (ambers/corals → deep dusk indigo) for menus/marketing;
+  keep in-game HUD **high-contrast and low-chroma** so it stays legible over any scene.
+- **HUD lives in the DOM as a sibling of `<Canvas>`** (never inside it) so its re-renders never
+  touch the R3F tree. Keep it lightweight; drive fast values via refs, not per-frame React state.
+- **Legibility first:** text over the 3D world needs shadow/backing; never sacrifice readability
+  for style. Provide an HUD scale + opacity path (accessibility).
+- Keep it **100% free** — system fonts or self-hosted CC0/OFL fonts only; no gated webfonts, no
+  paid icon sets (use CC0 glyphs, e.g. Kenney/Xelu input prompts).
+
+Ship original design adapted to the specific screen — never a template default.
