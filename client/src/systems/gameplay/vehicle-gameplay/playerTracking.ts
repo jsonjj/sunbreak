@@ -10,6 +10,7 @@
 
 import type { Vec3 } from "@sunbreak/shared";
 import { DEFAULT_SPAWN } from "@sunbreak/shared";
+import { useWantedStore } from "@/systems/gameplay/wanted/store";
 import { getPlayer, getVehicle } from "./queries";
 
 /** Fall-through / out-of-bounds thresholds for the void respawn. */
@@ -91,4 +92,12 @@ export function voidRespawnCheck(): void {
   pt.x = dest.x;
   pt.y = dest.y;
   pt.z = dest.z;
+
+  // Respawning is a clean slate: drop the wanted level to 0 (stars/heat/search + suspect profile;
+  // the crime system clears the distinct-victim spree set on the resulting stars→0 transition).
+  try {
+    useWantedStore.getState().clear();
+  } catch {
+    /* wanted not ready — never break the void safety-net over a HUD store */
+  }
 }

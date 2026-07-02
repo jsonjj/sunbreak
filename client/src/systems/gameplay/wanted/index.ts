@@ -25,6 +25,10 @@ import { cooldownSystem } from "./cooldownSystem";
 import { hudMirrorSystem } from "./hudMirrorSystem";
 import { initPool, destroyPool } from "./pool";
 import { MAX_HERO_POLICE } from "./tuning";
+import { useWantedStore } from "./store";
+// Inject the real "clear wanted" impl into stats so death/busted RESPAWN drops the player to 0
+// stars (stats ships a no-op default until we wire it here — the intended injector seam).
+import { setPoliceBridge } from "@/systems/gameplay/stats/interfaces";
 
 type W = typeof world;
 
@@ -44,7 +48,13 @@ export const wanted: SubsystemModule<W> = {
   init() {
     // Pre-allocate the max hero cap once; dispatch only DEPLOYS up to the per-quality cap.
     initPool(MAX_HERO_POLICE.high);
-    return () => destroyPool();
+    // On death/busted respawn, stats calls getPolice().clearWanted() → fully reset stars + heat
+    // (the crime system then clears the spree's distinct-victim set on the stars→0 transition).
+    setPoliceBridge({ clearWanted: () => useWantedStore.getState().clear() });
+    return () => {
+      setPoliceBridge(null);
+      destroyPool();
+    };
   },
 };
 
