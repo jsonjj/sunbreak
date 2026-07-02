@@ -75,6 +75,20 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
   const d = tier.foliageDensity;
   const species: FoliageSpecies[] = [];
 
+  // Each species builds in isolation: if one throws (bad geometry, scatter, …) it's logged once and
+  // skipped so the remaining species still populate the world.
+  const faults = new Set<string>();
+  const trySpecies = (name: string, build: () => FoliageSpecies): void => {
+    try {
+      species.push(build());
+    } catch (err) {
+      if (!faults.has(name)) {
+        faults.add(name);
+        console.error(`[env] foliage species "${name}" failed to build; skipping it:`, err);
+      }
+    }
+  };
+
   // Shared textures/materials per species (disposed with the species).
   const grassTex = makeBladeTexture(128, "#7c9a42");
   const sawTex = makeBladeTexture(128, "#93a24e");
@@ -101,7 +115,7 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
   });
 
   // --- dune grass (beach + low inland) ---
-  {
+  trySpecies("duneGrass", () => {
     const geo = makeGrassClump(0.7, 0.65, 3);
     const rows = scatterField({
       channel: 1,
@@ -119,7 +133,7 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
           : 0,
     });
     const group = buildCellGroup("duneGrass", rows, geo, grassMat, { castShadow: false });
-    species.push({
+    return {
       name: "duneGrass",
       group,
       count: rows.length,
@@ -128,11 +142,11 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
         grassMat.dispose();
         grassTex.dispose();
       },
-    });
-  }
+    };
+  });
 
   // --- sawgrass (Glades shallows) ---
-  {
+  trySpecies("sawgrass", () => {
     const geo = makeGrassClump(0.8, 1.5, 3);
     const rows = scatterField({
       channel: 2,
@@ -150,7 +164,7 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
       },
     });
     const group = buildCellGroup("sawgrass", rows, geo, sawMat, { castShadow: false });
-    species.push({
+    return {
       name: "sawgrass",
       group,
       count: rows.length,
@@ -159,11 +173,11 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
         sawMat.dispose();
         sawTex.dispose();
       },
-    });
-  }
+    };
+  });
 
   // --- palms (Costa Dorada beach + low inland) ---
-  {
+  trySpecies("palm", () => {
     const geo = makePalm();
     const rows = scatterField({
       channel: 3,
@@ -181,16 +195,16 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
           : clamp01(s.weights.sand * 0.5 + s.weights.grass * 0.7) * 0.55,
     });
     const group = buildCellGroup("palm", rows, geo, treeMat, { castShadow: true });
-    species.push({
+    return {
       name: "palm",
       group,
       count: rows.length,
       dispose: () => geo.dispose(),
-    });
-  }
+    };
+  });
 
   // --- cypress (Glades hummocks) ---
-  {
+  trySpecies("cypress", () => {
     const geo = makeCypress();
     const rows = scatterField({
       channel: 4,
@@ -208,16 +222,16 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
       },
     });
     const group = buildCellGroup("cypress", rows, geo, treeMat, { castShadow: true });
-    species.push({
+    return {
       name: "cypress",
       group,
       count: rows.length,
       dispose: () => geo.dispose(),
-    });
-  }
+    };
+  });
 
   // --- mangrove (Glades water edge) ---
-  {
+  trySpecies("mangrove", () => {
     const geo = makeMangrove();
     const rows = scatterField({
       channel: 5,
@@ -235,7 +249,7 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
       },
     });
     const group = buildCellGroup("mangrove", rows, geo, treeMat, { castShadow: true });
-    species.push({
+    return {
       name: "mangrove",
       group,
       count: rows.length,
@@ -243,8 +257,8 @@ export function buildFoliage(tier: EnvQualitySettings): FoliageSpecies[] {
         geo.dispose();
         treeMat.dispose(); // treeMat shared across palm/cypress/mangrove; dispose with the last
       },
-    });
-  }
+    };
+  });
 
   return species;
 }

@@ -37,15 +37,18 @@ export interface WindMaterialOptions {
 }
 
 export function makeWindMaterial(opts: WindMaterialOptions): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({
-    map: opts.map,
+  // Only pass `map` when a texture actually exists. Passing `map: undefined` makes three log
+  // "THREE.Material: parameter 'map' has value of undefined." (vertex-coloured foliage has no map).
+  const params: THREE.MeshStandardMaterialParameters = {
     color: opts.color ?? 0xffffff,
     roughness: opts.roughness ?? 0.85,
     metalness: 0,
     side: opts.side ?? THREE.DoubleSide,
     alphaTest: opts.alphaTest ?? 0,
     vertexColors: opts.vertexColors ?? false,
-  });
+  };
+  if (opts.map) params.map = opts.map;
+  const m = new THREE.MeshStandardMaterial(params);
   const localStrength = opts.windStrength ?? 1;
 
   m.onBeforeCompile = (shader) => {

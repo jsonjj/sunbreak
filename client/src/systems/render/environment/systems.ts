@@ -72,7 +72,7 @@ const streamSystem: System<W> = {
     const { x: px, z: pz } = playerXZ();
 
     const tdd2 = tier.terrainDrawDistance * tier.terrainDrawDistance;
-    for (const t of build.terrain.tiles) {
+    for (const t of build.terrain?.tiles ?? []) {
       const dx = t.center.x - px;
       const dz = t.center.z - pz;
       t.mesh.visible = dx * dx + dz * dz < tdd2;
@@ -90,7 +90,7 @@ const streamSystem: System<W> = {
       }
     }
 
-    if (build.water.hero) build.water.hero.visible = envRuntime.reflectorOn;
+    if (build.water?.hero) build.water.hero.visible = envRuntime.reflectorOn;
   },
 };
 

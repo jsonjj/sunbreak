@@ -20,10 +20,43 @@ function withColor(geo: THREE.BufferGeometry, hex: number): THREE.BufferGeometry
   return geo;
 }
 
+/**
+ * Make a single part safe to feed to `mergeGeometries()`. That helper rejects the whole batch
+ * unless EVERY geometry is uniformly indexed (or uniformly non-indexed) AND exposes the exact same
+ * set of attribute names. Three's polyhedra (Icosahedron/Octahedron/…) come back NON-indexed while
+ * its cylinders/cones/planes/spheres are indexed — so mixing them (e.g. the mangrove's icosahedron
+ * canopy with its cylinder trunk) trips the "index attribute exists among all geometries, or in none
+ * of them" error. We flatten every part to non-indexed and backfill any missing normal/uv so the
+ * whole batch shares one attribute layout. Normals/UVs are only computed when absent (three's
+ * primitives already supply them; transforms keep them correct).
+ */
+function normalizeForMerge(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  if (!g.attributes.normal) g.computeVertexNormals();
+  if (!g.attributes.uv) {
+    const count = g.attributes.position!.count;
+    g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(count * 2), 2));
+  }
+  return g;
+}
+
+/**
+ * Merge low-poly parts into one instance-ready geometry. Each part is normalized first so the merge
+ * can never fail on mismatched index/attribute layouts. If any part carries vertex colours we ensure
+ * they all do (white default) so the attribute sets stay identical. Part normals are preserved (no
+ * global recompute) so previously-working species keep their smooth shading.
+ */
 function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const g = mergeGeometries(parts, false);
+  const normalized = parts.map(normalizeForMerge);
+  if (normalized.some((g) => g.attributes.color)) {
+    for (const g of normalized) {
+      if (g.attributes.color) continue;
+      const count = g.attributes.position!.count;
+      g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(count * 3).fill(1), 3));
+    }
+  }
+  const g = mergeGeometries(normalized, false);
   if (!g) throw new Error("env: geometry merge failed");
-  g.computeVertexNormals();
   g.computeBoundingSphere();
   return g;
 }
@@ -39,7 +72,7 @@ export function makeGrassClump(width: number, height: number, crosses = 3): THRE
     p.rotateY((i / crosses) * Math.PI);
     parts.push(p);
   }
-  const g = mergeGeometries(parts, false);
+  const g = mergeGeometries(parts.map(normalizeForMerge), false);
   if (!g) throw new Error("env: grass merge failed");
   g.computeBoundingSphere();
   return g;
