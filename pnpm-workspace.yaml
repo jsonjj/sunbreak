@@ -6,3 +6,10 @@ packages:
 # Allow build scripts for these dependencies (pnpm 11 blocks them by default).
 allowBuilds:
   esbuild: true
+  # Optional native accelerator for msgpackr (pulled in transitively by colyseus.js).
+  # Intentionally NOT built: msgpackr falls back to a pure-JS encoder, which is fine for
+  # our netcode. Marked false so `pnpm install` doesn't flag it as an undecided build.
+  msgpackr-extract: false
+  # Attempting the native build (persistence, v4). If it fails to compile on this Node,
+  # better-sqlite3 is uninstalled and persistence falls back to sql.js / node:sqlite.
+  better-sqlite3: true
