@@ -150,6 +150,7 @@ registerModule(mod);
 // ── Re-exports for the integrator / sibling subsystems ──────────────────────────────────────
 export { pedsApi } from "./api";
 export { PedInstances } from "./render/pedInstancesView";
+export { PedColliders } from "./render/pedCollidersView";
 export {
   applyThreat,
   raiseThreat,

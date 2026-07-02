@@ -11,10 +11,12 @@ import { ECS, world } from "../ecs/world";
 // ── Subsystem R3F bridges (each subsystem self-registers on import via the systems-loader; here we
 // only mount the React views that need to live in the scene graph / Rapier context). ────────────
 import { VehiclePhysicsView } from "@/systems/physics/vehicle";
+import { WorldColliders } from "@/systems/physics/world-colliders";
 import { CombatRig } from "@/systems/gameplay/combat";
 import { TrafficView } from "@/systems/gameplay/traffic";
 import { WantedView } from "@/systems/gameplay/wanted";
 import { RagdollBridge } from "@/systems/physics/ragdoll";
+import { PedColliders } from "@/systems/gameplay/peds";
 import { InteractionRig } from "@/systems/gameplay/interaction";
 import { DebugCanvas } from "@/systems/content/debug-tools";
 
@@ -61,7 +63,8 @@ export function Scene() {
 
       <PhysicsProvider debug={debug}>
         {/* Safety floor: a large invisible fixed collider so the player + vehicles never fall
-            through before city/terrain colliders exist. Supersedes the removed v0 ground plane. */}
+            through before city/terrain colliders exist. Supersedes the removed v0 ground plane.
+            Also stays as the flat drivable ground for the city core (see <WorldColliders/>). */}
         <RigidBody type="fixed" colliders={false}>
           <CuboidCollider
             args={[600, 0.5, 600]}
@@ -69,6 +72,11 @@ export function Scene() {
             collisionGroups={groupsFor(Layer.WORLD)}
           />
         </RigidBody>
+
+        {/* Static world colliders: buildings/props (render/city), streamed chunks
+            (render/streaming) and environment prop colliders (render/environment). This is what
+            makes vehicles + the player stop driving through buildings and walls. */}
+        <WorldColliders />
 
         <PlayerController />
         <CameraRig />
@@ -79,6 +87,8 @@ export function Scene() {
         <WantedView />
         <CombatRig />
         <RagdollBridge />
+        {/* Pooled kinematic sensor capsules on near-player peds → vehicle impacts route to ragdoll. */}
+        <PedColliders />
         <InteractionRig />
 
         <SystemsRunner />

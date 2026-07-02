@@ -113,6 +113,9 @@ export function releasePed(e: ClientEntity): void {
   a.slot = -1;
   if (e.isDead) world.removeComponent(e, "isDead");
   if (e.ped_ragdoll) world.removeComponent(e, "ped_ragdoll");
+  // Strip the transient knockback velocity a vehicle impact may have seeded (see pedCollidersView)
+  // so a recycled pool entity never carries a stale launch into its next life.
+  if (e.velocity) world.removeComponent(e, "velocity");
   world.remove(e);
   returnEntity(e);
 }
