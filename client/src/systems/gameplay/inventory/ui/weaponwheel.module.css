@@ -1,4 +1,6 @@
-/* Scoped styles for the weapon wheel + ammo HUD. CSS Modules => no global collisions. */
+/* Scoped styles for the weapon wheel + ammo HUD. CSS Modules => no global collisions.
+   Accent tints are driven by a per-element `--accent` custom property set by the renderer, kept
+   restrained (one warm accent, layered over calm dark glass) per the SUNBREAK UI direction. */
 
 .overlay {
   position: fixed;
@@ -43,9 +45,163 @@
   width: 100%;
   height: 100%;
   overflow: visible;
+  cursor: pointer;
   filter: drop-shadow(0 24px 60px rgba(0, 0, 0, 0.45));
 }
 
+/* ── Wheel geometry (SVG) ─────────────────────────────────────────────────────────────────── */
+.ringGuide {
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 1;
+}
+
+.hub {
+  fill: rgba(10, 12, 20, 0.62);
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 1;
+}
+
+.seg {
+  fill: rgba(255, 255, 255, 0.045);
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1;
+  transition:
+    fill 150ms ease,
+    stroke 150ms ease,
+    stroke-width 150ms ease,
+    filter 150ms ease;
+}
+
+/* Equipped-but-not-hovered: a persistent, quieter accent so you can always see what's in hand. */
+.segEquipped {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 1.5;
+}
+
+/* Hovered focal wedge — brighter accent + soft glow. Defined last so it wins when also equipped. */
+.segHover {
+  fill: color-mix(in srgb, var(--accent) 32%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  filter: drop-shadow(0 6px 20px color-mix(in srgb, var(--accent) 42%, transparent));
+}
+
+/* ── Per-segment content (HTML overlay) ───────────────────────────────────────────────────── */
+.labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: clamp(78px, 20%, 124px);
+  text-align: center;
+  opacity: 0.5;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+
+.label[data-focus] {
+  opacity: 1;
+}
+
+.label[data-hovered] {
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.labelIcon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #eef1f8;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+  transition:
+    color 150ms ease,
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.label[data-focus] .labelIcon {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, rgba(255, 255, 255, 0.03));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* Small accent pip marking the currently-equipped weapon. */
+.label[data-equipped] .labelIcon::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid rgba(8, 10, 16, 0.9);
+}
+
+.labelName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: rgba(244, 246, 251, 0.92);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+
+.labelAmmo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+
+.labelAmmo b {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(244, 246, 251, 0.95);
+}
+
+.labelAmmo i {
+  font-style: normal;
+  font-size: 11px;
+  color: rgba(244, 246, 251, 0.34);
+}
+
+.labelAmmo s {
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(244, 246, 251, 0.62);
+}
+
+.labelMelee {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(244, 246, 251, 0.62);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Center readout (hovered → falls back to equipped) ─────────────────────────────────────── */
 .center {
   position: absolute;
   inset: 0;
@@ -56,7 +212,7 @@
   gap: 2px;
   text-align: center;
   pointer-events: none;
-  padding: 0 18%;
+  padding: 0 22%;
 }
 
 .centerCat {
@@ -64,7 +220,7 @@
   letter-spacing: 0.22em;
   text-transform: uppercase;
   font-weight: 600;
-  color: rgba(244, 246, 251, 0.55);
+  color: color-mix(in srgb, var(--accent) 60%, rgba(244, 246, 251, 0.55));
 }
 
 .centerWeapon {
@@ -106,16 +262,34 @@
   color: rgba(244, 246, 251, 0.5);
 }
 
+/* ── Hint bar ─────────────────────────────────────────────────────────────────────────────── */
 .hint {
   position: absolute;
-  bottom: -46px;
+  bottom: -52px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
   white-space: nowrap;
   font-size: 12px;
-  letter-spacing: 0.04em;
-  color: rgba(244, 246, 251, 0.55);
+  letter-spacing: 0.01em;
+  color: rgba(244, 246, 251, 0.58);
   pointer-events: none;
+}
+
+.hint span {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hint span:not(:first-child)::before {
+  content: "·";
+  position: absolute;
+  left: -9px;
+  color: rgba(244, 246, 251, 0.28);
 }
 
 .hint kbd {
@@ -126,22 +300,6 @@
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 5px;
   padding: 1px 6px;
-  margin: 0 1px;
-}
-
-/* Segment label text rendered inside the SVG. */
-.segLabel {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  fill: currentColor;
-}
-
-.segCount {
-  font-size: 12px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  fill: currentColor;
 }
 
 /* ── Ammo HUD counter (optional standalone mount) ────────────────────────────── */
@@ -244,5 +402,15 @@
   .overlay,
   .wheelWrap {
     animation: none;
+  }
+
+  .seg,
+  .label,
+  .labelIcon {
+    transition: none;
+  }
+
+  .label[data-hovered] {
+    transform: translate(-50%, -50%);
   }
 }

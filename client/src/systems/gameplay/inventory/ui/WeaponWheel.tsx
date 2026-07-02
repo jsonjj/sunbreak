@@ -1,23 +1,35 @@
 // The radial weapon wheel — a DOM/SVG overlay mounted as a sibling of <Canvas>. Conditionally
 // rendered only while open (zero cost closed, never touches the WebGL loop). EXPORTED for the
 // integrator to mount next to <HUD/>.
+//
+// It renders ONE segment per OWNED weapon (see layout.ts), reading everything from the shared
+// `useInventoryStore` (owned weapons, ammo pools, equipped id, transient hover/open). Selecting a
+// segment equips that weapon via the store's `equip(id)` action, which Combat mirrors each frame.
+// Open/close reuse the store's existing `openWheel()` / `closeWheel()` — the integrator drives
+// those from a key (see report); nothing here binds keys or mounts itself into the scene.
 
-import type { ReactElement } from "react";
+import type { CSSProperties, ReactElement, PointerEvent as ReactPointerEvent } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useInventoryStore } from "../store";
-import type { WeaponCategory, WeaponDef } from "../types";
-import { WEAPONS, WEAPON_LIST, WHEEL_CATEGORIES } from "../catalog/weapons";
-import { firstOwnedInCategory } from "../rules";
+import type { WeaponCategory } from "../types";
 import { WheelSegment } from "./WheelSegment";
+import { WheelLabel } from "./WheelLabel";
 import { useWheelInput } from "./useWheelInput";
-import { WHEEL_R_INNER, WHEEL_R_OUTER, WHEEL_VIEWBOX } from "./geometry";
+import { ownedWheelEntries, type WheelEntry } from "./layout";
+import {
+  WHEEL_R_INNER,
+  WHEEL_R_OUTER,
+  WHEEL_VIEWBOX,
+  pointOnCircle,
+  pointerToIndex,
+  pointerRadius,
+  segmentCenterDeg,
+  wheelOuterRadiusPx,
+} from "./geometry";
 import styles from "./weaponwheel.module.css";
 
 const CENTER = WHEEL_VIEWBOX / 2;
-
-function representativeDef(cat: WeaponCategory): WeaponDef | undefined {
-  return WEAPON_LIST.find((w) => w.category === cat);
-}
+const LABEL_R = (WHEEL_R_INNER + WHEEL_R_OUTER) / 2;
 
 const CATEGORY_LABEL: Record<WeaponCategory, string> = {
   melee: "Melee",
@@ -37,102 +49,132 @@ export function WeaponWheel(): ReactElement | null {
 }
 
 function WheelBody(): ReactElement {
-  useWheelInput();
-  const { hoverSlot, ownedWeapons, ammo, lastByCategory, equippedWeaponId } = useInventoryStore(
+  const { hoverSlot, ownedWeapons, ammo, equippedWeaponId } = useInventoryStore(
     useShallow((s) => ({
       hoverSlot: s.hoverSlot,
       ownedWeapons: s.ownedWeapons,
       ammo: s.ammo,
-      lastByCategory: s.lastByCategory,
       equippedWeaponId: s.equippedWeaponId,
     })),
   );
 
-  const select = (slot: number): void => {
-    useInventoryStore.getState().setHover(slot);
-    useInventoryStore.getState().closeWheel();
+  const entries = ownedWheelEntries(ownedWeapons, ammo);
+  const count = entries.length;
+  useWheelInput(entries);
+
+  // Equip the chosen weapon, then close via the store's existing mechanism. Setting hover to the
+  // committed slot first keeps closeWheel()'s category read-back consistent with what we equipped.
+  const commit = (entry: WheelEntry): void => {
+    const st = useInventoryStore.getState();
+    st.setHover(entry.slot);
+    st.equip(entry.id);
+    st.closeWheel();
   };
 
-  const segments = WHEEL_CATEGORIES.map((cat, slot) => {
-    const currentId = lastByCategory[cat] ?? firstOwnedInCategory(ownedWeapons, cat) ?? undefined;
-    const owned = currentId !== undefined && ownedWeapons[currentId] !== undefined;
-    const def = (currentId ? WEAPONS[currentId] : undefined) ?? representativeDef(cat);
-    if (!def) return null;
-    const count = owned && def.ammoType ? (ammo[def.ammoType] ?? 0) : -1;
-    return (
-      <WheelSegment
-        key={cat}
-        slot={slot}
-        center={CENTER}
-        rInner={WHEEL_R_INNER}
-        rOuter={WHEEL_R_OUTER}
-        hovered={hoverSlot === slot}
-        owned={owned}
-        def={def}
-        count={count}
-        onSelect={select}
-      />
-    );
-  });
+  // Close without changing the loadout (click center / outside / empty wheel).
+  const cancel = (): void => {
+    const st = useInventoryStore.getState();
+    st.setHover(-1);
+    st.closeWheel();
+  };
 
-  // Center readout previews the hovered category, falling back to what's equipped.
-  const previewCat = hoverSlot >= 0 ? WHEEL_CATEGORIES[hoverSlot] : undefined;
-  const previewId = previewCat
-    ? (lastByCategory[previewCat] ?? firstOwnedInCategory(ownedWeapons, previewCat) ?? equippedWeaponId)
-    : equippedWeaponId;
-  const previewDef = previewId ? WEAPONS[previewId] : undefined;
-  const previewInst = previewId ? ownedWeapons[previewId] : undefined;
-  const previewOwned = previewId !== undefined && previewInst !== undefined;
-  const reserve = previewDef?.ammoType ? (ammo[previewDef.ammoType] ?? 0) : 0;
+  const onWheelPointerDown = (e: ReactPointerEvent<SVGSVGElement>): void => {
+    if (count === 0) return cancel();
+    const idx = pointerToIndex(e.clientX, e.clientY, count);
+    const hit = idx >= 0 ? entries[idx] : undefined;
+    if (!hit || pointerRadius(e.clientX, e.clientY) > wheelOuterRadiusPx()) return cancel();
+    commit(hit);
+  };
+
+  // Center readout previews the hovered weapon, falling back to what's equipped.
+  const hovered = hoverSlot >= 0 ? entries.find((en) => en.slot === hoverSlot) : undefined;
+  const equipped = entries.find((en) => en.id === equippedWeaponId);
+  const focus = hovered ?? equipped;
 
   return (
     <div className={styles.overlay} role="dialog" aria-label="Weapon wheel">
-      <div className={styles.backdrop} />
+      <div className={styles.backdrop} onPointerDown={cancel} />
       <div className={styles.wheelWrap}>
         <svg
           className={styles.svg}
           viewBox={`0 0 ${WHEEL_VIEWBOX} ${WHEEL_VIEWBOX}`}
           xmlns="http://www.w3.org/2000/svg"
+          onPointerDown={onWheelPointerDown}
         >
+          {/* Full-disc transparent hit layer so angular gaps are still selectable. */}
+          <circle cx={CENTER} cy={CENTER} r={WHEEL_R_OUTER} fill="transparent" />
           <circle
+            className={styles.ringGuide}
             cx={CENTER}
             cy={CENTER}
             r={WHEEL_R_OUTER + 6}
             fill="none"
-            stroke="rgba(255,255,255,0.05)"
-            strokeWidth={1}
           />
-          {segments}
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={WHEEL_R_INNER - 6}
-            fill="rgba(10,12,20,0.55)"
-            stroke="rgba(255,255,255,0.08)"
-            strokeWidth={1}
-          />
+          {entries.map((entry, i) => (
+            <WheelSegment
+              key={entry.id}
+              index={i}
+              count={count}
+              center={CENTER}
+              rInner={WHEEL_R_INNER}
+              rOuter={WHEEL_R_OUTER}
+              hovered={entry.slot === hoverSlot}
+              equipped={entry.id === equippedWeaponId}
+              accent={entry.accent}
+            />
+          ))}
+          <circle className={styles.hub} cx={CENTER} cy={CENTER} r={WHEEL_R_INNER - 6} />
         </svg>
 
-        <div className={styles.center}>
-          {previewCat && <div className={styles.centerCat}>{CATEGORY_LABEL[previewCat]}</div>}
-          <div className={styles.centerWeapon}>
-            {previewOwned ? (previewDef?.name ?? "—") : "Locked"}
-          </div>
-          {previewOwned && previewDef && previewDef.ammoType && (
-            <div className={styles.centerAmmo}>
-              <span className={styles.centerClip}>{previewInst?.mag ?? 0}</span>
-              <span className={styles.centerSep}>/</span>
-              <span className={styles.centerReserve}>{reserve}</span>
-            </div>
-          )}
-          {previewOwned && previewDef && previewDef.ammoType === null && (
-            <div className={styles.centerMelee}>Melee</div>
+        <div className={styles.labels}>
+          {entries.map((entry, i) => {
+            const [lx, ly] = pointOnCircle(CENTER, CENTER, LABEL_R, segmentCenterDeg(i, count));
+            return (
+              <WheelLabel
+                key={entry.id}
+                entry={entry}
+                leftPct={(lx / WHEEL_VIEWBOX) * 100}
+                topPct={(ly / WHEEL_VIEWBOX) * 100}
+                hovered={entry.slot === hoverSlot}
+                equipped={entry.id === equippedWeaponId}
+              />
+            );
+          })}
+        </div>
+
+        <div className={styles.center} style={{ "--accent": focus?.accent ?? "#ff9d5c" } as CSSProperties}>
+          {focus ? (
+            <>
+              <div className={styles.centerCat}>{CATEGORY_LABEL[focus.def.category]}</div>
+              <div className={styles.centerWeapon}>{focus.def.name}</div>
+              {focus.isMelee ? (
+                <div className={styles.centerMelee}>Melee</div>
+              ) : (
+                <div className={styles.centerAmmo}>
+                  <span className={styles.centerClip}>{focus.mag}</span>
+                  <span className={styles.centerSep}>/</span>
+                  <span className={styles.centerReserve}>{focus.reserve}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className={styles.centerWeapon}>No weapons</div>
           )}
         </div>
 
         <div className={styles.hint}>
-          <kbd>Tab</kbd> hold · <kbd>scroll</kbd> cycle · <kbd>1–8</kbd> quick-equip ·{" "}
-          <kbd>R</kbd> reload
+          <span>
+            <kbd>Click</kbd> equip
+          </span>
+          <span>
+            <kbd>Scroll</kbd> cycle
+          </span>
+          <span>
+            <kbd>1–8</kbd> quick-swap
+          </span>
+          <span>
+            <kbd>R</kbd> reload
+          </span>
         </div>
       </div>
     </div>

@@ -60,3 +60,95 @@ export function angleToSlot(dx: number, dy: number, dist: number, deadzone: numb
   const deg = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360 + SLOT_DEG / 2) % 360;
   return Math.floor(deg / SLOT_DEG) % SLOT_COUNT;
 }
+
+// ── Dynamic layout (N owned segments) ─────────────────────────────────────────────────────────
+// The wheel now renders one wedge PER OWNED WEAPON, so the segment count is dynamic (1..8).
+// These helpers mirror the fixed-slot ones above but take an explicit `count`, and the renderer
+// + hit-test both call them so the geometry can never disagree.
+
+/** Angular width of one segment for a wheel of `count` slices. */
+export function segmentArc(count: number): number {
+  return count > 0 ? 360 / count : 360;
+}
+
+/** Center angle (deg, 0 = up, clockwise) of segment `index` in a `count`-slice wheel. */
+export function segmentCenterDeg(index: number, count: number): number {
+  return count <= 1 ? 0 : index * segmentArc(count);
+}
+
+/** SVG path `d` for a full donut ring (used when the player owns a single weapon). */
+export function ringPath(cx: number, cy: number, rInner: number, rOuter: number): string {
+  return (
+    `M ${r2(cx - rOuter)} ${r2(cy)} ` +
+    `A ${rOuter} ${rOuter} 0 1 0 ${r2(cx + rOuter)} ${r2(cy)} ` +
+    `A ${rOuter} ${rOuter} 0 1 0 ${r2(cx - rOuter)} ${r2(cy)} Z ` +
+    `M ${r2(cx - rInner)} ${r2(cy)} ` +
+    `A ${rInner} ${rInner} 0 1 1 ${r2(cx + rInner)} ${r2(cy)} ` +
+    `A ${rInner} ${rInner} 0 1 1 ${r2(cx - rInner)} ${r2(cy)} Z`
+  );
+}
+
+/** SVG path `d` for a donut wedge — segment `index` of `count`, with an angular gap between. */
+export function wedgePathN(
+  cx: number,
+  cy: number,
+  rInner: number,
+  rOuter: number,
+  index: number,
+  count: number,
+  gapDeg = 1.6,
+): string {
+  if (count <= 1) return ringPath(cx, cy, rInner, rOuter);
+  const arc = segmentArc(count);
+  const half = arc / 2 - gapDeg;
+  const a0 = index * arc - half;
+  const a1 = index * arc + half;
+  const large = a1 - a0 > 180 ? 1 : 0;
+  const [ix0, iy0] = pointOnCircle(cx, cy, rInner, a0);
+  const [ox0, oy0] = pointOnCircle(cx, cy, rOuter, a0);
+  const [ox1, oy1] = pointOnCircle(cx, cy, rOuter, a1);
+  const [ix1, iy1] = pointOnCircle(cx, cy, rInner, a1);
+  return (
+    `M ${ix0} ${iy0} L ${ox0} ${oy0} ` +
+    `A ${rOuter} ${rOuter} 0 ${large} 1 ${ox1} ${oy1} ` +
+    `L ${ix1} ${iy1} ` +
+    `A ${rInner} ${rInner} 0 ${large} 0 ${ix0} ${iy0} Z`
+  );
+}
+
+/** Screen-space delta -> hovered segment index (0..count-1), or -1 inside the dead-zone. */
+export function angleToIndexN(
+  dx: number,
+  dy: number,
+  dist: number,
+  deadzone: number,
+  count: number,
+): number {
+  if (count <= 0 || dist < deadzone) return -1;
+  if (count === 1) return 0;
+  const arc = segmentArc(count);
+  const deg = ((Math.atan2(dy, dx) * 180) / Math.PI + 90 + 360 + arc / 2) % 360;
+  return Math.floor(deg / arc) % count;
+}
+
+/** Client (viewport) point -> hovered segment index using the live wheel size. -1 = dead-zone. */
+export function pointerToIndex(clientX: number, clientY: number, count: number): number {
+  const size = wheelPixelSize();
+  const dx = clientX - window.innerWidth / 2;
+  const dy = clientY - window.innerHeight / 2;
+  const dist = Math.hypot(dx, dy);
+  const deadzone = size * (WHEEL_R_INNER / WHEEL_VIEWBOX);
+  return angleToIndexN(dx, dy, dist, deadzone, count);
+}
+
+/** Distance in px from the wheel center to the given client point (for click bounds). */
+export function pointerRadius(clientX: number, clientY: number): number {
+  const dx = clientX - window.innerWidth / 2;
+  const dy = clientY - window.innerHeight / 2;
+  return Math.hypot(dx, dy);
+}
+
+/** Outer selectable radius (px) — slightly past the ring so ring-edge clicks still register. */
+export function wheelOuterRadiusPx(): number {
+  return wheelPixelSize() * (WHEEL_R_OUTER / WHEEL_VIEWBOX) + 10;
+}
