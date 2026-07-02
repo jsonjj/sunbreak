@@ -241,11 +241,12 @@ const GAIT_PARAMS: Readonly<Record<"Walk" | "Run" | "Sprint", GaitParams>> = {
     arm: 24, foreArmBase: 12, foreArmSwing: 9, lean: 4, pelvisYaw: 7, hipDrop: 4, bob: 0.012,
   },
   Run: {
-    // Punchier stride + a touch more forward lean & float so the run reads as driving, not jogging.
-    // Signs unchanged (knee still folds BACK) so the forward-facing / no-moonwalk fix is preserved;
-    // nominalSpeed is auto-measured from these drivers, so a longer stride can't reintroduce slide.
-    dur: 0.62, thigh: 50, kneeSwing: 96, kneeBase: 12, foot: 30,
-    arm: 54, foreArmBase: 60, foreArmSwing: 24, lean: 17, pelvisYaw: 8, hipDrop: 3, bob: 0.03,
+    // Believable run: a single smooth knee flex through swing (peak ≈ −82°, no over-fold, never
+    // hyperextends), calmer arm carriage (elbows ~62° bent, moderate shoulder swing), forward lean +
+    // gentle float. Signs unchanged (knee folds BACK) so the no-moonwalk fix holds; nominalSpeed is
+    // auto-measured from these drivers so the feet stay planted (no slide) at the run speed.
+    dur: 0.62, thigh: 48, kneeSwing: 66, kneeBase: 16, foot: 28,
+    arm: 46, foreArmBase: 62, foreArmSwing: 20, lean: 16, pelvisYaw: 8, hipDrop: 3, bob: 0.028,
   },
   Sprint: {
     dur: 0.52, thigh: 58, kneeSwing: 108, kneeBase: 16, foot: 32,

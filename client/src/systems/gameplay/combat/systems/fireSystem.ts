@@ -42,7 +42,7 @@ import {
 
 type W = typeof world;
 
-const MELEE_CONE_COS = Math.cos(70 * DEG2RAD);
+const MELEE_CONE_COS = Math.cos(85 * DEG2RAD); // wide 170° swing arc so punches land reliably
 const DEFAULT_RECOVER_DEG_PER_S = 12; // fallback so residual recoil never gets stuck (e.g. melee swap)
 
 // Module scratch — zero per-frame allocation.

@@ -114,7 +114,7 @@ export const COMBAT_WEAPONS: Record<string, WeaponBallistics> = {
     spreadDeg: 0,
     adsSpreadMul: 1,
     bloom: 0,
-    rangeM: 2.3,
+    rangeM: 2.8, // forgiving reach so a punch connects without pixel-perfect spacing
     falloff: flat,
     impulse: 7,
     recoil: NO_RECOIL,

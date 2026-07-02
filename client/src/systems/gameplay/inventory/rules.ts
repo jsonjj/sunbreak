@@ -52,7 +52,9 @@ export function defaultSnapshot(): InventorySnapshot {
     ownedWeapons,
     ammo,
     consumables: { snack_health: 2, medkit: 1, body_armor: 1 },
-    equippedWeaponId: PISTOL_ID,
+    // Start UNARMED (fists) so punching works immediately (LMB throws a punch). The pistol is still
+    // owned + there's a pistol pickup right in front of spawn that auto-equips — walk into it to arm.
+    equippedWeaponId: FISTS_ID,
     lastByCategory: { handgun: PISTOL_ID, melee: FISTS_ID },
     cash: 500,
     version: 1,

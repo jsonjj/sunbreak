@@ -8,6 +8,7 @@ import {
   type RapierRigidBody,
 } from "@react-three/rapier";
 import {
+  CC_SNAP_TO_GROUND,
   CROUCH_SPEED,
   CROUCH_TRANSITION,
   DEFAULT_SPAWN,
@@ -162,6 +163,13 @@ export function PlayerController() {
       st.coyote = 0;
     }
     if (st.vVel < TERMINAL_FALL) st.vVel = TERMINAL_FALL;
+
+    // Snap-to-ground otherwise SWALLOWS the jump: the first jump frame only moves JUMP_SPEED·dt
+    // (≈0.12 m) which is under the snap distance (0.3 m), so the controller re-sticks the player to
+    // the floor every frame and the jump "does nothing". Disable snap while ascending; re-enable it
+    // once grounded/falling so slopes, stairs and autostep still stick.
+    if (st.vVel > 0.01) cc.disableSnapToGround();
+    else cc.enableSnapToGround(CC_SNAP_TO_GROUND);
 
     // Resolve move-and-slide against colliders.
     desired.set(moveDir.x * st.speed, st.vVel, moveDir.z * st.speed).multiplyScalar(dt);

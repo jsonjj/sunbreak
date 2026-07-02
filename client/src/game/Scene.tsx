@@ -1,5 +1,6 @@
 import { CuboidCollider, RigidBody } from "@react-three/rapier";
 import { Layer, groupsFor } from "@sunbreak/shared";
+import { PLAYABLE_HALF } from "@/systems/render/city/geography";
 import { PhysicsProvider } from "../physics/PhysicsProvider";
 import { PlayerController } from "../player/PlayerController";
 import { CameraRig } from "../camera/CameraRig";
@@ -71,15 +72,15 @@ export function Scene() {
       {/* World-space ped health bars (billboards above damaged / fighting peds). */}
       <PedHealthBars />
 
+      {/* Safety floor: solid drivable ground for the ENTIRE playable area (top at y=0). Sized to the
+          boundary walls (±PLAYABLE_HALF + margin) so there is ALWAYS solid ground everywhere inside
+          the walls — no mid-map edge, no gap between the walkable ground and the boundary walls, and
+          no way to fall into the void anywhere on the map. The environment terrain heightfield
+          (WorldColliders) still renders + adds real elevation on top of this out toward the coast. */}
       <PhysicsProvider debug={debug}>
-        {/* Safety floor: the flat drivable ground for the city core + districts (top at y=0, matching
-            the city slab). Shrunk to ±480 (just past the outer districts, well INSIDE the ~542 m
-            coastline) so it no longer extends over the beach/open sea — out there the environment
-            terrain heightfield (WorldColliders) is the ground, letting the coast slope naturally into
-            the water instead of the player/vehicles hovering on a flat slab above the sand. */}
         <RigidBody type="fixed" colliders={false}>
           <CuboidCollider
-            args={[480, 0.5, 480]}
+            args={[PLAYABLE_HALF + 5, 0.5, PLAYABLE_HALF + 5]}
             position={[0, -0.5, 0]}
             collisionGroups={groupsFor(Layer.WORLD)}
           />

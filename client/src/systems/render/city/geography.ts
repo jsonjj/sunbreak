@@ -30,8 +30,10 @@ export const SHORE_HEIGHT = WATER_LEVEL - 0.2;
 // ── Horizontal extents (metres, centred on origin) ───────────────────────────
 /** Street-grid / district extent (matches config.CITY_HALF). */
 export const CITY_EXTENT = CITY_HALF;
-/** Hard world boundary: invisible walls sit here. Inside the Scene safety floor (±600)
- *  so the player is always stopped while still standing on solid ground. */
+/** Hard world boundary: invisible walls sit here (just past every district/landmark + the ~542 m
+ *  coastline). The Scene safety floor is sized to PLAYABLE_HALF + a small margin, so the walls sit
+ *  just INSIDE the solid ground — the player is always stopped while still on the floor, with no gap
+ *  and no way to fall into the void anywhere inside the walls. */
 export const PLAYABLE_HALF = 560;
 /** Environment terrain is built out to here (> PLAYABLE_HALF so ground/collision reaches
  *  the boundary wall, with open ocean rendered beyond it toward the horizon). */
