@@ -130,7 +130,7 @@ class InputManager {
     const { controls } = useSettingsStore.getState();
     const sens = BASE_SENS * controls.mouseSensitivity;
     this.yaw -= e.movementX * sens;
-    this.pitch -= e.movementY * sens * (controls.invertY ? -1 : 1);
+    this.pitch += e.movementY * sens * (controls.invertY ? -1 : 1);
     if (this.pitch < PITCH_MIN) this.pitch = PITCH_MIN;
     if (this.pitch > PITCH_MAX) this.pitch = PITCH_MAX;
   };
