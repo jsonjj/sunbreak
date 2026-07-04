@@ -24,6 +24,7 @@ namespace SUNBREAK.BuildTools
         public static string ShotsDir => Path.Combine(BuildLogsDir, "shots");
         public static string Slice1ShotsDir => Path.Combine(ShotsDir, "slice1");
         public static string Slice2ShotsDir => Path.Combine(ShotsDir, "slice2");
+        public static string Slice3ShotsDir => Path.Combine(ShotsDir, "slice3");
         public static string AppPath => Path.Combine(BuildsDir, "SUNBREAK.app");
     }
 }

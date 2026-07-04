@@ -13,12 +13,25 @@ namespace SUNBREAK.World
     {
         public PlayerController player;
         public VehicleInteraction vehicle;
+        public PlayerState state;
+        public WantedSystem wanted;
 
         public float fallY = -15f;
         public float extentMargin = 40f;
         public float checkInterval = 0.4f;
 
         float _timer;
+
+        void OnEnable() { if (state != null) state.Died += OnPlayerDied; }
+        void OnDisable() { if (state != null) state.Died -= OnPlayerDied; }
+
+        void OnPlayerDied()
+        {
+            // Death → respawn at spawn, full heal, wanted cleared (mirrors the web build).
+            RespawnPlayerOnFoot();
+            if (wanted != null) wanted.Clear();
+            if (state != null) state.Revive();
+        }
 
         void Update()
         {
@@ -52,6 +65,13 @@ namespace SUNBREAK.World
                 return;
             }
 
+            RespawnPlayerOnFoot();
+        }
+
+        void RespawnPlayerOnFoot()
+        {
+            Vector3 spawn = Geography.PLAYER_SPAWN.position + Vector3.up * 1.5f;
+            float yaw = Geography.PLAYER_SPAWN.yaw;
             if (player != null && player.TryGetComponent(out CharacterController cc))
             {
                 cc.enabled = false;

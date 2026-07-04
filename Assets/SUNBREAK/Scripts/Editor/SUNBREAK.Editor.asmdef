@@ -5,6 +5,7 @@
         "SUNBREAK.Runtime",
         "Unity.InputSystem",
         "Unity.Cinemachine",
+        "Unity.AI.Navigation",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime",
         "Unity.RenderPipelines.Universal.Editor"

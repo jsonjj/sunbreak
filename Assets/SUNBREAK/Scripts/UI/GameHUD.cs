@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using SUNBREAK.Combat;
 using SUNBREAK.Vehicles;
 using SUNBREAK.World;
 
@@ -17,11 +18,14 @@ namespace SUNBREAK.UI
         public Transform player;
         public MinimapController minimap;
         public VehicleInteraction vehicle;
+        public WantedSystem wanted;
+        public PlayerCombat combat;
 
         Font _font;
         Image _healthFill;
-        Text _cashText, _speedText, _hintText;
-        RectTransform _blip;
+        Text _cashText, _speedText, _hintText, _starsText, _weaponText, _reticle;
+        RectTransform _blip, _wheelRoot;
+        Text[] _wheelSlots;
 
         void Start()
         {
@@ -43,6 +47,44 @@ namespace SUNBREAK.UI
                 _speedText.enabled = driving;
                 if (driving)
                     _speedText.text = $"{Mathf.Abs(vehicle.CurrentCar.SpeedKmh):0} km/h";
+            }
+
+            // Wanted stars (blink white while "searching" cooldown).
+            if (_starsText != null && wanted != null)
+            {
+                int s = wanted.Stars;
+                _starsText.text = new string('\u2605', s) + new string('\u2606', 5 - s);
+                float a = wanted.Searching ? 0.4f + 0.6f * Mathf.Abs(Mathf.Sin(Time.time * 4f)) : 1f;
+                _starsText.color = new Color(1f, 0.85f, 0.2f, s > 0 ? a : 0.25f);
+            }
+
+            // Weapon + ammo.
+            if (_weaponText != null && combat != null)
+            {
+                if (combat.MagSize > 0)
+                    _weaponText.text = combat.IsReloading ? $"{combat.CurrentName}\n<reloading>"
+                        : $"{combat.CurrentName}\n{combat.MagAmmo}/{combat.MagSize}  \u221e";
+                else _weaponText.text = combat.CurrentName;
+            }
+
+            // Reticle hidden while driving.
+            if (_reticle != null) _reticle.enabled = vehicle == null || vehicle.CurrentCar == null;
+
+            UpdateWheel();
+        }
+
+        void UpdateWheel()
+        {
+            if (_wheelRoot == null || combat == null) return;
+            bool open = combat.WheelOpen;
+            _wheelRoot.gameObject.SetActive(open);
+            if (!open) return;
+            for (int i = 0; i < _wheelSlots.Length; i++)
+            {
+                bool owned = combat.Owns(Weapons.WheelOrder[i]);
+                bool sel = i == combat.WheelSelection;
+                _wheelSlots[i].color = sel ? new Color(1f, 0.85f, 0.3f) : (owned ? Color.white : new Color(1f, 1f, 1f, 0.3f));
+                _wheelSlots[i].fontStyle = sel ? FontStyle.Bold : FontStyle.Normal;
             }
         }
 
@@ -115,9 +157,39 @@ namespace SUNBREAK.UI
             Label(mmFrame.transform, "SANTA VISTA", 12, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0, -2), new Vector2(200, 18));
 
             // Controls hint (top-center)
-            _hintText = Label(root, "WASD move  ·  Shift sprint  ·  C crouch  ·  Space jump  ·  F enter/exit car  ·  RMB aim  ·  V first-person",
-                14, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0, -14), new Vector2(1400, 24));
-            _hintText.color = new Color(1f, 1f, 1f, 0.7f);
+            _hintText = Label(root, "WASD move · Shift sprint · C crouch · Space jump · F car · RMB aim · V 1st-person · LMB fire · R reload · Tab wheel · 1-8 weapons",
+                13, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0, -14), new Vector2(1700, 24));
+            _hintText.color = new Color(1f, 1f, 1f, 0.65f);
+
+            // Wanted stars (top-right)
+            _starsText = Label(root, "\u2606\u2606\u2606\u2606\u2606", 34, TextAnchor.UpperRight, new Vector2(1, 1),
+                new Vector2(-30, -24), new Vector2(320, 44));
+            _starsText.color = new Color(1f, 0.85f, 0.2f, 0.25f);
+
+            // Weapon + ammo (bottom-right, above the minimap)
+            _weaponText = Label(root, "", 22, TextAnchor.LowerRight, new Vector2(1, 0), new Vector2(-30, 260), new Vector2(420, 60));
+            _weaponText.color = new Color(0.95f, 0.95f, 0.95f);
+
+            // Reticle (centre)
+            _reticle = Label(root, "+", 30, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40, 40));
+            _reticle.color = new Color(1f, 1f, 1f, 0.75f);
+
+            // Weapon wheel overlay (hidden until hold-Tab)
+            var wheelGo = new GameObject("Wheel", typeof(RectTransform));
+            wheelGo.transform.SetParent(root, false);
+            _wheelRoot = wheelGo.GetComponent<RectTransform>();
+            _wheelRoot.anchorMin = _wheelRoot.anchorMax = new Vector2(0.5f, 0.5f);
+            _wheelRoot.sizeDelta = new Vector2(520, 520);
+            var wbg = wheelGo.AddComponent<Image>(); wbg.sprite = WhiteSprite(); wbg.color = new Color(0f, 0f, 0f, 0.4f);
+            string[] names = { "Pistol", "SMG", "Shotgun", "Rifle", "Sniper", "RPG", "Grenade", "Fists" };
+            _wheelSlots = new Text[8];
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i * 45f * Mathf.Deg2Rad; // slot 0 top, clockwise
+                Vector2 pos = new Vector2(Mathf.Sin(a), Mathf.Cos(a)) * 195f;
+                _wheelSlots[i] = Label(_wheelRoot, names[i], 20, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), pos, new Vector2(140, 40));
+            }
+            _wheelRoot.gameObject.SetActive(false);
         }
 
         Image Panel(Transform parent, Vector2 aMin, Vector2 aMax, Vector2 pos, Vector2 size, Color col)

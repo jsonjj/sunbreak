@@ -4,11 +4,14 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 using Unity.Cinemachine;
+using Unity.AI.Navigation;
 using SUNBREAK.BuildTools;
 using SUNBREAK.Cameras;
+using SUNBREAK.Combat;
 using SUNBREAK.EditorTools.Characters;
 using SUNBREAK.EditorTools.Kits;
 using SUNBREAK.Player;
@@ -56,6 +59,10 @@ namespace SUNBREAK.EditorTools.World
         {
             KitLibrary.ClearCache();
             EnsureFolders();
+            // Shaders created at runtime via Shader.Find (combat VFX, pickups, health bars) get
+            // stripped from the build unless always-included — this caused ArgumentNullException on
+            // launch. Pin them so they ship.
+            EnsureAlwaysIncludedShaders("Universal Render Pipeline/Unlit", "SUNBREAK/VertexColorLit");
             // Nature palms keep their imported colours (materials-on import).
             AssetDatabase.ImportAsset(KitLibrary.NatureKit, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ImportRecursive);
 
@@ -114,7 +121,39 @@ namespace SUNBREAK.EditorTools.World
             vehicle.playerVisual = characterVisual;
             vehicle.onFootCameraTarget = camTarget;
 
-            // 7) Minimap + HUD.
+            // 7) Crime loop — combat VFX, crowd factory, wanted/police, peds, traffic, NavMesh.
+            new GameObject("CombatFx").AddComponent<CombatFx>();
+
+            var crowd = new GameObject("CrowdFactory").AddComponent<CrowdFactory>();
+            crowd.characterModel = animResult.characterModel;
+            crowd.avatar = animResult.characterAvatar;
+            crowd.controller = animResult.controller;
+
+            var wanted = new GameObject("WantedSystem").AddComponent<WantedSystem>();
+            wanted.player = player.transform; wanted.playerState = state; wanted.crowd = crowd; wanted.city = gen;
+
+            var peds = new GameObject("PedManager").AddComponent<PedManager>();
+            peds.crowd = crowd;
+
+            var traffic = new GameObject("TrafficManager").AddComponent<TrafficManager>();
+            traffic.city = gen;
+
+            var navGo = new GameObject("NavMesh");
+            var surface = navGo.AddComponent<NavMeshSurface>();
+            surface.collectObjects = CollectObjects.Volume;
+            surface.center = Vector3.zero;
+            surface.size = new Vector3(Geography.CITY_HALF * 2f + 80f, 60f, Geography.CITY_HALF * 2f + 80f);
+            surface.useGeometry = NavMeshCollectGeometry.PhysicsColliders;
+            navGo.AddComponent<RuntimeNavMesh>();
+
+            var combat = player.gameObject.AddComponent<PlayerCombat>();
+            combat.controller = player; combat.cameraController = camCtrl;
+
+            var pickup = new GameObject("WeaponPickup").AddComponent<WeaponPickup>();
+            pickup.transform.position = Geography.PLAYER_SPAWN.position + new Vector3(3f, 1f, 3f);
+            pickup.weaponId = "rifle_carbine";
+
+            // 8) Minimap + HUD.
             var mmGo = new GameObject("Minimap Camera");
             var minimap = mmGo.AddComponent<MinimapController>();
             minimap.target = player.transform;
@@ -122,11 +161,12 @@ namespace SUNBREAK.EditorTools.World
             var hudGo = new GameObject("Game HUD");
             var hud = hudGo.AddComponent<GameHUD>();
             hud.state = state; hud.player = player.transform; hud.minimap = minimap; hud.vehicle = vehicle;
+            hud.wanted = wanted; hud.combat = combat;
 
-            // 8) World bounds (respawn, no walls).
+            // 9) World bounds (respawn on fall/out-of-bounds + on death; clears wanted).
             var boundsGo = new GameObject("World Bounds");
             var bounds = boundsGo.AddComponent<WorldBounds>();
-            bounds.player = player; bounds.vehicle = vehicle;
+            bounds.player = player; bounds.vehicle = vehicle; bounds.state = state; bounds.wanted = wanted;
 
             // NOTE: the city is intentionally NOT generated into the saved scene — it is built
             // at runtime (CityGenerator.Awake) and by the capture tool, so the .unity file stays
@@ -287,6 +327,30 @@ namespace SUNBREAK.EditorTools.World
                 if (go != null) l.Add(go);
             }
             return l.ToArray();
+        }
+
+        /// <summary>Pin shaders that are only referenced via runtime Shader.Find so the build ships them.</summary>
+        static void EnsureAlwaysIncludedShaders(params string[] names)
+        {
+            var gs = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset");
+            if (gs == null || gs.Length == 0) return;
+            var so = new SerializedObject(gs[0]);
+            var arr = so.FindProperty("m_AlwaysIncludedShaders");
+            if (arr == null) return;
+            bool changed = false;
+            foreach (var name in names)
+            {
+                var sh = Shader.Find(name);
+                if (sh == null) continue;
+                bool present = false;
+                for (int i = 0; i < arr.arraySize; i++)
+                    if (arr.GetArrayElementAtIndex(i).objectReferenceValue == sh) { present = true; break; }
+                if (present) continue;
+                arr.InsertArrayElementAtIndex(arr.arraySize);
+                arr.GetArrayElementAtIndex(arr.arraySize - 1).objectReferenceValue = sh;
+                changed = true;
+            }
+            if (changed) { so.ApplyModifiedProperties(); AssetDatabase.SaveAssets(); }
         }
 
         static void EnsureFolders()

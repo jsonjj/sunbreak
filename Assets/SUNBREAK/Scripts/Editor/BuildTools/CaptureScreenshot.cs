@@ -4,6 +4,9 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
+using Unity.AI.Navigation;
+using SUNBREAK.Combat;
 using SUNBREAK.EditorTools.Characters;
 using SUNBREAK.Vehicles;
 using SUNBREAK.World;
@@ -49,54 +52,115 @@ namespace SUNBREAK.BuildTools
         static void CaptureIsland()
         {
             EditorSceneManager.OpenScene(SunbreakPaths.IslandScenePath, OpenSceneMode.Single);
-            Directory.CreateDirectory(SunbreakPaths.Slice2ShotsDir);
+            Directory.CreateDirectory(SunbreakPaths.Slice3ShotsDir);
 
             var gen = UnityEngine.Object.FindFirstObjectByType<CityGenerator>();
             if (gen == null) throw new Exception("No CityGenerator in island scene.");
             gen.Generate(); // build the city in edit mode for the shots (not saved)
 
-            // Pose the character in idle BEFORE any render (AnimationMode is finicky once the
-            // camera has rendered), so the third-person shot isn't a T-pose.
-            bool posed = PoseCharacterIdle();
+            // Bake the NavMesh so spawned peds/cops can be placed (they're runtime-only otherwise).
+            var surface = UnityEngine.Object.FindFirstObjectByType<NavMeshSurface>();
+            if (surface != null) surface.BuildNavMesh();
+
+            // Stage a CRIME SCENE for the stills (the AI only runs at play time): a crowd of peds
+            // + a squad of cops around the player, all posed. Combat/wanted are live at runtime.
+            var animators = new List<Animator>();
+            Vector3 pp = FindPos("Player", Geography.PLAYER_SPAWN.position);
+            pp.y = CityGenerator.TerrainHeight(pp.x, pp.z);
+            StageCrimeScene(gen, pp, animators);
+
+            // Pose the player + everyone idle (one AnimationMode session).
+            bool posed = PoseHumanoids(animators);
 
             Camera cam = GetCamera();
-            string dir = SunbreakPaths.Slice2ShotsDir;
+            string dir = SunbreakPaths.Slice3ShotsDir;
             var shots = new List<string>();
 
-            // District shots (cam pos offset, look target). Positioned on the sun-lit (SE) side,
-            // elevated enough to clear the buildings. Y uses terrain height.
-            shots.Add(Shoot(cam, "01_downtown_miracle_row.png",
-                new Vector3(185f, 140f, -180f), new Vector3(0f, 26f, 5f), dir));
-            shots.Add(DistrictShot(cam, dir, "02_costa_dorada.png", 320f, 12f, new Vector3(50f, 22f, 52f), 12f));
-            shots.Add(DistrictShot(cam, dir, "03_calle_sol_residential.png", -320f, -260f, new Vector3(38f, 13f, 40f), 5f));
-            shots.Add(DistrictShot(cam, dir, "04_bayfront.png", 90f, 360f, new Vector3(26f, 8f, -34f), 5f));
-            shots.Add(DistrictShot(cam, dir, "05_the_mint_industrial.png", -300f, 280f, new Vector3(44f, 18f, 46f), 7f));
-
-            // Aerial bird's-eye of the island + coastline/water.
-            shots.Add(Shoot(cam, "06_island_aerial.png",
+            // 1) Pedestrians on the street.
+            shots.Add(Shoot(cam, "01_pedestrians.png",
+                pp + new Vector3(10f, 2.4f, -14f), pp + new Vector3(6f, 1.0f, 12f), dir));
+            // 2) Police response — cops around the player + car.
+            shots.Add(Shoot(cam, "02_police_response.png",
+                pp + new Vector3(-3f, 2.3f, -8f), pp + new Vector3(2f, 1.1f, 6f), dir));
+            // 3) Combat — close over-the-shoulder on the player facing the crowd.
+            shots.Add(Shoot(cam, "03_combat.png",
+                pp + new Vector3(-2.2f, 2.2f, -5.5f), pp + new Vector3(3f, 1.2f, 12f), dir));
+            // 4) Crime scene wide — peds + cops + car in the street.
+            shots.Add(Shoot(cam, "04_crime_scene.png",
+                pp + new Vector3(16f, 9f, -18f), pp + new Vector3(2f, 1.2f, 6f), dir));
+            // 5) City aerial (context).
+            shots.Add(Shoot(cam, "05_island_aerial.png",
                 new Vector3(250f, 230f, -250f), new Vector3(20f, 6f, 30f), dir));
-
-            // Traversal over-the-shoulder near spawn (idle-posed character).
-            Vector3 pp = FindPos("Player", Geography.PLAYER_SPAWN.position);
-            float pg = CityGenerator.TerrainHeight(pp.x, pp.z);
-            pp.y = pg;
-            shots.Add(Shoot(cam, "07_traversal_thirdperson.png",
-                pp + new Vector3(-2.4f, 2.3f, -6.0f), pp + new Vector3(1.5f, 1.2f, 14f), dir));
-
-            // Car on a street.
-            var car = UnityEngine.Object.FindFirstObjectByType<ArcadeCarController>();
-            if (car != null)
-            {
-                Vector3 cp = car.transform.position;
-                shots.Add(Shoot(cam, "08_car_street.png", cp + new Vector3(5f, 2.2f, 6f), cp + new Vector3(0f, 0.6f, 0f), dir));
-            }
-
-            // Top-down "minimap"/map of the island (orthographic) — shows the district layout.
-            shots.Add(ShootOrtho(cam, "09_minimap_island.png",
+            // 6) Top-down island map.
+            shots.Add(ShootOrtho(cam, "06_island_map.png",
                 new Vector3(0f, 400f, 20f), Geography.PLAYABLE_HALF * 1.05f, dir));
 
             if (posed) AnimationMode.StopAnimationMode();
             Debug.Log("SUNBREAK_SHOT_OK: " + string.Join(" | ", shots));
+        }
+
+        /// <summary>Spawn a posed crowd of peds + a squad of cops around the player for the stills.</summary>
+        static void StageCrimeScene(CityGenerator gen, Vector3 hub, List<Animator> animators)
+        {
+            var crowd = UnityEngine.Object.FindFirstObjectByType<CrowdFactory>();
+            if (crowd == null) return;
+            var player = GameObject.Find("Player");
+            var pAnim = player != null ? player.GetComponentInChildren<Animator>() : null;
+            if (pAnim != null) animators.Add(pAnim);
+
+            var rng = new System.Random(31);
+            // Peds scattered down the street.
+            for (int i = 0; i < 12; i++)
+            {
+                float ang = (float)(rng.NextDouble() * Mathf.PI * 2);
+                float r = 6f + (float)rng.NextDouble() * 22f;
+                Vector3 pos = hub + new Vector3(Mathf.Cos(ang) * r, 0f, Mathf.Sin(ang) * r + 6f);
+                var go = crowd.BuildHumanoid("PedShot", Faction.Civilian, 100f, CrowdFactory.RandomCivilianTint(),
+                    out var agent, out _, out var anim);
+                CrowdFactory.Place(go, agent, pos);
+                if (anim != null) animators.Add(anim);
+            }
+            // A squad of cops closer in.
+            for (int i = 0; i < 5; i++)
+            {
+                float ang = i / 5f * Mathf.PI * 2f;
+                Vector3 pos = hub + new Vector3(Mathf.Cos(ang) * 9f, 0f, Mathf.Sin(ang) * 9f + 8f);
+                var cop = crowd.SpawnCop(pos, "pistol_9mm", 0.4f, 110f, 2);
+                if (cop != null)
+                {
+                    var a = cop.GetComponentInChildren<Animator>();
+                    if (a != null) animators.Add(a);
+                }
+            }
+        }
+
+        static bool PoseHumanoids(List<Animator> animators)
+        {
+            if (animators.Count == 0) return false;
+            var idle = FindIdleClip();
+            if (idle == null) return false;
+            try
+            {
+                AnimationMode.StartAnimationMode();
+                AnimationMode.BeginSampling();
+                foreach (var a in animators)
+                    if (a != null) AnimationMode.SampleAnimationClip(a.gameObject, idle, 1.2f);
+                AnimationMode.EndSampling();
+                return true;
+            }
+            catch (Exception e) { Debug.LogWarning("SUNBREAK_SHOT: crowd pose failed: " + e.Message); return false; }
+        }
+
+        static AnimationClip FindIdleClip()
+        {
+            foreach (var guid in AssetDatabase.FindAssets("t:GameObject", new[] { HumanoidAnimatorSetup.MixamoDir }))
+            {
+                string p = AssetDatabase.GUIDToAssetPath(guid);
+                if (!Path.GetFileNameWithoutExtension(p).ToLowerInvariant().Contains("idle")) continue;
+                foreach (var o in AssetDatabase.LoadAllAssetsAtPath(p))
+                    if (o is AnimationClip c && !c.name.StartsWith("__preview")) return c;
+            }
+            return null;
         }
 
         static string DistrictShot(Camera cam, string dir, string file, float cx, float cz, Vector3 offset, float lookY)
