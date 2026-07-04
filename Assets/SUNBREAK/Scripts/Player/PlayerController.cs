@@ -86,6 +86,13 @@ namespace SUNBREAK.Player
             LookYaw = transform.eulerAngles.y;
         }
 
+        /// <summary>Weapon recoil kick into the shared look angles (dPitch &lt; 0 raises the aim).</summary>
+        public void AddLook(float dPitch, float dYaw)
+        {
+            LookPitch = Mathf.Clamp(LookPitch + dPitch, minPitch, maxPitch);
+            LookYaw += dYaw;
+        }
+
         void OnEnable()
         {
             _move.Enable(); _look.Enable(); _jump.Enable(); _sprint.Enable(); _crouch.Enable();
