@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using SUNBREAK.Combat;
 
 namespace SUNBREAK.World
 {
@@ -20,10 +21,22 @@ namespace SUNBREAK.World
         IEnumerator Run()
         {
             yield return new WaitForSeconds(6f); // let city gen + NPC spawn + weapon attach settle
-            string path = System.IO.Path.Combine(Application.persistentDataPath, "build_shot.png");
-            ScreenCapture.CaptureScreenshot(path, 1);
-            yield return new WaitForSeconds(2f);
+            Shot("build_shot.png");              // pistol (default loadout)
+
+            // Swap to a rifle so grip can be verified for both weapon classes.
+            yield return new WaitForSeconds(0.7f);
+            var combat = GameRefs.Player != null ? GameRefs.Player.GetComponent<PlayerCombat>() : null;
+            combat?.Pickup("rifle_carbine");
+            yield return new WaitForSeconds(1.8f);
+            Shot("build_shot2.png");             // rifle
+
+            yield return new WaitForSeconds(1.5f);
             Application.Quit();
+        }
+
+        static void Shot(string name)
+        {
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath, name), 1);
         }
     }
 }

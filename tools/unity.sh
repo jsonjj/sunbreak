@@ -66,9 +66,9 @@ _smoke() {
   # errors that -nographics can't surface (this is what let the white-character bug slip through). ──
   rm -f "$glog"
   # persistentDataPath uses the (uncustomized) URP-template bundle id; also check DefaultCompany.
-  local shot1="$HOME/Library/Application Support/com.Unity-Technologies.com.unity.template.urp-blank/build_shot.png"
-  local shot2="$HOME/Library/Application Support/DefaultCompany/sunbreak-unity/build_shot.png"
-  rm -f "$shot1" "$shot2"
+  local pd1="$HOME/Library/Application Support/com.Unity-Technologies.com.unity.template.urp-blank"
+  local pd2="$HOME/Library/Application Support/DefaultCompany/sunbreak-unity"
+  rm -f "$pd1/build_shot.png" "$pd1/build_shot2.png" "$pd2/build_shot.png" "$pd2/build_shot2.png"
   echo "[smoke] pass 2: graphics render + build screenshot ..."
   # NOT -batchmode so a real GPU/window renders (batchmode players use a null device → no shot).
   "$appbin" -logFile "$glog" -sunbreakshot >/dev/null 2>&1 &
@@ -79,12 +79,14 @@ _smoke() {
   done
   if kill -0 "$gpid" 2>/dev/null; then kill "$gpid" 2>/dev/null; sleep 1; kill -9 "$gpid" 2>/dev/null; fi
   mkdir -p "$LOGDIR/shots"
-  local shotSrc=""
-  [ -f "$shot1" ] && shotSrc="$shot1"
-  [ -z "$shotSrc" ] && [ -f "$shot2" ] && shotSrc="$shot2"
-  if [ -n "$shotSrc" ]; then
-    cp "$shotSrc" "$LOGDIR/shots/build_shot.png"
-    echo "[smoke] build screenshot -> $LOGDIR/shots/build_shot.png (inspect for white/untextured chars)"
+  local got=0 f pd
+  for pd in "$pd1" "$pd2"; do
+    for f in build_shot.png build_shot2.png; do
+      if [ -f "$pd/$f" ]; then cp "$pd/$f" "$LOGDIR/shots/$f"; got=1; fi
+    done
+  done
+  if [ "$got" -eq 1 ]; then
+    echo "[smoke] build screenshots -> $LOGDIR/shots/build_shot*.png (inspect grip + textured chars)"
   else
     echo "[smoke] note: no build screenshot produced (no display / headless GPU) — render scan from log only"
   fi

@@ -23,26 +23,35 @@ namespace SUNBREAK.Combat
             public GameObject prefab;
             public float length;      // fit the model's longest dimension to this (m)
             public int weaponType;    // 0 unarmed, 1 pistol, 2 rifle
+            public Vector3 pos;       // local offset in the right hand
+            public Vector3 euler;     // local rotation in the right hand
         }
 
         readonly Dictionary<string, Entry> _map = new();
 
+        // Grip transforms tuned against the Mixamo right-hand bone (barrel = local +Z after rotation).
+        // One-handed pistols and two-handed long guns hold slightly differently.
+        static readonly Vector3 PistolPos = new Vector3(0.02f, -0.02f, 0.04f);
+        static readonly Vector3 PistolEuler = new Vector3(-90f, 90f, 0f);
+        static readonly Vector3 RiflePos = new Vector3(0.03f, -0.02f, 0.16f);
+        static readonly Vector3 RifleEuler = new Vector3(-90f, 90f, 0f);
+
         void Awake()
         {
             Instance = this;
-            Add("pistol_9mm", pistol, 0.28f, 1);
-            Add("smg_vector", smg, 0.5f, 2);
-            Add("shotgun_pump", shotgun, 0.7f, 2);
-            Add("rifle_carbine", rifle, 0.75f, 2);
-            Add("sniper_bolt", sniper, 0.9f, 2);
-            Add("launcher_rpg", rpg, 1.0f, 2);
-            Add("grenade", grenade, 0.12f, 0);
+            Add("pistol_9mm", pistol, 0.26f, 1, PistolPos, PistolEuler);
+            Add("smg_vector", smg, 0.5f, 2, RiflePos, RifleEuler);
+            Add("shotgun_pump", shotgun, 0.7f, 2, RiflePos, RifleEuler);
+            Add("rifle_carbine", rifle, 0.75f, 2, RiflePos, RifleEuler);
+            Add("sniper_bolt", sniper, 0.9f, 2, RiflePos, RifleEuler);
+            Add("launcher_rpg", rpg, 1.0f, 2, RiflePos, RifleEuler);
+            Add("grenade", grenade, 0.12f, 0, PistolPos, PistolEuler);
         }
         void OnDestroy() { if (Instance == this) Instance = null; }
 
-        void Add(string id, GameObject prefab, float length, int weaponType)
+        void Add(string id, GameObject prefab, float length, int weaponType, Vector3 pos, Vector3 euler)
         {
-            if (prefab != null) _map[id] = new Entry { prefab = prefab, length = length, weaponType = weaponType };
+            if (prefab != null) _map[id] = new Entry { prefab = prefab, length = length, weaponType = weaponType, pos = pos, euler = euler };
         }
 
         public int WeaponTypeFor(string id) => _map.TryGetValue(id, out var e) ? e.weaponType : 0;
@@ -85,11 +94,11 @@ namespace SUNBREAK.Combat
             float s = e.length / len;
             go.transform.localScale = Vector3.one * s;
 
-            // Approximate grip pose in the Mixamo right hand (barrel forward, sits in the palm).
-            go.transform.localPosition = new Vector3(0f, 0f, 0.05f);
-            go.transform.localRotation = Quaternion.Euler(0f, 90f, 90f);
+            // Grip pose in the Mixamo right hand (per-weapon).
+            go.transform.localPosition = e.pos;
+            go.transform.localRotation = Quaternion.Euler(e.euler);
 
-            // Muzzle at the front of the fitted model (local +Z after the rotation ≈ barrel).
+            // Muzzle at the front of the fitted model along its local barrel axis.
             b = Bounds(go);
             var m = new GameObject("Muzzle").transform;
             m.SetParent(go.transform, false);
