@@ -40,6 +40,7 @@ namespace SUNBREAK.UI
         Text _wheelName;
         Transform _mapRoot;
         Image[] _blipDots;
+        Image[] _routeSegs;
 
         /// <summary>Post a mission dialogue / reward toast (title + subtitle).</summary>
         public static void Post(string title, string sub) => Instance?.ShowToast(title, sub);
@@ -135,8 +136,40 @@ namespace SUNBREAK.UI
                 if (show) _radioText.text = radio.On ? $"\u266A {radio.NowPlaying}   (H off · N skip)" : "RADIO OFF   (H on)";
             }
 
+            DrawRoute();
             UpdateBlips();
             UpdateWheel();
+        }
+
+        void DrawRoute()
+        {
+            if (_routeSegs == null || minimap == null || player == null) return;
+            var route = NavRoute.Instance != null ? NavRoute.Instance.Route : null;
+            int used = 0;
+            if (route != null && route.Count >= 2)
+            {
+                float range = minimap.orthoSize;
+                Vector3 pp = player.position;
+                Vector2 prev = Vector2.zero; bool havePrev = false;
+                for (int i = 0; i < route.Count && used < _routeSegs.Length; i++)
+                {
+                    float dx = Mathf.Clamp((route[i].x - pp.x) / range, -1f, 1f);
+                    float dz = Mathf.Clamp((route[i].z - pp.z) / range, -1f, 1f);
+                    Vector2 p = new Vector2(dx * 100f, dz * 100f);
+                    if (havePrev) SetSeg(_routeSegs[used++], prev, p);
+                    prev = p; havePrev = true;
+                }
+            }
+            for (int i = used; i < _routeSegs.Length; i++) _routeSegs[i].enabled = false;
+        }
+
+        public static void SetSeg(Image seg, Vector2 a, Vector2 b)
+        {
+            seg.enabled = true;
+            Vector2 d = b - a;
+            seg.rectTransform.sizeDelta = new Vector2(Mathf.Max(1f, d.magnitude), 3f);
+            seg.rectTransform.anchoredPosition = (a + b) * 0.5f;
+            seg.rectTransform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg);
         }
 
         int Distance(Vector3 world)
@@ -153,18 +186,27 @@ namespace SUNBREAK.UI
             var all = Blip.All;
             int used = 0;
             Vector3 pp = player.position;
-            for (int i = 0; i < all.Count && used < _blipDots.Length; i++)
+            float pulse = 0.6f + 0.4f * Mathf.Abs(Mathf.Sin(Time.time * 4f));
+            // Missions + waypoints first so they draw on top + never get culled by the pool cap.
+            for (int pass = 0; pass < 2; pass++)
             {
-                var b = all[i];
-                if (b == null) continue;
-                Vector3 d = b.transform.position - pp;
-                float dx = d.x / range, dz = d.z / range; // -1..1 across the map
-                if (Mathf.Abs(dx) > 1.15f || Mathf.Abs(dz) > 1.15f) continue;
-                dx = Mathf.Clamp(dx, -1f, 1f); dz = Mathf.Clamp(dz, -1f, 1f);
-                var dot = _blipDots[used++];
-                dot.enabled = true;
-                dot.color = b.color;
-                dot.rectTransform.anchoredPosition = new Vector2(dx * 100f, dz * 100f);
+                for (int i = 0; i < all.Count && used < _blipDots.Length; i++)
+                {
+                    var b = all[i];
+                    if (b == null) continue;
+                    bool priority = b.kind == BlipKind.Mission || b.kind == BlipKind.Waypoint;
+                    if (priority != (pass == 0)) continue;
+                    Vector3 d = b.transform.position - pp;
+                    float dx = d.x / range, dz = d.z / range;
+                    if (Mathf.Abs(dx) > 1.15f || Mathf.Abs(dz) > 1.15f) continue;
+                    dx = Mathf.Clamp(dx, -1f, 1f); dz = Mathf.Clamp(dz, -1f, 1f);
+                    var dot = _blipDots[used++];
+                    dot.enabled = true;
+                    dot.color = priority ? new Color(b.color.r, b.color.g, b.color.b, pulse) : b.color;
+                    float sz = priority ? 17f : 11f;
+                    dot.rectTransform.sizeDelta = new Vector2(sz, sz);
+                    dot.rectTransform.anchoredPosition = new Vector2(dx * 100f, dz * 100f);
+                }
             }
             for (int i = used; i < _blipDots.Length; i++) _blipDots[i].enabled = false;
         }
@@ -252,8 +294,20 @@ namespace SUNBREAK.UI
             rawRt.anchorMin = new Vector2(0, 0); rawRt.anchorMax = new Vector2(1, 1);
             rawRt.offsetMin = new Vector2(4, 4); rawRt.offsetMax = new Vector2(-4, -4);
 
-            // Map blip dots (shops / missions / cash / objective) drawn over the minimap.
+            // GPS route line (drawn under the blips).
             _mapRoot = mmGo.transform;
+            _routeSegs = new Image[28];
+            for (int i = 0; i < _routeSegs.Length; i++)
+            {
+                var sg = new GameObject("route", typeof(Image));
+                sg.transform.SetParent(_mapRoot, false);
+                var im = sg.GetComponent<Image>();
+                im.color = new Color(0.3f, 0.85f, 1f, 0.85f); im.enabled = false;
+                var rt = im.rectTransform; rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.pivot = new Vector2(0.5f, 0.5f);
+                _routeSegs[i] = im;
+            }
+
+            // Map blip dots (shops / missions / cash / objective) drawn over the minimap.
             _blipDots = new Image[16];
             for (int i = 0; i < _blipDots.Length; i++)
             {

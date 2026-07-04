@@ -159,6 +159,7 @@ namespace SUNBREAK.EditorTools.World
             dayNight.sun = sun; dayNight.cityMat = cityMat; dayNight.propMat = propMat;
 
             new GameObject("BuildShot").AddComponent<BuildShot>(); // -sunbreakshot render verification
+            new GameObject("NavRoute").AddComponent<NavRoute>().spacing = gen.roadSpacing; // A* GPS route
 
             var navGo = new GameObject("NavMesh");
             var surface = navGo.AddComponent<NavMeshSurface>();

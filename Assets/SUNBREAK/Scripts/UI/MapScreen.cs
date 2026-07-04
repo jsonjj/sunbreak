@@ -21,6 +21,8 @@ namespace SUNBREAK.UI
         RectTransform _imgRt, _blipLayer;
         Image _playerDot;
         Image[] _dots;
+        Image[] _routeSegs;
+        Text[] _labels;
         Font _font;
         InputAction _toggle, _click, _pan;
         bool _open;
@@ -60,7 +62,31 @@ namespace SUNBREAK.UI
 
             PositionCamera();
             if (_click.WasPressedThisFrame()) SetWaypointFromClick();
+            DrawRoute();
             DrawBlips();
+        }
+
+        void DrawRoute()
+        {
+            if (_routeSegs == null) return;
+            var route = NavRoute.Instance != null ? NavRoute.Instance.Route : null;
+            int used = 0;
+            if (route != null && route.Count >= 2)
+            {
+                float aspect = (float)Screen.width / Screen.height;
+                float wHalf = _ortho * aspect, hHalf = _ortho;
+                Vector2 size = _blipLayer.rect.size;
+                Vector2 prev = Vector2.zero; bool havePrev = false;
+                for (int i = 0; i < route.Count && used < _routeSegs.Length; i++)
+                {
+                    float u = (route[i].x - _center.x) / (2f * wHalf) + 0.5f;
+                    float v = (route[i].z - _center.z) / (2f * hHalf) + 0.5f;
+                    Vector2 p = new Vector2((u - 0.5f) * size.x, (v - 0.5f) * size.y);
+                    if (havePrev) GameHUD.SetSeg(_routeSegs[used++], prev, p);
+                    prev = p; havePrev = true;
+                }
+            }
+            for (int i = used; i < _routeSegs.Length; i++) _routeSegs[i].enabled = false;
         }
 
         void Toggle()
@@ -131,7 +157,8 @@ namespace SUNBREAK.UI
             float wHalf = _ortho * aspect, hHalf = _ortho;
             Vector2 size = _blipLayer.rect.size;
             var all = Blip.All;
-            int used = 0;
+            int used = 0, lbl = 0;
+            float pulse = 0.55f + 0.45f * Mathf.Abs(Mathf.Sin(Time.time * 4f));
             for (int i = 0; i < all.Count && used < _dots.Length; i++)
             {
                 var b = all[i];
@@ -139,11 +166,25 @@ namespace SUNBREAK.UI
                 float u = (b.transform.position.x - _center.x) / (2f * wHalf) + 0.5f;
                 float v = (b.transform.position.z - _center.z) / (2f * hHalf) + 0.5f;
                 if (u < 0f || u > 1f || v < 0f || v > 1f) continue;
+                bool mission = b.kind == BlipKind.Mission || b.kind == BlipKind.Waypoint;
                 var dot = _dots[used++];
-                dot.enabled = true; dot.color = b.color;
-                dot.rectTransform.anchoredPosition = new Vector2((u - 0.5f) * size.x, (v - 0.5f) * size.y);
+                var pos = new Vector2((u - 0.5f) * size.x, (v - 0.5f) * size.y);
+                dot.enabled = true;
+                dot.color = mission ? new Color(b.color.r, b.color.g, b.color.b, pulse) : b.color;
+                dot.rectTransform.sizeDelta = mission ? new Vector2(20, 20) : new Vector2(12, 12);
+                dot.rectTransform.anchoredPosition = pos;
+                // Label named points of interest + missions.
+                if (!string.IsNullOrEmpty(b.label) && (b.kind == BlipKind.Shop || b.kind == BlipKind.Mission) && lbl < _labels.Length)
+                {
+                    var t = _labels[lbl++];
+                    t.enabled = true;
+                    t.text = b.label;
+                    t.color = mission ? new Color(1f, 0.9f, 0.5f) : new Color(1f, 1f, 1f, 0.85f);
+                    t.rectTransform.anchoredPosition = pos + new Vector2(11f, 0f);
+                }
             }
             for (int i = used; i < _dots.Length; i++) _dots[i].enabled = false;
+            for (int i = lbl; i < _labels.Length; i++) _labels[i].enabled = false;
 
             if (GameRefs.Player != null)
             {
@@ -196,6 +237,17 @@ namespace SUNBREAK.UI
             _blipLayer = (RectTransform)blipGo.transform;
             Stretch(_blipLayer, 0f);
 
+            _routeSegs = new Image[80];
+            for (int i = 0; i < _routeSegs.Length; i++)
+            {
+                var sg = new GameObject("route", typeof(Image));
+                sg.transform.SetParent(_blipLayer, false);
+                var im = sg.GetComponent<Image>();
+                im.color = new Color(0.3f, 0.85f, 1f, 0.9f); im.enabled = false;
+                var rt = im.rectTransform; rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.pivot = new Vector2(0.5f, 0.5f);
+                _routeSegs[i] = im;
+            }
+
             _dots = new Image[80];
             for (int i = 0; i < _dots.Length; i++)
             {
@@ -204,6 +256,18 @@ namespace SUNBREAK.UI
                 var im = d.GetComponent<Image>(); im.enabled = false;
                 var rt = im.rectTransform; rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.sizeDelta = new Vector2(12, 12);
                 _dots[i] = im;
+            }
+            _labels = new Text[48];
+            for (int i = 0; i < _labels.Length; i++)
+            {
+                var lg = new GameObject("lbl", typeof(Text));
+                lg.transform.SetParent(_blipLayer, false);
+                var t = lg.GetComponent<Text>();
+                t.font = _font; t.fontSize = 15; t.alignment = TextAnchor.MiddleLeft; t.color = Color.white;
+                t.horizontalOverflow = HorizontalWrapMode.Overflow; t.verticalOverflow = VerticalWrapMode.Overflow;
+                t.enabled = false;
+                var rt = t.rectTransform; rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.pivot = new Vector2(0f, 0.5f); rt.sizeDelta = new Vector2(200, 20);
+                _labels[i] = t;
             }
             _playerDot = new GameObject("player", typeof(Image)).GetComponent<Image>();
             _playerDot.transform.SetParent(_blipLayer, false);
