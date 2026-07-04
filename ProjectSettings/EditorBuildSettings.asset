@@ -9,11 +9,11 @@ EditorBuildSettings:
     path: Assets/SUNBREAK/Scenes/Island.unity
     guid: 290c38b5f497f4106bd6316621a59730
   - enabled: 0
-    path: Assets/SUNBREAK/Scenes/HeroStreet.unity
-    guid: 7bd925532e2f24f4aac3f1b02d743724
-  - enabled: 0
     path: Assets/SUNBREAK/Scenes/Greybox.unity
     guid: 8df141fde4fce4640856fd5514752d43
+  - enabled: 0
+    path: Assets/SUNBREAK/Scenes/HeroStreet.unity
+    guid: 7bd925532e2f24f4aac3f1b02d743724
   - enabled: 0
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05

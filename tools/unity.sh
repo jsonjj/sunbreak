@@ -30,6 +30,38 @@ _run() {
   return 0
 }
 
+# LAUNCH SMOKE TEST: a green compile/build is NOT enough — actually run the built player
+# headlessly for a few seconds and FAIL if the fresh log shows a crash/corruption/exception.
+# Catches "level0 corrupted" / "Position out of bounds" / NullRef that only appear at launch.
+_smoke() {
+  local appbin="$PROJECT/Builds/SUNBREAK.app/Contents/MacOS/sunbreak-unity"
+  local slog="$LOGDIR/smoke.log"
+  local secs="${SMOKE_SECONDS:-12}"
+  if [ ! -x "$appbin" ]; then
+    echo "[smoke] FAIL: no built binary at $appbin (build first)"; return 1
+  fi
+  rm -f "$slog"
+  echo "[smoke] launching headless player for ${secs}s ..."
+  "$appbin" -batchmode -nographics -logFile "$slog" >/dev/null 2>&1 &
+  local pid=$! early=0 i=0
+  while [ "$i" -lt "$secs" ]; do
+    if ! kill -0 "$pid" 2>/dev/null; then early=1; break; fi
+    sleep 1; i=$((i + 1))
+  done
+  if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; sleep 1; kill -9 "$pid" 2>/dev/null; fi
+
+  local pat='is corrupted|Position out of bounds|Fatal error|Unhandled [Ee]xception|NullReferenceException|Crash!|SIGSEGV|SIGABRT|Segmentation fault'
+  local hits; hits=$(grep -nE "$pat" "$slog" 2>/dev/null)
+  if [ -n "$hits" ]; then
+    echo "[smoke] FAIL: crash/error signatures in $slog:"; echo "$hits" | head -n 20; return 1
+  fi
+  if [ "$early" -eq 1 ]; then
+    echo "[smoke] FAIL: player exited early (likely a launch crash). Tail of $slog:"; tail -n 30 "$slog"; return 1
+  fi
+  echo "[smoke] PASS: player launched + ran ${secs}s clean (no crash/corruption/exception)."
+  return 0
+}
+
 cmd="${1:-help}"
 case "$cmd" in
   compile) _run compile "SUNBREAK.BuildTools.CompileCheck.Run" ;;
@@ -37,6 +69,7 @@ case "$cmd" in
   hero)    _run hero    "SUNBREAK.EditorTools.World.HeroStreetBuilder.Build" ;;
   island)  _run island  "SUNBREAK.EditorTools.World.IslandSceneBuilder.Build" ;;
   build)   _run build   "SUNBREAK.BuildTools.BuildMacOS.Build" ;;
+  smoke)   _smoke ;;
   capture) _run capture "SUNBREAK.BuildTools.CaptureScreenshot.Capture" ;;
   run)
     APP="$PROJECT/Builds/SUNBREAK.app"
@@ -51,6 +84,7 @@ case "$cmd" in
     _run compile "SUNBREAK.BuildTools.CompileCheck.Run" && \
     _run island  "SUNBREAK.EditorTools.World.IslandSceneBuilder.Build" && \
     _run build   "SUNBREAK.BuildTools.BuildMacOS.Build" && \
+    _smoke && \
     _run capture "SUNBREAK.BuildTools.CaptureScreenshot.Capture"
     ;;
   *)
@@ -62,10 +96,12 @@ Usage: ./tools/unity.sh <command>
   hero      (Re)generate the Slice 1 hero street (SUNBREAK.EditorTools.World.HeroStreetBuilder.Build)
   island    (Re)generate the Slice 2 full island scene (SUNBREAK.EditorTools.World.IslandSceneBuilder.Build)
   build     Build Builds/SUNBREAK.app (StandaloneOSX)
+  smoke     Launch the built player headless + FAIL on crash/corruption/exception in the log
   capture   Render screenshots to BuildLogs/shots/
   run       Open the built .app
-  all       compile -> island -> build -> capture
-Env overrides: UNITY=<editor binary>  PROJECT=<project path>
+  all       compile -> island -> build -> smoke -> capture
+Env overrides: UNITY=<editor binary>  PROJECT=<project path>  SMOKE_SECONDS=<n>
+Note: every build must PASS 'smoke' — a green compile/build alone does NOT prove it launches.
 EOF
     ;;
 esac

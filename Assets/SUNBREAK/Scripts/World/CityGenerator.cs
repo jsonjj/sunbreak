@@ -348,59 +348,82 @@ namespace SUNBREAK.World
             }
         }
 
-        public ArcadeCarController SpawnCar(Vector3 groundPos, float yaw, Transform parent)
+        /// <summary>
+        /// Build a Kenney car visual (body + 4 fitted wheels) parked on the terrain, optionally
+        /// tinted. Reused by the drivable car, cop cars, and traffic. All transforms are guarded
+        /// finite/in-range so a degenerate model can never produce an out-of-bounds position.
+        /// </summary>
+        public GameObject BuildCarVisual(Vector3 groundPos, float yaw, Color tint, out Transform[] wheels, out Bounds bounds)
         {
+            wheels = System.Array.Empty<Transform>();
+            bounds = new Bounds(Vector3.zero, new Vector3(1.8f, 1.2f, 4.2f));
             if (carBody == null) return null;
+
             var root = new GameObject("Car").transform;
-            root.SetParent(parent != null ? parent : _root, false);
+            root.SetParent(_root, false);
 
             var body = Instantiate(carBody, root);
             body.transform.localScale = Vector3.one;
             body.transform.localPosition = Vector3.zero;
             Bounds b = CombinedBounds(body);
-            float natLen = Mathf.Max(b.size.x, b.size.z, 0.001f);
-            float s = 4.2f / natLen;
+            float natLen = Mathf.Max(b.size.x, b.size.z, 0.05f);
+            float s = Mathf.Clamp(4.2f / natLen, 0.05f, 40f);
             body.transform.localScale = Vector3.one * s;
             b = CombinedBounds(body);
-            body.transform.position += new Vector3(-b.center.x, -b.min.y, -b.center.z);
+            body.transform.position += Safe(new Vector3(-b.center.x, -b.min.y, -b.center.z));
             b = CombinedBounds(body);
             Paint(body, carMat);
 
             float halfTrack = b.size.x * 0.5f * 0.92f;
             float frontZ = b.size.z * 0.5f * 0.66f;
             float radius = Mathf.Clamp(b.size.y * 0.28f, 0.28f, 0.55f);
-            var wheels = new Transform[4];
+            var wh = new Transform[4];
             (float x, float z)[] wp = { (-halfTrack, frontZ), (halfTrack, frontZ), (-halfTrack, -frontZ), (halfTrack, -frontZ) };
             for (int i = 0; i < 4; i++)
             {
                 var pivot = new GameObject("Wheel" + i).transform;
                 pivot.SetParent(root, false);
-                pivot.localPosition = new Vector3(wp[i].x, radius, wp[i].z);
+                pivot.localPosition = Safe(new Vector3(wp[i].x, radius, wp[i].z));
                 if (carWheel != null)
                 {
                     var w = Instantiate(carWheel, pivot);
                     w.transform.localScale = Vector3.one;
                     Bounds wb = CombinedBounds(w);
-                    float wl = Mathf.Max(wb.size.x, wb.size.y, wb.size.z, 0.001f);
-                    w.transform.localScale = Vector3.one * (radius * 2f / wl);
+                    float wl = Mathf.Max(wb.size.x, wb.size.y, wb.size.z, 0.05f);
+                    w.transform.localScale = Vector3.one * Mathf.Clamp(radius * 2f / wl, 0.02f, 20f);
                     wb = CombinedBounds(w);
-                    w.transform.position += (pivot.position - wb.center);
+                    w.transform.position += Safe(pivot.position - wb.center);
                     if (wp[i].x > 0f) w.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                     Paint(w, carMat);
                 }
-                wheels[i] = pivot;
+                wh[i] = pivot;
             }
+            if (tint != Color.white) TintInstance(root.gameObject, tint);
 
             float groundY = TerrainHeight(groundPos.x, groundPos.z);
-            root.SetPositionAndRotation(new Vector3(groundPos.x, groundY + 0.1f, groundPos.z), Quaternion.Euler(0f, yaw, 0f));
+            root.SetPositionAndRotation(Safe(new Vector3(groundPos.x, groundY + 0.1f, groundPos.z)), Quaternion.Euler(0f, yaw, 0f));
 
-            var rb = root.gameObject.AddComponent<Rigidbody>();
-            var box = root.gameObject.AddComponent<BoxCollider>();
+            wheels = wh;
+            bounds = b;
+            return root.gameObject;
+        }
+
+        public ArcadeCarController SpawnCar(Vector3 groundPos, float yaw, Transform parent)
+        {
+            var go = BuildCarVisual(groundPos, yaw, Color.white, out var wheels, out var b);
+            if (go == null) return null;
+            if (parent != null) go.transform.SetParent(parent, true);
+
+            var rb = go.AddComponent<Rigidbody>();
+            var box = go.AddComponent<BoxCollider>();
             box.center = new Vector3(0f, b.size.y * 0.5f, 0f);
             box.size = new Vector3(b.size.x * 0.95f, b.size.y, b.size.z);
-            var ctrl = root.gameObject.AddComponent<ArcadeCarController>();
+            var ctrl = go.AddComponent<ArcadeCarController>();
             var cfg = VehicleConfig.Sedan();
             float rest = cfg.wheels.Length > 0 ? cfg.wheels[0].suspensionRestLength : 0.32f;
+            float radius = Mathf.Clamp(b.size.y * 0.28f, 0.28f, 0.55f);
+            float halfTrack = b.size.x * 0.5f * 0.92f, frontZ = b.size.z * 0.5f * 0.66f;
+            (float x, float z)[] wp = { (-halfTrack, frontZ), (halfTrack, frontZ), (-halfTrack, -frontZ), (halfTrack, -frontZ) };
             for (int i = 0; i < cfg.wheels.Length && i < 4; i++)
             {
                 cfg.wheels[i].position = new Vector3(wp[i].x, radius + rest, wp[i].z);
@@ -413,6 +436,18 @@ namespace SUNBREAK.World
             rb.mass = cfg.mass;
             _cars.Add(ctrl);
             return ctrl;
+        }
+
+        static readonly int BaseColorProp = Shader.PropertyToID("_BaseColor");
+        static void TintInstance(GameObject go, Color tint)
+        {
+            var mpb = new MaterialPropertyBlock();
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>())
+            {
+                r.GetPropertyBlock(mpb);
+                mpb.SetColor(BaseColorProp, tint);
+                r.SetPropertyBlock(mpb);
+            }
         }
 
         // ── Placement helpers (runtime, no AssetDatabase) ────────────────────────
@@ -430,8 +465,9 @@ namespace SUNBREAK.World
             go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.Euler(0f, yaw, 0f));
             go.transform.localScale = Vector3.one;
             Bounds b = CombinedBounds(go);
-            float h = Mathf.Max(0.001f, b.size.y);
-            go.transform.localScale = Vector3.one * (targetHeight / h);
+            float h = Mathf.Max(0.05f, b.size.y);              // guard degenerate bounds
+            float scale = Mathf.Clamp(targetHeight / h, 0.02f, 300f);
+            go.transform.localScale = Vector3.one * scale;
             Reseat(go, x, z);
             return CombinedBounds(go);
         }
@@ -444,15 +480,34 @@ namespace SUNBREAK.World
             p.x += x - b.center.x;
             p.z += z - b.center.z;
             p.y += groundY - b.min.y;
-            go.transform.position = p;
+            go.transform.position = Safe(p);
+        }
+
+        // ── Finite/in-range guards (a degenerate model can never crash level0 load) ──
+        const float PosLimit = 5000f;
+        static bool IsFinite(Vector3 v) =>
+            !(float.IsNaN(v.x) || float.IsInfinity(v.x) || float.IsNaN(v.y) || float.IsInfinity(v.y)
+              || float.IsNaN(v.z) || float.IsInfinity(v.z));
+        static Vector3 Safe(Vector3 v)
+        {
+            if (!IsFinite(v)) return Vector3.zero;
+            return new Vector3(Mathf.Clamp(v.x, -PosLimit, PosLimit), Mathf.Clamp(v.y, -PosLimit, PosLimit),
+                Mathf.Clamp(v.z, -PosLimit, PosLimit));
         }
 
         static Bounds CombinedBounds(GameObject go)
         {
             var rends = go.GetComponentsInChildren<Renderer>();
-            if (rends.Length == 0) return new Bounds(go.transform.position, Vector3.one);
-            Bounds b = rends[0].bounds;
-            for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
+            bool any = false;
+            Bounds b = new Bounds(Safe(go.transform.position), Vector3.one);
+            foreach (var r in rends)
+            {
+                Bounds rb = r.bounds;
+                if (!IsFinite(rb.center) || !IsFinite(rb.size)) continue; // skip degenerate/NaN
+                if (!any) { b = rb; any = true; } else b.Encapsulate(rb);
+            }
+            if (!any || !IsFinite(b.center) || !IsFinite(b.size) || b.size.y < 1e-4f)
+                return new Bounds(Safe(go.transform.position), new Vector3(1f, 1.8f, 1f));
             return b;
         }
 
