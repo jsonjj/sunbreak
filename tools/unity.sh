@@ -68,6 +68,7 @@ case "$cmd" in
   greybox) _run greybox "SUNBREAK.EditorTools.GreyboxSceneBuilder.Build" ;;
   hero)    _run hero    "SUNBREAK.EditorTools.World.HeroStreetBuilder.Build" ;;
   island)  _run island  "SUNBREAK.EditorTools.World.IslandSceneBuilder.Build" ;;
+  menu)    _run menu    "SUNBREAK.EditorTools.MainMenuSceneBuilder.Build" ;;
   build)   _run build   "SUNBREAK.BuildTools.BuildMacOS.Build" ;;
   smoke)   _smoke ;;
   capture) _run capture "SUNBREAK.BuildTools.CaptureScreenshot.Capture" ;;
@@ -83,6 +84,7 @@ case "$cmd" in
   all)
     _run compile "SUNBREAK.BuildTools.CompileCheck.Run" && \
     _run island  "SUNBREAK.EditorTools.World.IslandSceneBuilder.Build" && \
+    _run menu    "SUNBREAK.EditorTools.MainMenuSceneBuilder.Build" && \
     _run build   "SUNBREAK.BuildTools.BuildMacOS.Build" && \
     _smoke && \
     _run capture "SUNBREAK.BuildTools.CaptureScreenshot.Capture"
@@ -95,11 +97,12 @@ Usage: ./tools/unity.sh <command>
   greybox   (Re)generate the greybox scene (SUNBREAK.EditorTools.GreyboxSceneBuilder.Build)
   hero      (Re)generate the Slice 1 hero street (SUNBREAK.EditorTools.World.HeroStreetBuilder.Build)
   island    (Re)generate the Slice 2 full island scene (SUNBREAK.EditorTools.World.IslandSceneBuilder.Build)
+  menu      (Re)generate the MainMenu scene + pin build order [MainMenu, Island]
   build     Build Builds/SUNBREAK.app (StandaloneOSX)
   smoke     Launch the built player headless + FAIL on crash/corruption/exception in the log
   capture   Render screenshots to BuildLogs/shots/
   run       Open the built .app
-  all       compile -> island -> build -> smoke -> capture
+  all       compile -> island -> menu -> build -> smoke -> capture
 Env overrides: UNITY=<editor binary>  PROJECT=<project path>  SMOKE_SECONDS=<n>
 Note: every build must PASS 'smoke' — a green compile/build alone does NOT prove it launches.
 EOF

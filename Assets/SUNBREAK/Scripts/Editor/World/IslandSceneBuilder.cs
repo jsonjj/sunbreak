@@ -68,10 +68,10 @@ namespace SUNBREAK.EditorTools.World
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // 1) The Slice 1 look, unchanged.
+            // 1) The Slice 1 look, unchanged (the day-night system takes over the sun at runtime).
             SunbreakLook.ConfigureGroundTextureImporters();
             SunbreakLook.SetupSky();
-            SunbreakLook.CreateSun();
+            var sun = SunbreakLook.CreateSun();
             SunbreakLook.ConfigureFog();
             SunbreakLook.CreateVolume();
 
@@ -138,6 +138,9 @@ namespace SUNBREAK.EditorTools.World
             var traffic = new GameObject("TrafficManager").AddComponent<TrafficManager>();
             traffic.city = gen;
 
+            var dayNight = new GameObject("DayNight").AddComponent<DayNightSystem>();
+            dayNight.sun = sun; dayNight.cityMat = cityMat; dayNight.propMat = propMat;
+
             var navGo = new GameObject("NavMesh");
             var surface = navGo.AddComponent<NavMeshSurface>();
             surface.collectObjects = CollectObjects.Volume;
@@ -153,6 +156,21 @@ namespace SUNBREAK.EditorTools.World
             pickup.transform.position = Geography.PLAYER_SPAWN.position + new Vector3(3f, 1f, 3f);
             pickup.weaponId = "rifle_carbine";
 
+            // 7b) Slice 4 — interaction, economy shops, missions, save session, menus.
+            player.gameObject.AddComponent<PlayerInteractor>();
+            new GameObject("ShopMenu").AddComponent<ShopMenu>();
+            new GameObject("PauseMenu").AddComponent<PauseMenu>();
+            var missions = new GameObject("MissionSystem").AddComponent<Missions.MissionSystem>();
+            var session = new GameObject("GameSession").AddComponent<Save.GameSession>();
+            session.state = state; session.player = player; session.combat = combat;
+            BuildEconomy();
+
+            // 7c) Audio — bus + ambient bed, footsteps, car radio (engine audio is per-car).
+            new GameObject("GameAudio").AddComponent<Audio.GameAudio>();
+            player.gameObject.AddComponent<Audio.FootstepAudio>().controller = player;
+            var radio = player.gameObject.AddComponent<Audio.CarRadio>();
+            radio.vehicle = vehicle;
+
             // 8) Minimap + HUD.
             var mmGo = new GameObject("Minimap Camera");
             var minimap = mmGo.AddComponent<MinimapController>();
@@ -162,6 +180,8 @@ namespace SUNBREAK.EditorTools.World
             var hud = hudGo.AddComponent<GameHUD>();
             hud.state = state; hud.player = player.transform; hud.minimap = minimap; hud.vehicle = vehicle;
             hud.wanted = wanted; hud.combat = combat;
+            hud.interactor = player.GetComponent<PlayerInteractor>();
+            hud.missions = missions; hud.dayNight = dayNight; hud.radio = radio;
 
             // 9) World bounds (respawn on fall/out-of-bounds + on death; clears wanted).
             var boundsGo = new GameObject("World Bounds");
@@ -272,6 +292,38 @@ namespace SUNBREAK.EditorTools.World
             camCtrl.orbital = orbital;
             camCtrl.firstPersonCam = fp;
             camCtrl.headTarget = headTarget;
+        }
+
+        // ── Economy placement (shops + cash) ─────────────────────────────────────
+        static void BuildEconomy()
+        {
+            Vector3 s = Geography.PLAYER_SPAWN.position;
+            MakeShop("Gun Store", ShopKind.GunStore, s + new Vector3(12f, 1f, -9f));
+            MakeShop("Bank", ShopKind.Bank, s + new Vector3(-15f, 1f, -7f));
+            MakeShop("Car Dealership", ShopKind.CarDealer, s + new Vector3(27f, 1f, -20f));
+            // Extra storefronts across the districts.
+            MakeShop("Gun Store (Uptown)", ShopKind.GunStore, s + new Vector3(-70f, 1f, 96f));
+            MakeShop("Bank (Waterfront)", ShopKind.Bank, s + new Vector3(128f, 1f, 12f));
+            MakeShop("Car Dealership (Docks)", ShopKind.CarDealer, s + new Vector3(60f, 1f, -120f));
+
+            MakeCash(s + new Vector3(5f, 1f, 20f), 200);
+            MakeCash(s + new Vector3(-24f, 1f, 16f), 250);
+            MakeCash(s + new Vector3(44f, 1f, 34f), 300);
+            MakeCash(s + new Vector3(2f, 1f, 66f), 250);
+            MakeCash(s + new Vector3(-40f, 1f, -30f), 300);
+        }
+
+        static void MakeShop(string name, ShopKind kind, Vector3 pos)
+        {
+            var go = new GameObject(name) { transform = { position = pos } };
+            var shop = go.AddComponent<Shop>();
+            shop.kind = kind; shop.range = 4.5f;
+        }
+
+        static void MakeCash(Vector3 pos, int amount)
+        {
+            var go = new GameObject("Cash") { transform = { position = pos } };
+            go.AddComponent<CashPickup>().amount = amount;
         }
 
         // ── Materials ──────────────────────────────────────────────────────────

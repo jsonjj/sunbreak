@@ -399,6 +399,8 @@ namespace SUNBREAK.World
                 wh[i] = pivot;
             }
             if (tint != Color.white) TintInstance(root.gameObject, tint);
+            root.gameObject.AddComponent<CarLights>(); // headlights at night
+            root.gameObject.AddComponent<SUNBREAK.Audio.EngineAudio>(); // engine tone, distance-gated
 
             float groundY = TerrainHeight(groundPos.x, groundPos.z);
             root.SetPositionAndRotation(Safe(new Vector3(groundPos.x, groundY + 0.1f, groundPos.z)), Quaternion.Euler(0f, yaw, 0f));

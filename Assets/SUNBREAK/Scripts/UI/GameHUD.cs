@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
+using SUNBREAK.Audio;
 using SUNBREAK.Combat;
+using SUNBREAK.Missions;
 using SUNBREAK.Vehicles;
 using SUNBREAK.World;
 
@@ -20,12 +22,19 @@ namespace SUNBREAK.UI
         public VehicleInteraction vehicle;
         public WantedSystem wanted;
         public PlayerCombat combat;
+        public PlayerInteractor interactor;
+        public MissionSystem missions;
+        public DayNightSystem dayNight;
+        public CarRadio radio;
 
         Font _font;
         Image _healthFill;
         Text _cashText, _speedText, _hintText, _starsText, _weaponText, _reticle;
+        Text _clockText, _objectiveText, _promptText, _radioText;
         RectTransform _blip, _wheelRoot;
         Text[] _wheelSlots;
+        Transform _mapRoot;
+        Image[] _blipDots;
 
         void Start()
         {
@@ -70,7 +79,63 @@ namespace SUNBREAK.UI
             // Reticle hidden while driving.
             if (_reticle != null) _reticle.enabled = vehicle == null || vehicle.CurrentCar == null;
 
+            // Clock (top-right).
+            if (_clockText != null && dayNight != null)
+                _clockText.text = (DayNightSystem.IsNight ? "\u263D " : "\u2600 ") + dayNight.Clock;
+
+            // Objective tracker.
+            if (_objectiveText != null)
+            {
+                if (missions != null && missions.HasActive)
+                    _objectiveText.text = $"<b>{missions.ActiveTitle}</b>\n{missions.ObjectiveText}" +
+                        (missions.HasWaypoint ? $"\n{Distance(missions.WaypointPos)} m" : "");
+                else _objectiveText.text = "";
+            }
+
+            // Interaction prompt (center-low).
+            if (_promptText != null)
+                _promptText.text = interactor != null ? (interactor.Prompt ?? "") : "";
+
+            // Radio now-playing (while driving).
+            if (_radioText != null)
+            {
+                bool show = radio != null && radio.Driving;
+                _radioText.enabled = show;
+                if (show) _radioText.text = radio.On ? $"\u266A {radio.NowPlaying}   (H off · N skip)" : "RADIO OFF   (H on)";
+            }
+
+            UpdateBlips();
             UpdateWheel();
+        }
+
+        int Distance(Vector3 world)
+        {
+            if (player == null) return 0;
+            Vector3 d = world - player.position; d.y = 0f;
+            return Mathf.RoundToInt(d.magnitude);
+        }
+
+        void UpdateBlips()
+        {
+            if (_blipDots == null || minimap == null || player == null) return;
+            float range = minimap.orthoSize;
+            var all = Blip.All;
+            int used = 0;
+            Vector3 pp = player.position;
+            for (int i = 0; i < all.Count && used < _blipDots.Length; i++)
+            {
+                var b = all[i];
+                if (b == null) continue;
+                Vector3 d = b.transform.position - pp;
+                float dx = d.x / range, dz = d.z / range; // -1..1 across the map
+                if (Mathf.Abs(dx) > 1.15f || Mathf.Abs(dz) > 1.15f) continue;
+                dx = Mathf.Clamp(dx, -1f, 1f); dz = Mathf.Clamp(dz, -1f, 1f);
+                var dot = _blipDots[used++];
+                dot.enabled = true;
+                dot.color = b.color;
+                dot.rectTransform.anchoredPosition = new Vector2(dx * 100f, dz * 100f);
+            }
+            for (int i = used; i < _blipDots.Length; i++) _blipDots[i].enabled = false;
         }
 
         void UpdateWheel()
@@ -132,6 +197,12 @@ namespace SUNBREAK.UI
             _speedText.rectTransform.anchoredPosition = new Vector2(0, 90);
             _speedText.enabled = false;
 
+            // Radio now-playing (bottom-center, below speed)
+            _radioText = Label(root, "", 18, TextAnchor.LowerCenter, new Vector2(0.5f, 0),
+                new Vector2(0, 62), new Vector2(700, 26));
+            _radioText.color = new Color(1f, 0.75f, 0.5f, 0.9f);
+            _radioText.enabled = false;
+
             // Minimap (bottom-right)
             var mmFrame = Panel(root, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-234, 30),
                 new Vector2(216, 216), new Color(0f, 0f, 0f, 0.6f));
@@ -144,6 +215,21 @@ namespace SUNBREAK.UI
             var rawRt = raw.rectTransform;
             rawRt.anchorMin = new Vector2(0, 0); rawRt.anchorMax = new Vector2(1, 1);
             rawRt.offsetMin = new Vector2(4, 4); rawRt.offsetMax = new Vector2(-4, -4);
+
+            // Map blip dots (shops / missions / cash / objective) drawn over the minimap.
+            _mapRoot = mmGo.transform;
+            _blipDots = new Image[16];
+            for (int i = 0; i < _blipDots.Length; i++)
+            {
+                var dg = new GameObject("BlipDot", typeof(Image));
+                dg.transform.SetParent(_mapRoot, false);
+                var im = dg.GetComponent<Image>();
+                im.sprite = WhiteSprite(); im.enabled = false;
+                var drt = im.rectTransform;
+                drt.anchorMin = drt.anchorMax = new Vector2(0.5f, 0.5f);
+                drt.sizeDelta = new Vector2(11, 11);
+                _blipDots[i] = im;
+            }
 
             var blipGo = new GameObject("Blip", typeof(Image));
             blipGo.transform.SetParent(mmGo.transform, false);
@@ -165,6 +251,21 @@ namespace SUNBREAK.UI
             _starsText = Label(root, "\u2606\u2606\u2606\u2606\u2606", 34, TextAnchor.UpperRight, new Vector2(1, 1),
                 new Vector2(-30, -24), new Vector2(320, 44));
             _starsText.color = new Color(1f, 0.85f, 0.2f, 0.25f);
+
+            // Clock (top-right, below the stars)
+            _clockText = Label(root, "\u2600 08:00", 24, TextAnchor.UpperRight, new Vector2(1, 1),
+                new Vector2(-30, -74), new Vector2(320, 32));
+            _clockText.color = new Color(0.9f, 0.92f, 1f);
+
+            // Objective tracker (top-right, below the clock)
+            _objectiveText = Label(root, "", 20, TextAnchor.UpperRight, new Vector2(1, 1),
+                new Vector2(-30, -116), new Vector2(520, 140));
+            _objectiveText.color = new Color(0.55f, 0.85f, 1f);
+
+            // Interaction prompt (bottom-center, above the health bar)
+            _promptText = Label(root, "", 24, TextAnchor.LowerCenter, new Vector2(0.5f, 0),
+                new Vector2(0, 180), new Vector2(1000, 40));
+            _promptText.color = new Color(1f, 0.92f, 0.7f);
 
             // Weapon + ammo (bottom-right, above the minimap)
             _weaponText = Label(root, "", 22, TextAnchor.LowerRight, new Vector2(1, 0), new Vector2(-30, 260), new Vector2(420, 60));

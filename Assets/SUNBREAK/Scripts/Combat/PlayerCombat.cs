@@ -60,6 +60,7 @@ namespace SUNBREAK.Combat
         void Update()
         {
             if (aimCamera == null) aimCamera = Camera.main;
+            if (Time.timeScale == 0f) return; // frozen by a shop / pause menu
             float dt = Time.unscaledDeltaTime;
             _bloom = Mathf.Max(0f, _bloom - 2.5f * dt);
 
@@ -249,13 +250,28 @@ namespace SUNBREAK.Combat
             if (!_mag.ContainsKey(id)) _mag[id] = Weapons.Get(id).magSize;
         }
 
-        /// <summary>Grant a weapon (world pickup) + auto-equip it.</summary>
+        /// <summary>Grant a weapon (world pickup / shop) + auto-equip it.</summary>
         public void Pickup(string id)
         {
             if (!Weapons.All.ContainsKey(id)) return;
             _owned.Add(id);
             _mag[id] = Weapons.Get(id).magSize;
             _current = id;
+        }
+
+        // ── Save / restore ────────────────────────────────────────────────────────
+        public List<string> OwnedList() => new(_owned);
+
+        public void LoadLoadout(List<string> owned, string current)
+        {
+            _owned.Clear();
+            _owned.Add("fists");
+            if (owned != null)
+                foreach (var id in owned)
+                    if (Weapons.All.ContainsKey(id)) { _owned.Add(id); _mag[id] = Weapons.Get(id).magSize; }
+            _current = !string.IsNullOrEmpty(current) && _owned.Contains(current) ? current : "pistol_9mm";
+            if (!_owned.Contains(_current)) _current = "fists";
+            _reloading = false;
         }
     }
 }
