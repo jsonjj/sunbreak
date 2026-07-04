@@ -62,7 +62,8 @@ namespace SUNBREAK.EditorTools.World
             // Shaders created at runtime via Shader.Find (combat VFX, pickups, health bars) get
             // stripped from the build unless always-included — this caused ArgumentNullException on
             // launch. Pin them so they ship.
-            EnsureAlwaysIncludedShaders("Universal Render Pipeline/Unlit", "SUNBREAK/VertexColorLit");
+            EnsureAlwaysIncludedShaders("Universal Render Pipeline/Unlit", "Universal Render Pipeline/Lit",
+                "SUNBREAK/VertexColorLit");
             // Nature palms keep their imported colours (materials-on import).
             AssetDatabase.ImportAsset(KitLibrary.NatureKit, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ImportRecursive);
 
@@ -156,6 +157,8 @@ namespace SUNBREAK.EditorTools.World
 
             var dayNight = new GameObject("DayNight").AddComponent<DayNightSystem>();
             dayNight.sun = sun; dayNight.cityMat = cityMat; dayNight.propMat = propMat;
+
+            new GameObject("BuildShot").AddComponent<BuildShot>(); // -sunbreakshot render verification
 
             var navGo = new GameObject("NavMesh");
             var surface = navGo.AddComponent<NavMeshSurface>();

@@ -25,11 +25,18 @@ namespace SUNBREAK.UI
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
 
-            if (Application.isBatchMode) { StartNewGame(); return; }
+            // Auto-start into the world for the headless smoke + the build-render screenshot pass.
+            if (Application.isBatchMode || HasArg("-sunbreakshot")) { StartNewGame(); return; }
 
             EnsureEventSystem();
             EnsureCamera();
             BuildUI();
+        }
+
+        static bool HasArg(string a)
+        {
+            foreach (var x in System.Environment.GetCommandLineArgs()) if (x == a) return true;
+            return false;
         }
 
         void StartNewGame()

@@ -36,12 +36,15 @@ _run() {
 _smoke() {
   local appbin="$PROJECT/Builds/SUNBREAK.app/Contents/MacOS/sunbreak-unity"
   local slog="$LOGDIR/smoke.log"
-  local secs="${SMOKE_SECONDS:-12}"
+  local glog="$LOGDIR/smoke_gfx.log"
+  local secs="${SMOKE_SECONDS:-14}"
   if [ ! -x "$appbin" ]; then
     echo "[smoke] FAIL: no built binary at $appbin (build first)"; return 1
   fi
+
+  # ── Pass 1: headless launch — crash / asset-load / animator / avatar / null scan ──
   rm -f "$slog"
-  echo "[smoke] launching headless player for ${secs}s ..."
+  echo "[smoke] pass 1: headless launch ${secs}s ..."
   "$appbin" -batchmode -nographics -logFile "$slog" >/dev/null 2>&1 &
   local pid=$! early=0 i=0
   while [ "$i" -lt "$secs" ]; do
@@ -50,15 +53,49 @@ _smoke() {
   done
   if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; sleep 1; kill -9 "$pid" 2>/dev/null; fi
 
-  local pat='is corrupted|Position out of bounds|Fatal error|Unhandled [Ee]xception|NullReferenceException|Crash!|SIGSEGV|SIGABRT|Segmentation fault'
-  local hits; hits=$(grep -nE "$pat" "$slog" 2>/dev/null)
+  local crash='is corrupted|Position out of bounds|Fatal error|Unhandled [Ee]xception|NullReferenceException|MissingReferenceException|Crash!|SIGSEGV|SIGABRT|Segmentation fault|does not have an AnimatorController|is not a valid .*[Aa]vatar|not a valid human|The referenced script .* is missing'
+  local hits; hits=$(grep -nE "$crash" "$slog" 2>/dev/null)
   if [ -n "$hits" ]; then
-    echo "[smoke] FAIL: crash/error signatures in $slog:"; echo "$hits" | head -n 20; return 1
+    echo "[smoke] FAIL: crash/asset/anim signatures in $slog:"; echo "$hits" | head -n 20; return 1
   fi
   if [ "$early" -eq 1 ]; then
     echo "[smoke] FAIL: player exited early (likely a launch crash). Tail of $slog:"; tail -n 30 "$slog"; return 1
   fi
-  echo "[smoke] PASS: player launched + ran ${secs}s clean (no crash/corruption/exception)."
+
+  # ── Pass 2: WITH graphics — renders a real build screenshot + scans for render/shader/material
+  # errors that -nographics can't surface (this is what let the white-character bug slip through). ──
+  rm -f "$glog"
+  # persistentDataPath uses the (uncustomized) URP-template bundle id; also check DefaultCompany.
+  local shot1="$HOME/Library/Application Support/com.Unity-Technologies.com.unity.template.urp-blank/build_shot.png"
+  local shot2="$HOME/Library/Application Support/DefaultCompany/sunbreak-unity/build_shot.png"
+  rm -f "$shot1" "$shot2"
+  echo "[smoke] pass 2: graphics render + build screenshot ..."
+  # NOT -batchmode so a real GPU/window renders (batchmode players use a null device → no shot).
+  "$appbin" -logFile "$glog" -sunbreakshot >/dev/null 2>&1 &
+  local gpid=$! j=0
+  while [ "$j" -lt 20 ]; do
+    if ! kill -0 "$gpid" 2>/dev/null; then break; fi
+    sleep 1; j=$((j + 1))
+  done
+  if kill -0 "$gpid" 2>/dev/null; then kill "$gpid" 2>/dev/null; sleep 1; kill -9 "$gpid" 2>/dev/null; fi
+  mkdir -p "$LOGDIR/shots"
+  local shotSrc=""
+  [ -f "$shot1" ] && shotSrc="$shot1"
+  [ -z "$shotSrc" ] && [ -f "$shot2" ] && shotSrc="$shot2"
+  if [ -n "$shotSrc" ]; then
+    cp "$shotSrc" "$LOGDIR/shots/build_shot.png"
+    echo "[smoke] build screenshot -> $LOGDIR/shots/build_shot.png (inspect for white/untextured chars)"
+  else
+    echo "[smoke] note: no build screenshot produced (no display / headless GPU) — render scan from log only"
+  fi
+  # High-confidence render/asset failures (exclude benign mono/gfx-device noise).
+  local render='Shader .* (not found|not supported)|couldn.t open shader|[Ff]ailed to load .*(texture|material|shader|asset)|MissingReferenceException|NullReferenceException|Material .* is null'
+  local rhits; rhits=$(grep -nE "$render" "$glog" 2>/dev/null | grep -viE 'Fallback handler|Mono config|Gfx' )
+  if [ -n "$rhits" ]; then
+    echo "[smoke] FAIL: render/asset signatures in $glog:"; echo "$rhits" | head -n 20; return 1
+  fi
+
+  echo "[smoke] PASS: launched clean + no crash/asset/anim/render signatures (pass 1 headless + pass 2 graphics)."
   return 0
 }
 
