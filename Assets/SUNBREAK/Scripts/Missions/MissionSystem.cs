@@ -1,40 +1,54 @@
 using System.Collections.Generic;
 using UnityEngine;
 using SUNBREAK.Combat;
+using SUNBREAK.UI;
 using SUNBREAK.Vehicles;
 using SUNBREAK.World;
 
 namespace SUNBREAK.Missions
 {
     /// <summary>
-    /// The single-player lead chain: places givers across the districts (map blips), runs the
-    /// objective FSM (go-to / do / reward), tracks progress, and routes rewards to the wallet.
-    /// Faithful in spirit to the web mission director, condensed to a runtime FSM.
+    /// The canon Santa Vista story driver. Runs the linear m01–m05 chain (Cami &amp; Mac) faithfully:
+    /// a giver marker for the next available mission, per-stage onEnter/onComplete effects (dialogue,
+    /// setWanted, spawn vehicle/enemies/props), objective tracking (interact/goto/enter-vehicle/
+    /// eliminate/collect/survive), a waypoint, and rewards (cash + rep + weapon) into the wallet.
     /// </summary>
     [DefaultExecutionOrder(50)]
     public sealed class MissionSystem : MonoBehaviour
     {
         public static MissionSystem Instance { get; private set; }
 
-        readonly List<MissionDef> _defs = new();
-        readonly Dictionary<string, MissionGiver> _givers = new();
+        List<MissionDef> _defs;
         readonly HashSet<string> _completed = new();
 
         MissionDef _active;
-        int _objIndex, _killProgress;
-        GameObject _waypoint;
-        VehicleInteraction _vehicle;
+        int _stageIndex;
         bool _built;
 
+        // objective progress
+        float _surviveUntil;
+        int _collected;
+        readonly List<MissionEnemy> _enemies = new();
+        readonly List<Transform> _props = new();
+        readonly Dictionary<string, ArcadeCarController> _vehicles = new();
+
+        VehicleInteraction _vehicle;
+        PlayerCombat _combat;
+        GameObject _giverGo, _giverBeacon, _waypoint;
+        MissionGiver _giver;
+        MissionDef _shownGiver;
+
+        public int TotalRep { get; private set; }
         public bool HasActive => _active != null;
         public string ActiveTitle => _active?.title;
         public string ObjectiveText { get; private set; }
         public bool HasWaypoint { get; private set; }
         public Vector3 WaypointPos { get; private set; }
 
+        /// <summary>The next startable mission (prereqs met, not active/complete), or null.</summary>
+        public MissionDef AvailableMission => _active != null ? null : NextAvailable();
+
         void Awake() { Instance = this; }
-        void OnEnable() { Health.PlayerKilled += OnPlayerKill; }
-        void OnDisable() { Health.PlayerKilled -= OnPlayerKill; }
         void OnDestroy() { if (Instance == this) Instance = null; }
 
         void EnsureBuilt()
@@ -43,121 +57,263 @@ namespace SUNBREAK.Missions
             var player = GameRefs.Player;
             if (player == null) return;
             _built = true;
+            _defs = MissionCatalog.Build();
             _vehicle = player.GetComponent<VehicleInteraction>();
-            BuildChain(player.position);
-            SpawnGivers();
-            RefreshGivers();
+            _combat = player.GetComponent<PlayerCombat>();
+            BuildGiver();
         }
 
-        void BuildChain(Vector3 s)
+        // ── Giver marker (one at a time, at the current available mission) ────────
+        void BuildGiver()
         {
-            var m1 = new MissionDef { id = "m1", title = "Shakedown", giverName = "Rosa", giverPos = s + new Vector3(6, 0, 6), reward = 1500, next = "m2" };
-            m1.objectives.Add(Objective.Go("Head to the marked lot", s + new Vector3(0, 0, 48)));
-            m1.objectives.Add(Objective.Kill("Rough up 3 marks", 3));
-            m1.objectives.Add(Objective.Go("Lie low — return to Rosa", s + new Vector3(6, 0, 6)));
-            _defs.Add(m1);
-
-            var m2 = new MissionDef { id = "m2", title = "Grand Theft", giverName = "Val", giverPos = s + new Vector3(-42, 0, 24), reward = 3000, next = "m3" };
-            m2.objectives.Add(Objective.Steal("Boost any car"));
-            m2.objectives.Add(Objective.Drive("Deliver it to the docks", s + new Vector3(78, 0, -34)));
-            _defs.Add(m2);
-
-            var m3 = new MissionDef { id = "m3", title = "Heat", giverName = "Dice", giverPos = s + new Vector3(34, 0, -50), reward = 6000, next = null };
-            m3.objectives.Add(Objective.Go("Roll up on the downtown plaza", s + new Vector3(24, 0, 124)));
-            m3.objectives.Add(Objective.Kill("Send a message — take out 5", 5));
-            _defs.Add(m3);
+            _giverGo = new GameObject("MissionGiver");
+            _giver = _giverGo.AddComponent<MissionGiver>();
+            _giver.system = this; _giver.range = 4.5f;
+            _giverBeacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Object.Destroy(_giverBeacon.GetComponent<Collider>());
+            _giverBeacon.transform.SetParent(_giverGo.transform, false);
+            _giverBeacon.transform.localScale = new Vector3(0.5f, 7f, 0.5f);
+            _giverBeacon.transform.localPosition = new Vector3(0f, 7f, 0f);
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(1f, 0.82f, 0.28f) };
+            var r = _giverBeacon.GetComponent<MeshRenderer>();
+            r.sharedMaterial = mat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            Blip.Attach(_giverGo, BlipKind.Mission, new Color(1f, 0.82f, 0.28f), "Mission");
+            _giverGo.SetActive(false);
         }
 
-        void SpawnGivers()
+        void UpdateGiver()
         {
+            var avail = AvailableMission;
+            if (avail != _shownGiver)
+            {
+                _shownGiver = avail;
+                if (avail != null) _giverGo.transform.position = Ground(avail.startPos);
+            }
+            bool show = avail != null && _active == null;
+            if (_giverGo.activeSelf != show) _giverGo.SetActive(show);
+        }
+
+        MissionDef NextAvailable()
+        {
+            if (_defs == null) return null;
             foreach (var d in _defs)
             {
-                var go = new GameObject("Giver_" + d.id) { transform = { position = Ground(d.giverPos) } };
-                var g = go.AddComponent<MissionGiver>();
-                g.def = d; g.system = this; g.range = 4.5f;
-                g.Build();
-                _givers[d.id] = g;
+                if (_completed.Contains(d.id)) continue;
+                if (PrereqMet(d)) return d; // linear chain → first uncompleted with prereq met
             }
+            return null;
         }
 
-        public bool CanStart(MissionDef d)
+        bool PrereqMet(MissionDef d)
         {
-            if (d == null || _active != null || _completed.Contains(d.id)) return false;
-            if (d.id == "m1") return true;
-            foreach (var m in _defs) if (m.next == d.id && _completed.Contains(m.id)) return true;
-            return false;
+            // linear: a mission is available if it's the first one, or the mission whose next==d.id is done
+            foreach (var m in _defs) if (m.next == d.id) return _completed.Contains(m.id);
+            return true; // no predecessor → the opener (m01)
         }
 
-        public void Accept(MissionDef d)
+        public void StartAvailable()
         {
-            if (!CanStart(d)) return;
-            _active = d; _objIndex = 0; _killProgress = 0;
-            if (_givers.TryGetValue(d.id, out var g)) g.gameObject.SetActive(false);
-            ActivateObjective();
+            var d = AvailableMission;
+            if (d == null) return;
+            _active = d; _stageIndex = -1;
+            GameHUD.Post($"{d.giver}", d.title.ToUpperInvariant());
+            AdvanceStage();
         }
 
-        void ActivateObjective()
+        // ── Stage flow ───────────────────────────────────────────────────────────
+        void AdvanceStage()
         {
-            var o = _active.objectives[_objIndex];
-            _killProgress = 0;
-            ObjectiveText = o.text;
-            ClearWaypoint();
-            if (o.kind == ObjectiveKind.GoTo || o.kind == ObjectiveKind.Deliver) SetWaypoint(o.pos);
-        }
-
-        void OnPlayerKill(Faction f, Vector3 pos)
-        {
+            _stageIndex++;
             if (_active == null) return;
-            if (_active.objectives[_objIndex].kind == ObjectiveKind.Eliminate) _killProgress++;
+            if (_stageIndex >= _active.stages.Count) { Complete(); return; }
+
+            var stage = _active.stages[_stageIndex];
+            _collected = 0;
+            foreach (var fx in stage.onEnter) RunFx(fx);
+            var o = stage.objective;
+            if (o != null && o.kind == ObjectiveKind.Survive) _surviveUntil = Time.time + o.seconds;
+            SetWaypointForObjective();
         }
 
-        void Update()
+        void CompleteStage()
         {
-            EnsureBuilt();
-            RefreshGivers();
-            if (_active == null) return;
-
-            var o = _active.objectives[_objIndex];
-            bool done = false;
-            switch (o.kind)
-            {
-                case ObjectiveKind.GoTo:
-                    done = Near(o.pos, o.radius); ObjectiveText = o.text; break;
-                case ObjectiveKind.Deliver:
-                    done = Near(o.pos, o.radius) && _vehicle != null && _vehicle.IsDriving;
-                    ObjectiveText = o.text; break;
-                case ObjectiveKind.StealCar:
-                    done = _vehicle != null && _vehicle.IsDriving; ObjectiveText = o.text; break;
-                case ObjectiveKind.Eliminate:
-                    done = _killProgress >= o.count;
-                    ObjectiveText = $"{o.text}  ({Mathf.Min(_killProgress, o.count)}/{o.count})"; break;
-            }
-            if (done) Advance();
-        }
-
-        void Advance()
-        {
-            _objIndex++;
-            if (_objIndex >= _active.objectives.Count) Complete();
-            else ActivateObjective();
+            var stage = _active.stages[_stageIndex];
+            foreach (var fx in stage.onComplete) RunFx(fx);
+            ClearStageSpawns();
+            AdvanceStage();
         }
 
         void Complete()
         {
-            GameRefs.PlayerState?.AddCash(_active.reward);
-            _completed.Add(_active.id);
-            _active = null; _objIndex = 0; ObjectiveText = null;
+            var d = _active;
+            var st = GameRefs.PlayerState;
+            if (st != null && d.rewardCash > 0) st.AddCash(d.rewardCash);
+            if (d.rewardRep > 0) TotalRep += d.rewardRep;
+            if (!string.IsNullOrEmpty(d.rewardWeapon)) _combat?.Pickup(d.rewardWeapon);
+            _completed.Add(d.id);
+            GameHUD.Post("MISSION COMPLETE",
+                $"{d.title}  ·  +${d.rewardCash:n0}" + (d.rewardRep > 0 ? $"  ·  +{d.rewardRep} rep" : ""));
+            _active = null; _stageIndex = -1;
+            ObjectiveText = null;
             ClearWaypoint();
-            RefreshGivers();
+            ClearStageSpawns();
+            UpdateGiver();
         }
 
-        void RefreshGivers()
+        void RunFx(MissionFx fx)
         {
-            foreach (var kv in _givers)
+            switch (fx.kind)
             {
-                bool show = _active == null && CanStart(kv.Value.def);
-                if (kv.Value.gameObject.activeSelf != show) kv.Value.gameObject.SetActive(show);
+                case FxKind.Dialogue:
+                    GameHUD.Post(fx.speaker, fx.line);
+                    break;
+                case FxKind.SetWanted:
+                    WantedSystem.Instance?.ForceStars(fx.stars);
+                    break;
+                case FxKind.SpawnVehicle:
+                    SpawnMissionVehicle(fx);
+                    break;
+                case FxKind.SpawnEnemies:
+                    for (int i = 0; i < fx.count; i++)
+                    {
+                        Vector3 p = fx.pos + new Vector3(Random.Range(-fx.radius, fx.radius), 0f, Random.Range(-fx.radius, fx.radius));
+                        var e = MissionEnemy.Spawn(Ground(p), fx.weapon);
+                        if (e != null) _enemies.Add(e);
+                    }
+                    break;
+                case FxKind.SpawnProp:
+                    _props.Add(SpawnProp(Ground(fx.pos)));
+                    break;
             }
+        }
+
+        void SpawnMissionVehicle(MissionFx fx)
+        {
+            var city = FindFirstObjectByType<CityGenerator>();
+            if (city == null) return;
+            var car = city.SpawnCar(new Vector3(fx.pos.x, 0f, fx.pos.z), fx.heading, null);
+            if (car != null) _vehicles[fx.reference] = car;
+        }
+
+        Transform SpawnProp(Vector3 pos)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "MissionCash";
+            Object.Destroy(go.GetComponent<Collider>());
+            go.transform.position = pos + Vector3.up * 0.8f;
+            go.transform.localScale = new Vector3(0.5f, 0.3f, 0.9f);
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(0.29f, 0.88f, 0.66f) };
+            go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            return go.transform;
+        }
+
+        // ── Per-frame objective evaluation ───────────────────────────────────────
+        void Update()
+        {
+            EnsureBuilt();
+            if (_giverGo != null) UpdateGiver();
+            if (_active == null) return;
+
+            var o = _active.stages[_stageIndex].objective;
+            if (o == null) { CompleteStage(); return; }
+
+            bool done = false;
+            switch (o.kind)
+            {
+                case ObjectiveKind.Interact:
+                case ObjectiveKind.Goto:
+                    done = Near(o.pos, o.radius);
+                    ObjectiveText = o.label;
+                    break;
+                case ObjectiveKind.EnterVehicle:
+                    done = _vehicle != null && _vehicle.IsDriving &&
+                           (!_vehicles.TryGetValue(o.reference, out var car) || car == null || _vehicle.CurrentCar == car);
+                    ObjectiveText = o.label;
+                    break;
+                case ObjectiveKind.Eliminate:
+                    int alive = 0;
+                    foreach (var e in _enemies) if (e != null && !e.Dead) alive++;
+                    done = _enemies.Count > 0 && alive == 0;
+                    ObjectiveText = $"{o.label}  ({_enemies.Count - alive}/{_enemies.Count})";
+                    break;
+                case ObjectiveKind.Collect:
+                    TickCollect(o);
+                    done = _collected >= o.count;
+                    ObjectiveText = $"{o.label}  ({_collected}/{o.count})";
+                    break;
+                case ObjectiveKind.Survive:
+                    float left = Mathf.Max(0f, _surviveUntil - Time.time);
+                    done = left <= 0f;
+                    ObjectiveText = $"{o.label}  ({Mathf.CeilToInt(left)}s)";
+                    break;
+            }
+
+            SetWaypointForObjective();
+            if (done) CompleteStage();
+        }
+
+        void TickCollect(MissionObjective o)
+        {
+            var p = GameRefs.Player;
+            if (p == null) return;
+            var st = GameRefs.PlayerState;
+            for (int i = 0; i < _props.Count; i++)
+            {
+                var t = _props[i];
+                if (t == null) continue;
+                Vector3 d = p.position - t.position; d.y = 0f;
+                if (d.sqrMagnitude <= o.radius * o.radius)
+                {
+                    st?.AddCash(150);
+                    Object.Destroy(t.gameObject);
+                    _props[i] = null;
+                    _collected++;
+                }
+            }
+        }
+
+        void SetWaypointForObjective()
+        {
+            if (_active == null) { ClearWaypoint(); return; }
+            var o = _active.stages[_stageIndex].objective;
+            if (o == null || !o.waypoint) { ClearWaypoint(); return; }
+
+            Vector3 target;
+            switch (o.kind)
+            {
+                case ObjectiveKind.EnterVehicle:
+                    target = _vehicles.TryGetValue(o.reference, out var car) && car != null ? car.transform.position : o.pos;
+                    break;
+                case ObjectiveKind.Collect:
+                    target = NearestProp(out bool any);
+                    if (!any) { ClearWaypoint(); return; }
+                    break;
+                default:
+                    target = o.pos;
+                    break;
+            }
+            SetWaypoint(target);
+        }
+
+        Vector3 NearestProp(out bool any)
+        {
+            any = false;
+            var p = GameRefs.Player;
+            Vector3 best = Vector3.zero; float bestSq = float.MaxValue;
+            foreach (var t in _props)
+            {
+                if (t == null) continue;
+                float sq = p != null ? (t.position - p.position).sqrMagnitude : 0f;
+                if (sq < bestSq) { bestSq = sq; best = t.position; any = true; }
+            }
+            return best;
+        }
+
+        void ClearStageSpawns()
+        {
+            _enemies.Clear();
+            for (int i = 0; i < _props.Count; i++) if (_props[i] != null) Object.Destroy(_props[i].gameObject);
+            _props.Clear();
         }
 
         bool Near(Vector3 p, float r)
@@ -172,16 +328,20 @@ namespace SUNBREAK.Missions
         {
             p = Ground(p);
             WaypointPos = p; HasWaypoint = true;
-            _waypoint = new GameObject("Waypoint") { transform = { position = p } };
-            var beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            Object.Destroy(beam.GetComponent<Collider>());
-            beam.transform.SetParent(_waypoint.transform, false);
-            beam.transform.localScale = new Vector3(1.2f, 40f, 1.2f);
-            beam.transform.localPosition = new Vector3(0f, 40f, 0f);
-            var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(0.3f, 0.8f, 1f) };
-            var r = beam.GetComponent<MeshRenderer>();
-            r.sharedMaterial = mat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            Blip.Attach(_waypoint, BlipKind.Waypoint, new Color(0.3f, 0.8f, 1f), "Objective");
+            if (_waypoint == null)
+            {
+                _waypoint = new GameObject("Waypoint");
+                var beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                Object.Destroy(beam.GetComponent<Collider>());
+                beam.transform.SetParent(_waypoint.transform, false);
+                beam.transform.localScale = new Vector3(1.2f, 40f, 1.2f);
+                beam.transform.localPosition = new Vector3(0f, 40f, 0f);
+                var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(0.3f, 0.8f, 1f) };
+                var r = beam.GetComponent<MeshRenderer>();
+                r.sharedMaterial = mat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                Blip.Attach(_waypoint, BlipKind.Waypoint, new Color(0.3f, 0.8f, 1f), "Objective");
+            }
+            _waypoint.transform.position = p;
         }
 
         void ClearWaypoint()
@@ -197,13 +357,13 @@ namespace SUNBREAK.Missions
             return new Vector3(p.x, 0.6f, p.z);
         }
 
-        // ── Save / restore ──────────────────────────────────────────────────────
+        // ── Save / restore ───────────────────────────────────────────────────────
         public MissionSave Save() => new()
         {
             completed = new List<string>(_completed),
             activeId = _active?.id,
-            objIndex = _objIndex,
-            killProgress = _killProgress,
+            stageIndex = _stageIndex,
+            totalRep = TotalRep,
         };
 
         public void Load(MissionSave s)
@@ -212,19 +372,11 @@ namespace SUNBREAK.Missions
             if (s == null) return;
             _completed.Clear();
             if (s.completed != null) foreach (var id in s.completed) _completed.Add(id);
-            _active = null; ClearWaypoint();
-            if (!string.IsNullOrEmpty(s.activeId))
-            {
-                _active = _defs.Find(d => d.id == s.activeId);
-                if (_active != null)
-                {
-                    _objIndex = Mathf.Clamp(s.objIndex, 0, _active.objectives.Count - 1);
-                    ActivateObjective();
-                    _killProgress = s.killProgress;
-                    if (_givers.TryGetValue(_active.id, out var g)) g.gameObject.SetActive(false);
-                }
-            }
-            RefreshGivers();
+            TotalRep = s.totalRep;
+            // Abandon any in-progress mission on load (spawns aren't persisted); the giver re-offers it.
+            _active = null; _stageIndex = -1;
+            ClearStageSpawns(); ClearWaypoint();
+            UpdateGiver();
         }
     }
 }

@@ -1,53 +1,74 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using SUNBREAK.Combat;
 
 namespace SUNBREAK.Missions
 {
-    public enum ObjectiveKind { GoTo, Eliminate, StealCar, Deliver }
+    public enum ObjectiveKind { Interact, Goto, EnterVehicle, Eliminate, Collect, Survive }
+    public enum FxKind { Dialogue, SetWanted, SpawnVehicle, SpawnEnemies, SpawnProp }
 
-    /// <summary>Serializable mission progress for save slots.</summary>
+    /// <summary>A stage onEnter/onComplete side-effect (dialogue, setWanted, spawns) — ported from the
+    /// canon mission JSON action list.</summary>
+    public sealed class MissionFx
+    {
+        public FxKind kind;
+        public string speaker, line;      // Dialogue
+        public int stars;                 // SetWanted
+        public string reference, model;   // SpawnVehicle / SpawnEnemies / SpawnProp
+        public Vector3 pos;
+        public float heading;             // SpawnVehicle
+        public int count = 1;             // SpawnEnemies
+        public float radius = 6f;         // SpawnEnemies
+        public string weapon = "pistol_9mm";
+
+        public static MissionFx Say(string speaker, string line) => new() { kind = FxKind.Dialogue, speaker = speaker, line = line };
+        public static MissionFx Wanted(int stars) => new() { kind = FxKind.SetWanted, stars = stars };
+        public static MissionFx Car(string reference, string model, Vector3 pos, float heading) =>
+            new() { kind = FxKind.SpawnVehicle, reference = reference, model = model, pos = pos, heading = heading };
+        public static MissionFx Enemies(string reference, Vector3 pos, int count, float radius, string weapon) =>
+            new() { kind = FxKind.SpawnEnemies, reference = reference, pos = pos, count = count, radius = radius, weapon = weapon };
+        public static MissionFx Prop(string reference, Vector3 pos) =>
+            new() { kind = FxKind.SpawnProp, reference = reference, pos = pos };
+    }
+
+    public sealed class MissionObjective
+    {
+        public ObjectiveKind kind;
+        public string label;
+        public Vector3 pos;
+        public float radius = 3f;
+        public int count = 1;
+        public string reference;   // EnterVehicle vehicle ref / Eliminate enemy ref / Collect prop ref
+        public float seconds;      // Survive
+        public bool waypoint = true;
+    }
+
+    public sealed class MissionStage
+    {
+        public string title;
+        public readonly List<MissionFx> onEnter = new();
+        public readonly List<MissionFx> onComplete = new();
+        public MissionObjective objective;
+    }
+
+    /// <summary>A canon mission: a giver (lead), a linear stage list, and rewards. <c>next</c> unlocks
+    /// the following mission.</summary>
+    public sealed class MissionDef
+    {
+        public string id, title, giver, description;
+        public Vector3 startPos;
+        public float startRadius = 4.5f;
+        public readonly List<MissionStage> stages = new();
+        public int rewardCash, rewardRep;
+        public string rewardWeapon, next;
+    }
+
     [Serializable]
     public sealed class MissionSave
     {
         public List<string> completed = new();
         public string activeId;
-        public int objIndex;
-        public int killProgress;
-    }
-
-    /// <summary>One step of a mission (go-to / do). Faithful to the web objective flow, trimmed to
-    /// the kinds we can drive with the systems we have.</summary>
-    public sealed class Objective
-    {
-        public ObjectiveKind kind;
-        public string text;
-        public Vector3 pos;
-        public float radius = 7f;
-        public int count = 1;
-        public Faction target = Faction.Civilian;
-
-        public static Objective Go(string text, Vector3 pos, float r = 7f) =>
-            new() { kind = ObjectiveKind.GoTo, text = text, pos = pos, radius = r };
-        public static Objective Kill(string text, int count) =>
-            new() { kind = ObjectiveKind.Eliminate, text = text, count = count };
-        public static Objective Steal(string text) =>
-            new() { kind = ObjectiveKind.StealCar, text = text };
-        public static Objective Drive(string text, Vector3 pos, float r = 8f) =>
-            new() { kind = ObjectiveKind.Deliver, text = text, pos = pos, radius = r };
-    }
-
-    /// <summary>A mission: a giver placed in the world, an ordered objective list, and a cash reward
-    /// routed to the wallet on completion. <c>next</c> unlocks the following lead.</summary>
-    public sealed class MissionDef
-    {
-        public string id;
-        public string title;
-        public string giverName;
-        public Vector3 giverPos;
-        public int reward;
-        public string next;
-        public List<Objective> objectives = new();
+        public int stageIndex;
+        public int totalRep;
     }
 }

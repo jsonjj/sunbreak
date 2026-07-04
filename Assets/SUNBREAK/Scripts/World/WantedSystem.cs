@@ -98,6 +98,16 @@ namespace SUNBREAK.World
             Searching = false;
         }
 
+        /// <summary>Force a wanted tier (mission scripting: setWanted). 0 clears.</summary>
+        public void ForceStars(int stars)
+        {
+            stars = Mathf.Clamp(stars, 0, 5);
+            if (stars == 0) { Clear(); return; }
+            Heat = Mathf.Max(Heat, HeatFloorForStars(stars));
+            Stars = Mathf.Max(Stars, stars);
+            Searching = false;
+        }
+
         /// <summary>Full reset — called on respawn/death (wanted resets to 0).</summary>
         public void Clear()
         {

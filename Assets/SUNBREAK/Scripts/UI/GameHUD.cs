@@ -27,14 +27,31 @@ namespace SUNBREAK.UI
         public DayNightSystem dayNight;
         public CarRadio radio;
 
+        public static GameHUD Instance { get; private set; }
+
         Font _font;
         Image _healthFill;
         Text _cashText, _speedText, _hintText, _starsText, _weaponText, _reticle;
         Text _clockText, _objectiveText, _promptText, _radioText;
+        Text _toastTitle, _toastSub;
+        float _toastUntil;
         RectTransform _blip, _wheelRoot;
         Text[] _wheelSlots;
         Transform _mapRoot;
         Image[] _blipDots;
+
+        /// <summary>Post a mission dialogue / reward toast (title + subtitle).</summary>
+        public static void Post(string title, string sub) => Instance?.ShowToast(title, sub);
+
+        void ShowToast(string title, string sub)
+        {
+            if (_toastTitle == null) return;
+            _toastTitle.text = title ?? "";
+            _toastSub.text = sub ?? "";
+            _toastUntil = Time.time + 4.5f;
+        }
+
+        void Awake() { Instance = this; }
 
         void Start()
         {
@@ -43,7 +60,11 @@ namespace SUNBREAK.UI
             if (state != null) { state.Changed += Refresh; Refresh(); }
         }
 
-        void OnDestroy() { if (state != null) state.Changed -= Refresh; }
+        void OnDestroy()
+        {
+            if (state != null) state.Changed -= Refresh;
+            if (Instance == this) Instance = null;
+        }
 
         void Update()
         {
@@ -95,6 +116,15 @@ namespace SUNBREAK.UI
             // Interaction prompt (center-low).
             if (_promptText != null)
                 _promptText.text = interactor != null ? (interactor.Prompt ?? "") : "";
+
+            // Mission dialogue / reward toast (center-upper, fades out).
+            if (_toastTitle != null)
+            {
+                float remain = _toastUntil - Time.time;
+                float a = Mathf.Clamp01(Mathf.Min(remain, 1f));
+                _toastTitle.color = new Color(1f, 0.85f, 0.4f, a);
+                _toastSub.color = new Color(1f, 1f, 1f, a * 0.95f);
+            }
 
             // Radio now-playing (while driving).
             if (_radioText != null)
@@ -266,6 +296,15 @@ namespace SUNBREAK.UI
             _promptText = Label(root, "", 24, TextAnchor.LowerCenter, new Vector2(0.5f, 0),
                 new Vector2(0, 180), new Vector2(1000, 40));
             _promptText.color = new Color(1f, 0.92f, 0.7f);
+
+            // Mission dialogue / reward toast (center-upper)
+            _toastTitle = Label(root, "", 28, TextAnchor.UpperCenter, new Vector2(0.5f, 1f),
+                new Vector2(0, -150), new Vector2(1200, 40));
+            _toastTitle.fontStyle = FontStyle.Bold;
+            _toastTitle.color = new Color(1f, 0.85f, 0.4f, 0f);
+            _toastSub = Label(root, "", 22, TextAnchor.UpperCenter, new Vector2(0.5f, 1f),
+                new Vector2(0, -190), new Vector2(1300, 40));
+            _toastSub.color = new Color(1f, 1f, 1f, 0f);
 
             // Weapon + ammo (bottom-right, above the minimap)
             _weaponText = Label(root, "", 22, TextAnchor.LowerRight, new Vector2(1, 0), new Vector2(-30, 260), new Vector2(420, 60));
