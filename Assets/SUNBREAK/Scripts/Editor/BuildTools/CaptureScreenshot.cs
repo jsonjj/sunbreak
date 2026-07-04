@@ -122,16 +122,17 @@ namespace SUNBREAK.BuildTools
 
             bool posed = PoseCharacterIdle(); // player idle instead of a T-pose
 
-            // Economy + mission markers around spawn (beacons mirror the runtime ones).
-            Beacon(pp + new Vector3(12f, 0f, -9f), new Color(1f, 0.4f, 0.3f), 6f);   // gun store
-            Beacon(pp + new Vector3(-15f, 0f, -7f), new Color(0.4f, 1f, 0.55f), 6f); // bank
-            Beacon(pp + new Vector3(27f, 0f, -20f), new Color(0.4f, 0.7f, 1f), 6f);  // dealership
-            Beacon(pp + new Vector3(6f, 0f, 6f), new Color(1f, 0.82f, 0.28f), 7f);   // mission giver
-            Beacon(pp + new Vector3(0f, 0f, 48f), new Color(0.3f, 0.8f, 1f), 40f);   // waypoint beam
+            // Economy + mission markers (illustrative beacons; runtime ones are placed at canon
+            // district coords). ATM near spawn + the canon m01 giver/objective for the mission still.
+            Beacon(new Vector3(40f, 0f, -35f), new Color(0.4f, 1f, 0.55f), 6f);   // ATM / bank (canon)
+            Beacon(new Vector3(12f, 0f, -9f), new Color(1f, 0.4f, 0.3f), 6f);     // gun-store marker
+            Beacon(new Vector3(27f, 0f, -20f), new Color(0.4f, 0.7f, 1f), 6f);    // dealership marker
+            Beacon(new Vector3(8f, 0f, 2f), new Color(1f, 0.82f, 0.28f), 7f);     // m01 giver "Cami"
+            Beacon(new Vector3(8f, 0f, -6f), new Color(0.3f, 0.8f, 1f), 40f);     // m01 objective waypoint
 
-            // Daytime economy + mission stills (sunlit 3/4 angles).
-            shots.Add(Shoot(cam, "02_shops.png", pp + new Vector3(22f, 6f, 4f), pp + new Vector3(6f, 1.5f, -8f), dir));
-            shots.Add(Shoot(cam, "03_mission.png", pp + new Vector3(-9f, 4.5f, 2f), pp + new Vector3(3f, 3f, 30f), dir));
+            // Daytime economy + mission stills (street-level along the beacon corridor).
+            shots.Add(Shoot(cam, "02_shops.png", new Vector3(12f, 4f, -26f), new Vector3(12f, 1.5f, -6f), dir));
+            shots.Add(Shoot(cam, "03_mission.png", new Vector3(9f, 4f, -24f), new Vector3(7f, 1.5f, 3f), dir));
 
             // Flip to NIGHT and shoot the GTA look.
             if (posed) AnimationMode.StopAnimationMode();

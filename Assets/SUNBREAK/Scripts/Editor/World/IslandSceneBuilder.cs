@@ -294,23 +294,54 @@ namespace SUNBREAK.EditorTools.World
             camCtrl.headTarget = headTarget;
         }
 
-        // ── Economy placement (shops + cash) ─────────────────────────────────────
+        // ── Acquisition points + POI blips (canon coords from the web integration.ts) ─────────────
         static void BuildEconomy()
         {
-            Vector3 s = Geography.PLAYER_SPAWN.position;
-            MakeShop("Gun Store", ShopKind.GunStore, s + new Vector3(12f, 1f, -9f));
-            MakeShop("Bank", ShopKind.Bank, s + new Vector3(-15f, 1f, -7f));
-            MakeShop("Car Dealership", ShopKind.CarDealer, s + new Vector3(27f, 1f, -20f));
-            // Extra storefronts across the districts.
-            MakeShop("Gun Store (Uptown)", ShopKind.GunStore, s + new Vector3(-70f, 1f, 96f));
-            MakeShop("Bank (Waterfront)", ShopKind.Bank, s + new Vector3(128f, 1f, 12f));
-            MakeShop("Car Dealership (Docks)", ShopKind.CarDealer, s + new Vector3(60f, 1f, -120f));
+            // Acquisition interactables at their canon district coordinates.
+            MakeShop("Ironsights Armory", ShopKind.GunStore, new Vector3(235f, 1f, 40f)); // Costa Dorada
+            MakeShop("Verano Motors", ShopKind.CarDealer, new Vector3(-45f, 1f, 70f));    // Miracle Row
+            MakeShop("ATM / Bank", ShopKind.Bank, new Vector3(40f, 1f, -35f));            // downtown
 
-            MakeCash(s + new Vector3(5f, 1f, 20f), 200);
-            MakeCash(s + new Vector3(-24f, 1f, 16f), 250);
-            MakeCash(s + new Vector3(44f, 1f, 34f), 300);
-            MakeCash(s + new Vector3(2f, 1f, 66f), 250);
-            MakeCash(s + new Vector3(-40f, 1f, -30f), 300);
+            // Walk-over cash pickups near spawn (canon integration.ts drops).
+            MakeCash(new Vector3(6f, 1f, 12f), 400);
+            MakeCash(new Vector3(-8f, 1f, 3f), 300);
+            MakeCash(new Vector3(44f, 1f, 34f), 250);
+
+            // Weapon pickups: a starter shotgun by spawn + an SMG near the armory + a pistol nearby.
+            MakeWeapon(new Vector3(1.6f, 1f, -2.5f), "shotgun_pump");
+            MakeWeapon(new Vector3(226f, 1f, 58f), "smg_vector");
+            MakeWeapon(new Vector3(-14f, 1f, 14f), "pistol_9mm");
+
+            // Showcase cars parked on the dealership lot.
+            MakeCar(new Vector3(-54f, 0f, 74f), 0f);
+            MakeCar(new Vector3(-54f, 0f, 66f), 0f);
+
+            BuildPointsOfInterest();
+        }
+
+        static void BuildPointsOfInterest()
+        {
+            // (label, x, z, colour) — static map blips so the minimap reads as a living city.
+            var pois = new (string label, float x, float z, Color c)[]
+            {
+                ("Ironsights Armory", 235f, 40f, new Color(1f, 0.4f, 0.3f)),
+                ("Verano Motors", -45f, 70f, new Color(0.4f, 0.7f, 1f)),
+                ("Safehouse", -300f, -250f, new Color(0.5f, 0.9f, 0.6f)),
+                ("ATM / Bank", 40f, -35f, new Color(0.4f, 1f, 0.55f)),
+                ("Solaris Tower", 0f, -20f, new Color(0.8f, 0.8f, 0.9f)),
+                ("The Neon Mile", 315f, 30f, new Color(1f, 0.5f, 0.9f)),
+                ("Vista Galleria", 380f, 150f, new Color(1f, 0.8f, 0.4f)),
+                ("Estadio Sol", 250f, 265f, new Color(0.8f, 0.8f, 0.9f)),
+                ("Sunset Pier", 95f, 520f, new Color(0.9f, 0.7f, 0.5f)),
+                ("Vista General (Hospital)", 74f, -58f, new Color(1f, 0.35f, 0.4f)),
+                ("SVPD HQ", -74f, -32f, new Color(0.4f, 0.6f, 1f)),
+                ("Fuel", 196f, 58f, new Color(1f, 0.9f, 0.5f)),
+            };
+            foreach (var p in pois)
+            {
+                var go = new GameObject("POI_" + p.label) { transform = { position = new Vector3(p.x, 1f, p.z) } };
+                Blip.Attach(go, BlipKind.Shop, p.c, p.label);
+            }
         }
 
         static void MakeShop(string name, ShopKind kind, Vector3 pos)
@@ -324,6 +355,20 @@ namespace SUNBREAK.EditorTools.World
         {
             var go = new GameObject("Cash") { transform = { position = pos } };
             go.AddComponent<CashPickup>().amount = amount;
+        }
+
+        static void MakeWeapon(Vector3 pos, string weaponId)
+        {
+            var go = new GameObject("WeaponPickup_" + weaponId) { transform = { position = pos } };
+            go.AddComponent<WeaponPickup>().weaponId = weaponId;
+        }
+
+        static void MakeCar(Vector3 groundPos, float yaw)
+        {
+            // Deferred: spawned at runtime by a tiny helper so it sits on the generated terrain.
+            var go = new GameObject("ShowcaseCar") { transform = { position = groundPos } };
+            var s = go.AddComponent<ShowcaseCarSpawner>();
+            s.yaw = yaw;
         }
 
         // ── Materials ──────────────────────────────────────────────────────────
