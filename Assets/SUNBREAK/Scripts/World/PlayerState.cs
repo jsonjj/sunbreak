@@ -13,6 +13,7 @@ namespace SUNBREAK.World
         [SerializeField] float maxHealth = 100f;
         [SerializeField] float health = 100f;
         [SerializeField] int cash = 500;
+        [SerializeField] int bank = 0;
 
         public event Action Changed;
         /// <summary>Raised the frame the player's health hits 0 (WorldBounds respawns + clears wanted).</summary>
@@ -49,10 +50,41 @@ namespace SUNBREAK.World
             Changed?.Invoke();
         }
 
+        public int Bank => bank;
+
         public void AddCash(int amount)
         {
             cash = Mathf.Max(0, cash + amount);
             Changed?.Invoke();
         }
+
+        /// <summary>Spend clean cash if affordable. Returns false if you can't afford it.</summary>
+        public bool Spend(int amount)
+        {
+            if (amount <= 0 || cash < amount) return false;
+            cash -= amount;
+            Changed?.Invoke();
+            return true;
+        }
+
+        public void Deposit(int amount)
+        {
+            amount = Mathf.Min(amount, cash);
+            if (amount <= 0) return;
+            cash -= amount; bank += amount; Changed?.Invoke();
+        }
+
+        public void Withdraw(int amount)
+        {
+            amount = Mathf.Min(amount, bank);
+            if (amount <= 0) return;
+            bank -= amount; cash += amount; Changed?.Invoke();
+        }
+
+        /// <summary>Restore wallet from a save.</summary>
+        public void LoadWallet(int c, int b) { cash = Mathf.Max(0, c); bank = Mathf.Max(0, b); Changed?.Invoke(); }
+
+        /// <summary>Restore health from a save.</summary>
+        public void SetHealth(float h) { health = Mathf.Clamp(h, 0f, maxHealth); IsDead = health <= 0f; Changed?.Invoke(); }
     }
 }
