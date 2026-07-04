@@ -18,6 +18,9 @@ namespace SUNBREAK.World
         /// <summary>Raised the frame the player's health hits 0 (WorldBounds respawns + clears wanted).</summary>
         public event Action Died;
 
+        void Awake() { GameRefs.Player = transform; GameRefs.PlayerState = this; }
+        void OnDestroy() { if (GameRefs.PlayerState == this) { GameRefs.Player = null; GameRefs.PlayerState = null; } }
+
         public float MaxHealth => maxHealth;
         public float Health => health;
         public float Health01 => maxHealth > 0f ? Mathf.Clamp01(health / maxHealth) : 0f;
