@@ -30,9 +30,6 @@ namespace SUNBREAK.World
             new Arch { walk = 1.1f,  run = 4.2f, health = 90,  jumpiness = 1.25f, weight = 0.13f, armMul = 0f },   // tourist
             new Arch { walk = 1.4f,  run = 5.4f, health = 130, jumpiness = 0.55f, weight = 0.07f, armMul = 4f, gangster = true }, // gangster
         };
-        static readonly string[] PedWeapons = { "pistol_9mm", "smg_vector" };
-        const float ArmedFraction = 0.1f;
-
         readonly List<Ped> _pool = new();
         float _timer;
         bool _built;
@@ -89,9 +86,9 @@ namespace SUNBREAK.World
             if (!NavMesh.SamplePosition(want, out var hit, 12f, NavMesh.AllAreas)) return false;
 
             var a = PickArch();
-            bool armed = a.armMul > 0f && Random.value < Mathf.Clamp01(ArmedFraction * a.armMul);
-            string weapon = armed ? PedWeapons[Random.Range(0, PedWeapons.Length)] : null;
-            bool fighter = armed || a.gangster;
+            // Civilians NEVER carry guns. Only the tough/gangster archetype fights back — with melee.
+            bool fighter = a.gangster;
+            string weapon = null;
 
             var go = ped.gameObject;
             go.SetActive(true);

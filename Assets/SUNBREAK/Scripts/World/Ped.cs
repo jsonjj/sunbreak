@@ -57,10 +57,10 @@ namespace SUNBREAK.World
             if (_agent != null && _agent.isOnNavMesh) { _agent.isStopped = false; _agent.speed = walk; }
             _health.HideBar();
 
-            // Visible weapon for armed peds (removed on recycle so the pool stays clean).
+            // Melee fighters carry a visible bat; everyone else is unarmed (removed on recycle).
             ClearWeapon();
-            if (_weapon != null) _weaponGo = CrowdFactory.EquipWeapon(_animator, _weapon);
-            else CrowdFactory.SetUnarmed(_animator);
+            CrowdFactory.SetUnarmed(_animator);
+            if (_fighter) EquipMelee();
         }
 
         public void Deactivate()
@@ -76,6 +76,23 @@ namespace SUNBREAK.World
         {
             if (_weaponGo != null) Destroy(_weaponGo);
             _weaponGo = null;
+        }
+
+        /// <summary>Give a melee fighter a simple bat model in the right hand (no gun for civilians).</summary>
+        void EquipMelee()
+        {
+            var hand = SUNBREAK.Combat.WeaponModelLibrary.FindRightHand(_animator);
+            if (hand == null) return;
+            var bat = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            bat.name = "Bat";
+            var col = bat.GetComponent<Collider>(); if (col) Destroy(col);
+            bat.transform.SetParent(hand, false);
+            bat.transform.localScale = new Vector3(0.05f, 0.3f, 0.05f); // ~0.6 m bat
+            bat.transform.localPosition = new Vector3(0f, 0f, 0.12f);
+            bat.transform.localRotation = Quaternion.Euler(80f, 0f, 0f);
+            bat.GetComponent<MeshRenderer>().sharedMaterial =
+                new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.42f, 0.27f, 0.16f) };
+            _weaponGo = bat;
         }
 
         void Update()
