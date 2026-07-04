@@ -428,6 +428,7 @@ namespace SUNBREAK.World
             if (tint != Color.white) TintInstance(root.gameObject, tint);
             root.gameObject.AddComponent<CarLights>(); // headlights at night
             root.gameObject.AddComponent<SUNBREAK.Audio.EngineAudio>(); // engine tone, distance-gated
+            root.gameObject.AddComponent<CarHealth>(); // damage + smoke/fire + explosion
 
             // Seat on the actual ground surface (raycast the terrain/road collider; fall back to the
             // heightfield) so cars never spawn sunk or floating.
