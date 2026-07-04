@@ -12,13 +12,14 @@ namespace SUNBREAK.World
     public sealed class CopCar : MonoBehaviour
     {
         const float Cruise = 18f, RamSpeed = 27f, WheelRadius = 0.35f;
-        const float FireInterval = 1.1f, FireRange = 46f, RamRange = 3.2f, RamDamage = 16f, RamCooldown = 1.5f;
+        const float FireInterval = 1.2f, FireRange = 46f, RamRange = 3.2f, RamDamage = 14f, RamCooldown = 1.5f;
+        const float ArriveDist = 17f;
 
         WantedSystem _wanted;
         Transform _player;
         PlayerState _state;
         Transform[] _wheels;
-        bool _droppedCop;
+        bool _deployed;
         float _spin, _fireT, _ramT;
         Vector3 _lastPlayerPos, _playerVel;
 
@@ -35,7 +36,9 @@ namespace SUNBREAK.World
             if (_player == null || _wanted == null) return;
             float dt = Time.deltaTime;
 
-            // Estimate player velocity (for the cut-off lead).
+            // Once the crew has bailed out, the car is just a parked (destructible) prop.
+            if (_deployed) return;
+
             _playerVel = Vector3.Lerp(_playerVel, (_player.position - _lastPlayerPos) / Mathf.Max(dt, 1e-4f), 0.2f);
             _lastPlayerPos = _player.position;
 
@@ -43,20 +46,19 @@ namespace SUNBREAK.World
             bool searching = _wanted.Searching;
             float pdist = Vector3.Distance(me, _player.position);
 
+            // Arrived at the player → STOP, disgorge the crew on foot so the shootout is winnable.
+            if (pdist < ArriveDist && !searching)
+            {
+                DeployCrew(me);
+                return;
+            }
+
             // Cut off ahead of the player; when searching, sweep the last-known position.
             Vector3 goal = searching ? _wanted.Lkp : _player.position + _playerVel * 0.9f;
             Vector3 to = goal - me; to.y = 0f;
             float dist = to.magnitude;
 
-            if (!_droppedCop && pdist < 24f)
-            {
-                _droppedCop = true;
-                var tier = _wanted.TierFor(_wanted.Stars);
-                _wanted.SpawnFootCop(me + transform.right * 2.4f, tier, _wanted.Stars);
-            }
-
-            // Pursue (ram when right on top of the player); aggression rises with stars.
-            float speed = (pdist < 9f && !searching ? RamSpeed : Cruise) * (1f + 0.06f * _wanted.Stars);
+            float speed = (pdist < 10f ? RamSpeed : Cruise) * (1f + 0.06f * _wanted.Stars);
             float move = 0f;
             if (dist > 2.5f)
             {
@@ -69,20 +71,19 @@ namespace SUNBREAK.World
                 move = step;
             }
 
-            // Ram contact damage.
             _ramT -= dt;
-            if (pdist < RamRange && _ramT <= 0f && _state != null && !searching)
+            if (pdist < RamRange && _ramT <= 0f && _state != null)
             {
                 _state.Damage(RamDamage);
                 _ramT = RamCooldown;
             }
 
-            // Fire from the car window.
+            // Suppressing fire from the car while closing in.
             _fireT -= dt;
-            if (_fireT <= 0f && pdist < FireRange && !searching)
+            if (_fireT <= 0f && pdist < FireRange)
             {
                 var tier = _wanted.TierFor(_wanted.Stars);
-                _fireT = NpcGun.FireAt(gameObject, _player, _state, tier.weapon, 0.32f) ? FireInterval : 0.4f;
+                _fireT = NpcGun.FireAt(gameObject, _player, _state, tier.weapon, 0.3f) ? FireInterval : 0.4f;
             }
 
             if (_wheels != null)
@@ -90,6 +91,18 @@ namespace SUNBREAK.World
                 _spin += (move / (2f * Mathf.PI * WheelRadius)) * 360f;
                 foreach (var w in _wheels)
                     if (w != null) w.localRotation = Quaternion.Euler(_spin, w.localEulerAngles.y, 0f);
+            }
+        }
+
+        void DeployCrew(Vector3 me)
+        {
+            _deployed = true;
+            var tier = _wanted.TierFor(_wanted.Stars);
+            int crew = Mathf.Clamp(1 + _wanted.Stars / 2, 1, 3); // 1–3 officers per car by heat
+            for (int i = 0; i < crew; i++)
+            {
+                Vector3 side = transform.right * (i % 2 == 0 ? 2.6f : -2.6f) + transform.forward * (i * 0.6f);
+                _wanted.SpawnFootCop(me + side, tier, _wanted.Stars);
             }
         }
     }
