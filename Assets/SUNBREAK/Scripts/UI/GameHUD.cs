@@ -37,6 +37,7 @@ namespace SUNBREAK.UI
         float _toastUntil;
         RectTransform _blip, _wheelRoot;
         Text[] _wheelSlots;
+        Text _wheelName;
         Transform _mapRoot;
         Image[] _blipDots;
 
@@ -181,6 +182,11 @@ namespace SUNBREAK.UI
                 _wheelSlots[i].color = sel ? new Color(1f, 0.85f, 0.3f) : (owned ? Color.white : new Color(1f, 1f, 1f, 0.3f));
                 _wheelSlots[i].fontStyle = sel ? FontStyle.Bold : FontStyle.Normal;
             }
+            if (_wheelName != null)
+            {
+                string id = Weapons.WheelOrder[Mathf.Clamp(combat.WheelSelection, 0, Weapons.WheelOrder.Length - 1)];
+                _wheelName.text = Weapons.Get(id).name + (combat.Owns(id) ? "" : "\n<locked>");
+            }
         }
 
         void Refresh()
@@ -273,8 +279,8 @@ namespace SUNBREAK.UI
             Label(mmFrame.transform, "SANTA VISTA", 12, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0, -2), new Vector2(200, 18));
 
             // Controls hint (top-center)
-            _hintText = Label(root, "WASD move · Shift sprint · C crouch · Space jump · F car · RMB aim · V 1st-person · LMB fire · R reload · Tab wheel · 1-8 weapons",
-                13, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0, -14), new Vector2(1700, 24));
+            _hintText = Label(root, Controls.OneLine,
+                13, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0, -14), new Vector2(1800, 24));
             _hintText.color = new Color(1f, 1f, 1f, 0.65f);
 
             // Wanted stars (top-right)
@@ -329,6 +335,12 @@ namespace SUNBREAK.UI
                 Vector2 pos = new Vector2(Mathf.Sin(a), Mathf.Cos(a)) * 195f;
                 _wheelSlots[i] = Label(_wheelRoot, names[i], 20, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), pos, new Vector2(140, 40));
             }
+            _wheelName = Label(_wheelRoot, "", 22, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(280, 60));
+            _wheelName.fontStyle = FontStyle.Bold;
+            _wheelName.color = new Color(1f, 0.85f, 0.35f);
+            Label(_wheelRoot, "hold Tab · move mouse / scroll · release to equip", 15,
+                TextAnchor.LowerCenter, new Vector2(0.5f, 0f), new Vector2(0, -18), new Vector2(520, 24))
+                .color = new Color(1f, 1f, 1f, 0.6f);
             _wheelRoot.gameObject.SetActive(false);
         }
 

@@ -26,8 +26,9 @@ namespace SUNBREAK.Combat
         float _nextFire, _reloadDone, _bloom;
         bool _reloading;
 
-        InputAction _fire, _reload, _wheel;
+        InputAction _fire, _reload, _wheel, _scroll;
         InputAction[] _slots;
+        Vector2 _wheelAim;
 
         public bool WheelOpen { get; private set; }
         public int WheelSelection { get; private set; }
@@ -48,14 +49,15 @@ namespace SUNBREAK.Combat
             _reload = new InputAction("Reload", InputActionType.Button, "<Keyboard>/r");
             _reload.AddBinding("<Gamepad>/buttonWest");
             _wheel = new InputAction("Wheel", InputActionType.Button, "<Keyboard>/tab");
+            _scroll = new InputAction("Scroll", InputActionType.Value, "<Mouse>/scroll/y");
 
             _slots = new InputAction[8];
             for (int i = 0; i < 8; i++)
                 _slots[i] = new InputAction("Slot" + i, InputActionType.Button, "<Keyboard>/" + (i + 1));
         }
 
-        void OnEnable() { _fire.Enable(); _reload.Enable(); _wheel.Enable(); foreach (var s in _slots) s.Enable(); }
-        void OnDisable() { _fire.Disable(); _reload.Disable(); _wheel.Disable(); foreach (var s in _slots) s.Disable(); }
+        void OnEnable() { _fire.Enable(); _reload.Enable(); _wheel.Enable(); _scroll.Enable(); foreach (var s in _slots) s.Enable(); }
+        void OnDisable() { _fire.Disable(); _reload.Disable(); _wheel.Disable(); _scroll.Disable(); foreach (var s in _slots) s.Disable(); }
 
         void Update()
         {
@@ -67,6 +69,11 @@ namespace SUNBREAK.Combat
             HandleWheel();
             if (WheelOpen) return; // time is slowed; no firing while choosing
             HandleSlotKeys();
+
+            // Mouse scroll cycles owned weapons (up = next, down = previous).
+            float scroll = _scroll.ReadValue<float>();
+            if (scroll > 0.5f) CycleOwned(1);
+            else if (scroll < -0.5f) CycleOwned(-1);
 
             if (_reloading && Time.time >= _reloadDone) FinishReload();
             if (_reload.WasPressedThisFrame()) BeginReload();
@@ -215,29 +222,54 @@ namespace SUNBREAK.Combat
 
         void HandleWheel()
         {
-            if (_wheel.WasPressedThisFrame()) { WheelOpen = true; Time.timeScale = 0.15f; }
-            if (WheelOpen)
+            if (_wheel.WasPressedThisFrame())
             {
-                WheelSelection = SlotFromMouse();
-                if (!_wheel.IsPressed())
-                {
-                    WheelOpen = false;
-                    Time.timeScale = 1f;
-                    EquipSlot(WheelSelection);
-                }
+                WheelOpen = true; Time.timeScale = 0.15f;
+                int cur = Mathf.Max(0, System.Array.IndexOf(Weapons.WheelOrder, _current));
+                WheelSelection = cur;
+                float a0 = cur * 45f * Mathf.Deg2Rad;
+                _wheelAim = new Vector2(Mathf.Sin(a0), Mathf.Cos(a0)) * 100f;
+            }
+            if (!WheelOpen) return;
+
+            // The cursor is locked during play, so absolute mouse position is frozen — drive the
+            // selector from accumulated mouse DELTA (GTA-style). Scroll nudges it a segment at a time.
+            var m = Mouse.current;
+            if (m != null) _wheelAim += m.delta.ReadValue() * 0.7f;
+            if (_wheelAim.magnitude > 150f) _wheelAim = _wheelAim.normalized * 150f;
+            WheelSelection = SlotFromAim();
+            float sc = _scroll.ReadValue<float>();
+            if (sc > 0.5f || sc < -0.5f)
+            {
+                WheelSelection = ((WheelSelection + (sc > 0f ? -1 : 1)) % 8 + 8) % 8;
+                float a = WheelSelection * 45f * Mathf.Deg2Rad;
+                _wheelAim = new Vector2(Mathf.Sin(a), Mathf.Cos(a)) * 100f;
+            }
+
+            if (!_wheel.IsPressed())
+            {
+                WheelOpen = false; Time.timeScale = 1f;
+                EquipSlot(WheelSelection);
             }
         }
 
-        int SlotFromMouse()
+        int SlotFromAim()
         {
-            var m = Mouse.current;
-            if (m == null) return Mathf.Max(0, System.Array.IndexOf(Weapons.WheelOrder, _current));
-            Vector2 c = new Vector2(Screen.width, Screen.height) * 0.5f;
-            Vector2 d = m.position.ReadValue() - c;
-            if (d.sqrMagnitude < 400f) return Mathf.Max(0, System.Array.IndexOf(Weapons.WheelOrder, _current));
-            float ang = Mathf.Atan2(d.x, d.y) * Mathf.Rad2Deg; // 0 = up, clockwise
+            if (_wheelAim.sqrMagnitude < 600f) return WheelSelection; // deadzone → keep highlight
+            float ang = Mathf.Atan2(_wheelAim.x, _wheelAim.y) * Mathf.Rad2Deg; // 0 = up, clockwise
             if (ang < 0) ang += 360f;
             return Mathf.RoundToInt(ang / 45f) % 8;
+        }
+
+        /// <summary>Jump to the next/previous OWNED weapon in wheel order (mouse scroll).</summary>
+        void CycleOwned(int dir)
+        {
+            int start = Mathf.Max(0, System.Array.IndexOf(Weapons.WheelOrder, _current));
+            for (int step = 1; step <= Weapons.WheelOrder.Length; step++)
+            {
+                int idx = ((start + dir * step) % Weapons.WheelOrder.Length + Weapons.WheelOrder.Length) % Weapons.WheelOrder.Length;
+                if (_owned.Contains(Weapons.WheelOrder[idx])) { EquipSlot(idx); return; }
+            }
         }
 
         void EquipSlot(int slot)
