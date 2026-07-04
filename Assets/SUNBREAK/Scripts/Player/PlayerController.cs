@@ -129,6 +129,10 @@ namespace SUNBREAK.Player
         {
             float dt = Time.deltaTime;
 
+            // Fully frozen by a full-screen overlay (map / pause / shop) — don't move OR look, so
+            // WASD/mouse drive the overlay instead of the player behind it.
+            if (Time.timeScale == 0f) { PlanarSpeed = 0f; return; }
+
             // ── Look (mouse delta is per-frame pixels → scale straight to degrees) ──
             Vector2 look = _look.ReadValue<Vector2>();
             LookYaw += look.x * mouseSensitivity;

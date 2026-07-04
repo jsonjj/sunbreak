@@ -264,6 +264,7 @@ namespace SUNBREAK.World
                     var tree = palms[rng.Next(palms.Length)];
                     var go = Instantiate(tree, group);
                     FitByHeight(go, jx, jz, 6f + (float)rng.NextDouble() * 4f, (float)rng.NextDouble() * 360f);
+                    AddTrunkCapsule(go);
                 }
         }
 
@@ -299,6 +300,7 @@ namespace SUNBREAK.World
                         go.transform.localScale.y, go.transform.localScale.z * extra);
                     Reseat(go, lm.position.x, lm.position.z);
                 }
+                AddSolidBox(go); // landmarks are solid too (the tester walked through these towers)
             }
         }
 
@@ -326,26 +328,40 @@ namespace SUNBREAK.World
             var go = Instantiate(streetlight, group);
             FitByHeight(go, x, z, 7f, yaw);
             Paint(go, propMat);
+            AddSolidBox(go);
         }
 
         // ── Vehicles (drivable, scattered on roads) ──────────────────────────────
         void ScatterVehicles(System.Random rng)
         {
             var group = NewChild("Vehicles").transform;
-            // One right by the spawn, the rest scattered on road intersections across districts.
-            var spawn = Geography.PLAYER_SPAWN.position;
-            SpawnCar(new Vector3(spawn.x - 4f, 0f, spawn.z + 8f), 180f, group);
+            // One right by the spawn on the road, the rest on road lanes across districts (never in a
+            // building footprint — cars only go where OnRoad() is true, which the districts skip).
+            SpawnCar(new Vector3(6f, 0f, 2.5f), 90f, group);
 
             int placed = 1, tries = 0;
-            while (placed < drivableCars && tries++ < 400)
+            while (placed < drivableCars && tries++ < 600)
             {
-                float gx = Mathf.Round((float)(rng.NextDouble() * 2 - 1) * (Geography.CITY_HALF - 40) / roadSpacing) * roadSpacing;
-                float gz = Mathf.Round((float)(rng.NextDouble() * 2 - 1) * (Geography.CITY_HALF - 40) / roadSpacing) * roadSpacing;
-                float x = gx + 10f, z = gz + 6f;
-                if (Geography.IsWaterPadded(x, z, 8f) || Geography.DistrictAt(x, z) == null) continue;
-                SpawnCar(new Vector3(x, 0f, z), (float)(rng.Next(4) * 90), group);
+                if (!TryRoadSpot(rng, out Vector3 pos, out float yaw)) continue;
+                SpawnCar(pos, yaw, group);
                 placed++;
             }
+        }
+
+        /// <summary>A point on a road lane (clear of water + building footprints), with a heading
+        /// that runs along the road.</summary>
+        bool TryRoadSpot(System.Random rng, out Vector3 pos, out float yaw)
+        {
+            pos = Vector3.zero; yaw = 0f;
+            int k = Mathf.CeilToInt(Geography.CITY_HALF / roadSpacing);
+            bool alongX = rng.Next(2) == 0;
+            float line = (rng.Next(2 * k + 1) - k) * roadSpacing;
+            float along = (float)(rng.NextDouble() * 2 - 1) * (Geography.CITY_HALF - 30f);
+            const float lane = 2.1f;
+            if (alongX) { pos = new Vector3(along, 0f, line - lane); yaw = rng.Next(2) == 0 ? 90f : -90f; }
+            else { pos = new Vector3(line + lane, 0f, along); yaw = rng.Next(2) == 0 ? 0f : 180f; }
+            if (Geography.IsWaterPadded(pos.x, pos.z, 6f) || Geography.DistrictAt(pos.x, pos.z) == null) return false;
+            return true;
         }
 
         /// <summary>
@@ -403,7 +419,10 @@ namespace SUNBREAK.World
             root.gameObject.AddComponent<SUNBREAK.Audio.EngineAudio>(); // engine tone, distance-gated
 
             float groundY = TerrainHeight(groundPos.x, groundPos.z);
-            root.SetPositionAndRotation(Safe(new Vector3(groundPos.x, groundY + 0.1f, groundPos.z)), Quaternion.Euler(0f, yaw, 0f));
+            root.SetPositionAndRotation(Safe(new Vector3(groundPos.x, groundY + 0.4f, groundPos.z)), Quaternion.Euler(0f, yaw, 0f));
+
+            // All cars live on the vehicle layer so raycast wheels + traffic sensors ignore vehicles.
+            SetLayerRecursive(root.gameObject, CarLayer);
 
             wheels = wh;
             bounds = b;
@@ -417,10 +436,15 @@ namespace SUNBREAK.World
             if (parent != null) go.transform.SetParent(parent, true);
 
             var rb = go.AddComponent<Rigidbody>();
+            // Chassis box lifted ABOVE the wheel-contact plane so the car rides on its raycast wheels
+            // (if the box rests on the ground the springs never load → zero grip → the car can't drive).
+            float wheelRadius = Mathf.Clamp(b.size.y * 0.28f, 0.28f, 0.55f);
+            float lift = wheelRadius + 0.12f;
             var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, b.size.y * 0.5f, 0f);
-            box.size = new Vector3(b.size.x * 0.95f, b.size.y, b.size.z);
+            box.center = new Vector3(0f, lift + b.size.y * 0.5f, 0f);
+            box.size = new Vector3(b.size.x * 0.9f, b.size.y, b.size.z * 0.98f);
             var ctrl = go.AddComponent<ArcadeCarController>();
+            ctrl.groundMask = ~(1 << CarLayer); // wheels never ray-hit any vehicle
             var cfg = VehicleConfig.Sedan();
             float rest = cfg.wheels.Length > 0 ? cfg.wheels[0].suspensionRestLength : 0.32f;
             float radius = Mathf.Clamp(b.size.y * 0.28f, 0.28f, 0.55f);
@@ -458,7 +482,7 @@ namespace SUNBREAK.World
             var go = Instantiate(model, parent);
             FitByHeight(go, x, z, height, yaw);
             Paint(go, mat);
-            AddBox(go);
+            AddSolidBox(go);
             return go;
         }
 
@@ -527,14 +551,60 @@ namespace SUNBREAK.World
             }
         }
 
-        static void AddBox(GameObject go)
+        /// <summary>Layer for all cars so wheel/traffic rays never hit vehicles (self or others).</summary>
+        public const int CarLayer = 8;
+
+        /// <summary>Solid, correctly-oriented box collider from the object's LOCAL mesh bounds (so it
+        /// stays right under any yaw/scale — the old world-AABB math produced loose/wrong boxes).</summary>
+        static void AddSolidBox(GameObject go)
+        {
+            var mfs = go.GetComponentsInChildren<MeshFilter>();
+            bool any = false; Bounds local = default;
+            Matrix4x4 w2l = go.transform.worldToLocalMatrix;
+            foreach (var mf in mfs)
+            {
+                if (mf.sharedMesh == null) continue;
+                Bounds mb = mf.sharedMesh.bounds;
+                if (!IsFinite(mb.center) || !IsFinite(mb.size)) continue;
+                Bounds tb = TransformBounds(w2l * mf.transform.localToWorldMatrix, mb);
+                if (!any) { local = tb; any = true; } else local.Encapsulate(tb);
+            }
+            if (!any || local.size.y < 1e-3f) return;
+            var bc = go.AddComponent<BoxCollider>();
+            bc.center = local.center;
+            bc.size = local.size;
+        }
+
+        static Bounds TransformBounds(Matrix4x4 m, Bounds b)
+        {
+            Vector3 c = m.MultiplyPoint3x4(b.center);
+            Vector3 e = b.extents;
+            Vector3 ax = m.MultiplyVector(new Vector3(e.x, 0, 0));
+            Vector3 ay = m.MultiplyVector(new Vector3(0, e.y, 0));
+            Vector3 az = m.MultiplyVector(new Vector3(0, 0, e.z));
+            Vector3 ext = new Vector3(
+                Mathf.Abs(ax.x) + Mathf.Abs(ay.x) + Mathf.Abs(az.x),
+                Mathf.Abs(ax.y) + Mathf.Abs(ay.y) + Mathf.Abs(az.y),
+                Mathf.Abs(ax.z) + Mathf.Abs(ay.z) + Mathf.Abs(az.z));
+            return new Bounds(c, ext * 2f);
+        }
+
+        /// <summary>Thin capsule trunk collider for a tree/palm (avoids a wide frond box).</summary>
+        static void AddTrunkCapsule(GameObject go)
         {
             Bounds b = CombinedBounds(go);
-            var bc = go.AddComponent<BoxCollider>();
-            bc.center = go.transform.InverseTransformPoint(b.center);
+            var cap = go.AddComponent<CapsuleCollider>();
+            cap.direction = 1; // Y
+            cap.center = go.transform.InverseTransformPoint(new Vector3(b.center.x, b.min.y + b.size.y * 0.5f, b.center.z));
             Vector3 ls = go.transform.lossyScale;
-            bc.size = new Vector3(b.size.x / Mathf.Max(1e-4f, ls.x), b.size.y / Mathf.Max(1e-4f, ls.y),
-                b.size.z / Mathf.Max(1e-4f, ls.z));
+            cap.height = b.size.y / Mathf.Max(1e-4f, ls.y);
+            cap.radius = 0.35f / Mathf.Max(1e-4f, Mathf.Max(ls.x, ls.z));
+        }
+
+        public static void SetLayerRecursive(GameObject go, int layer)
+        {
+            go.layer = layer;
+            foreach (Transform t in go.transform) SetLayerRecursive(t.gameObject, layer);
         }
 
         GameObject NewChild(string name)

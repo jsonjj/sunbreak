@@ -18,7 +18,7 @@ namespace SUNBREAK.Vehicles
         public CharacterController characterController;
         public GameObject playerVisual;      // character model to hide while driving
         public Transform onFootCameraTarget;  // the normal follow target
-        public float enterRange = 4.0f;
+        public float enterRange = 4.5f;
 
         InputAction _interact;
         ArcadeCarController _current;
@@ -44,9 +44,14 @@ namespace SUNBREAK.Vehicles
         {
             ArcadeCarController best = null;
             float bestSq = enterRange * enterRange;
+            Vector3 me = transform.position;
             foreach (var car in FindObjectsByType<ArcadeCarController>(FindObjectsSortMode.None))
             {
-                float sq = (car.transform.position - transform.position).sqrMagnitude;
+                // Measure to the NEAREST point on the car's body, so any car is enterable from beside
+                // it (not just tiny cars whose centre happens to be close). Works for every spawned car.
+                var col = car.GetComponent<Collider>();
+                Vector3 cp = col != null ? col.ClosestPoint(me) : car.transform.position;
+                float sq = (cp - me).sqrMagnitude;
                 if (sq < bestSq) { bestSq = sq; best = car; }
             }
             if (best == null) return;
