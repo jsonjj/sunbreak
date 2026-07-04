@@ -49,7 +49,7 @@ namespace SUNBREAK.World
                 var go = new GameObject("NightLamp" + i);
                 go.transform.SetParent(transform, false);
                 var l = go.AddComponent<Light>();
-                l.type = LightType.Point; l.range = 20f; l.color = new Color(1f, 0.85f, 0.6f);
+                l.type = LightType.Point; l.range = 16f; l.color = new Color(1f, 0.85f, 0.6f);
                 l.intensity = 0f; l.shadows = LightShadows.None;
                 _lampPool[i] = l;
             }
@@ -84,7 +84,18 @@ namespace SUNBREAK.World
             float dayLight = Mathf.Clamp01(sunDir.y * 2.2f + 0.15f);
             if (_skybox != null && _skybox.HasProperty("_Exposure"))
                 _skybox.SetFloat("_Exposure", Mathf.Lerp(0.08f, 1.0f, dayLight));
-            RenderSettings.ambientIntensity = Mathf.Lerp(0.15f, 0.9f, dayLight);
+            // Day keeps the warm skybox GI; night switches to a flat, cool ambient so the warm HDRI
+            // doesn't bleed a red cast onto the buildings.
+            if (dayLight > 0.28f)
+            {
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
+                RenderSettings.ambientIntensity = Mathf.Lerp(0.3f, 0.9f, dayLight);
+            }
+            else
+            {
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+                RenderSettings.ambientLight = new Color(0.07f, 0.08f, 0.13f);
+            }
             RenderSettings.fogColor = Color.Lerp(new Color(0.05f, 0.06f, 0.1f), new Color(0.8f, 0.72f, 0.62f), dayLight);
 
             ApplyNightLights(night);
@@ -92,10 +103,10 @@ namespace SUNBREAK.World
 
         void ApplyNightLights(bool night)
         {
-            // Building windows + streetlamp glow (one shared material each = cheap city-wide).
-            Color buildingEmit = night ? new Color(0.35f, 0.32f, 0.2f) : Color.black;
-            SetEmission(cityMat, buildingEmit);
-            SetEmission(propMat, night ? new Color(1f, 0.85f, 0.55f) * 1.2f : Color.black);
+            // Buildings stay dark at night; only the streetlamp material glows softly. The night read
+            // comes from the warm streetlight pools + car headlights below.
+            SetEmission(cityMat, Color.black);
+            SetEmission(propMat, night ? new Color(0.28f, 0.22f, 0.13f) : Color.black);
 
             // A pool of warm point lights snapped to the nearest streetlights around the player.
             var player = GameRefs.Player;
@@ -111,8 +122,8 @@ namespace SUNBREAK.World
                     float ang = i / (float)_lampPool.Length * Mathf.PI * 2f;
                     float gx = Mathf.Round((pp.x + Mathf.Cos(ang) * 22f) / spacing) * spacing;
                     float gz = Mathf.Round((pp.z + Mathf.Sin(ang) * 22f) / spacing) * spacing;
-                    _lampPool[i].transform.position = new Vector3(gx + 5f, 6.5f, gz + 5f);
-                    _lampPool[i].intensity = 6f;
+                    _lampPool[i].transform.position = new Vector3(gx + 5f, 5f, gz + 5f);
+                    _lampPool[i].intensity = 3.2f;
                 }
             }
             else if (!night)

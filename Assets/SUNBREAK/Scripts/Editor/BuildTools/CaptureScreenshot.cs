@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.UI;
 using Unity.AI.Navigation;
 using SUNBREAK.Combat;
 using SUNBREAK.EditorTools.Characters;
@@ -32,7 +33,11 @@ namespace SUNBREAK.BuildTools
             try
             {
                 if (File.Exists(SunbreakPaths.IslandScenePath))
+                {
                     CaptureIsland();
+                    CaptureSlice4();
+                    CaptureMenu();
+                }
                 else if (File.Exists(SunbreakPaths.HeroScenePath))
                     CaptureHero();
                 else if (File.Exists(SunbreakPaths.ScenePath))
@@ -97,6 +102,127 @@ namespace SUNBREAK.BuildTools
 
             if (posed) AnimationMode.StopAnimationMode();
             Debug.Log("SUNBREAK_SHOT_OK: " + string.Join(" | ", shots));
+        }
+
+        // ── Slice 4 shots: economy markers, missions, and the night look ──────────
+        static void CaptureSlice4()
+        {
+            EditorSceneManager.OpenScene(SunbreakPaths.IslandScenePath, OpenSceneMode.Single);
+            Directory.CreateDirectory(SunbreakPaths.Slice4ShotsDir);
+
+            var gen = UnityEngine.Object.FindFirstObjectByType<CityGenerator>();
+            if (gen == null) return;
+            gen.Generate();
+
+            Vector3 s = Geography.PLAYER_SPAWN.position;
+            Vector3 pp = new Vector3(s.x, CityGenerator.TerrainHeight(s.x, s.z), s.z);
+            Camera cam = GetCamera();
+            string dir = SunbreakPaths.Slice4ShotsDir;
+            var shots = new List<string>();
+
+            bool posed = PoseCharacterIdle(); // player idle instead of a T-pose
+
+            // Economy + mission markers around spawn (beacons mirror the runtime ones).
+            Beacon(pp + new Vector3(12f, 0f, -9f), new Color(1f, 0.4f, 0.3f), 6f);   // gun store
+            Beacon(pp + new Vector3(-15f, 0f, -7f), new Color(0.4f, 1f, 0.55f), 6f); // bank
+            Beacon(pp + new Vector3(27f, 0f, -20f), new Color(0.4f, 0.7f, 1f), 6f);  // dealership
+            Beacon(pp + new Vector3(6f, 0f, 6f), new Color(1f, 0.82f, 0.28f), 7f);   // mission giver
+            Beacon(pp + new Vector3(0f, 0f, 48f), new Color(0.3f, 0.8f, 1f), 40f);   // waypoint beam
+
+            // Daytime economy + mission stills (sunlit 3/4 angles).
+            shots.Add(Shoot(cam, "02_shops.png", pp + new Vector3(22f, 6f, 4f), pp + new Vector3(6f, 1.5f, -8f), dir));
+            shots.Add(Shoot(cam, "03_mission.png", pp + new Vector3(-9f, 4.5f, 2f), pp + new Vector3(3f, 3f, 30f), dir));
+
+            // Flip to NIGHT and shoot the GTA look.
+            if (posed) AnimationMode.StopAnimationMode();
+            ForceNight(gen, pp);
+            posed = PoseCharacterIdle();
+            shots.Add(Shoot(cam, "01_night_city.png", pp + new Vector3(9f, 2.6f, -18f), pp + new Vector3(1f, 2.2f, 34f), dir));
+            shots.Add(Shoot(cam, "04_night_street.png", pp + new Vector3(24f, 9f, -30f), pp + new Vector3(-2f, 2.5f, 16f), dir));
+            if (posed) AnimationMode.StopAnimationMode();
+
+            Debug.Log("SUNBREAK_SHOT4_OK: " + string.Join(" | ", shots));
+        }
+
+        static void ForceNight(CityGenerator gen, Vector3 near)
+        {
+            foreach (var l in UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None))
+                if (l.type == LightType.Directional)
+                {
+                    l.intensity = 0.12f;
+                    l.color = new Color(0.45f, 0.5f, 0.72f);
+                    l.transform.rotation = Quaternion.Euler(62f, 28f, 0f);
+                }
+
+            if (RenderSettings.skybox != null)
+            {
+                var sky = new Material(RenderSettings.skybox);
+                if (sky.HasProperty("_Exposure")) sky.SetFloat("_Exposure", 0.06f);
+                RenderSettings.skybox = sky;
+            }
+            // Flat cool ambient at night (the warm skybox GI was the red bleed on the buildings).
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.07f, 0.08f, 0.13f);
+            RenderSettings.fogColor = new Color(0.04f, 0.05f, 0.09f);
+            DynamicGI.UpdateEnvironment();
+
+            // Buildings stay dark; lamps glow softly; the scene is carried by modest warm pools.
+            if (gen.cityMat != null) { gen.cityMat.DisableKeyword("_EMISSION"); gen.cityMat.SetColor("_EmissionColor", Color.black); }
+            if (gen.propMat != null) { gen.propMat.EnableKeyword("_EMISSION"); gen.propMat.SetColor("_EmissionColor", new Color(0.28f, 0.22f, 0.13f)); }
+
+            for (int i = 0; i < 7; i++)
+            {
+                float a = i / 7f * Mathf.PI * 2f;
+                float r = 12f + (i % 3) * 9f;
+                var go = new GameObject("nlamp");
+                go.transform.position = near + new Vector3(Mathf.Cos(a) * r, 5f, Mathf.Sin(a) * r + 10f);
+                var pl = go.AddComponent<Light>();
+                pl.type = LightType.Point; pl.range = 17f; pl.intensity = 2.6f; pl.color = new Color(1f, 0.84f, 0.58f);
+            }
+        }
+
+        static GameObject Beacon(Vector3 groundPos, Color c, float height)
+        {
+            float g = CityGenerator.TerrainHeight(groundPos.x, groundPos.z);
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            var col = go.GetComponent<Collider>(); if (col) UnityEngine.Object.DestroyImmediate(col);
+            float w = height > 20f ? 1.2f : 0.5f;
+            go.transform.localScale = new Vector3(w, height, w);
+            go.transform.position = new Vector3(groundPos.x, g + height, groundPos.z);
+            var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = c };
+            var r = go.GetComponent<MeshRenderer>();
+            r.sharedMaterial = mat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return go;
+        }
+
+        static void CaptureMenu()
+        {
+            try
+            {
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                Directory.CreateDirectory(SunbreakPaths.Slice4ShotsDir);
+
+                var camGo = new GameObject("Cam", typeof(Camera));
+                var cam = camGo.GetComponent<Camera>();
+                cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = Color.black;
+
+                var canvasGo = new GameObject("Canvas");
+                var canvas = canvasGo.AddComponent<Canvas>();
+                canvas.renderMode = RenderMode.ScreenSpaceCamera;
+                canvas.worldCamera = cam; canvas.planeDistance = 10f;
+                var scaler = canvasGo.AddComponent<CanvasScaler>();
+                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+                scaler.referenceResolution = new Vector2(1920, 1080);
+
+                var menu = canvasGo.AddComponent<SUNBREAK.UI.MainMenu>();
+                menu.Populate(canvasGo.transform, Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+                Canvas.ForceUpdateCanvases();
+
+                string path = Path.Combine(SunbreakPaths.Slice4ShotsDir, "05_main_menu.png");
+                RenderToPng(cam, path);
+                Debug.Log("SUNBREAK_SHOTMENU_OK: " + path);
+            }
+            catch (Exception e) { Debug.LogWarning("SUNBREAK_SHOT: menu shot failed: " + e.Message); }
         }
 
         /// <summary>Spawn a posed crowd of peds + a squad of cops around the player for the stills.</summary>

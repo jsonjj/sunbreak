@@ -60,8 +60,6 @@ namespace SUNBREAK.UI
         // ── UI ──────────────────────────────────────────────────────────────────
         void BuildUI()
         {
-            _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-
             var go = new GameObject("Menu Canvas");
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -70,6 +68,14 @@ namespace SUNBREAK.UI
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             go.AddComponent<GraphicRaycaster>();
+            Populate(go.transform, Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+        }
+
+        /// <summary>Build the menu widgets into a canvas. Public so the capture tool can render the
+        /// menu into a camera-space canvas for a screenshot.</summary>
+        public void Populate(Transform go, Font font)
+        {
+            _font = font;
 
             // Gradient backdrop (deep night → black) for a premium feel.
             var bg = new GameObject("BG", typeof(RawImage));
