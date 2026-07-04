@@ -104,6 +104,79 @@ namespace SUNBREAK.BuildTools
             Debug.Log("SUNBREAK_SHOT_OK: " + string.Join(" | ", shots));
         }
 
+        // ── Slice 6: character lineup (to identify the SWAT + show crowd variety) ──
+        static void CaptureCharacters()
+        {
+            try
+            {
+                Directory.CreateDirectory(SunbreakPaths.Slice6ShotsDir);
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+                var sun = new GameObject("Sun").AddComponent<Light>();
+                sun.type = LightType.Directional; sun.intensity = 1.15f;
+                sun.transform.rotation = Quaternion.Euler(38f, 150f, 0f);
+                RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+                RenderSettings.ambientLight = new Color(0.42f, 0.44f, 0.5f);
+
+                var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+                ground.transform.localScale = Vector3.one * 6f;
+                ground.GetComponent<MeshRenderer>().sharedMaterial =
+                    new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(0.28f, 0.29f, 0.32f) };
+
+                // Collect skinned character FBX (same rule as the animator setup).
+                var models = new List<GameObject>();
+                var names = new List<string>();
+                foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { EditorTools.Characters.HumanoidAnimatorSetup.MixamoDir }))
+                {
+                    string path = AssetDatabase.GUIDToAssetPath(guid);
+                    var asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                    string lower = Path.GetFileNameWithoutExtension(path).ToLowerInvariant();
+                    bool isChar = asset != null && asset.GetComponentInChildren<SkinnedMeshRenderer>() != null && !IsAnim(lower);
+                    if (isChar) { models.Add(asset); names.Add(Path.GetFileNameWithoutExtension(path)); }
+                }
+
+                var animators = new List<Animator>();
+                float spacing = 1.7f;
+                float x0 = -(models.Count - 1) * 0.5f * spacing;
+                for (int i = 0; i < models.Count; i++)
+                {
+                    var go = (GameObject)PrefabUtility.InstantiatePrefab(models[i]);
+                    go.transform.position = new Vector3(x0 + i * spacing, 0f, 0f);
+                    go.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+                    var b = KitLibraryBounds(go);
+                    float h = Mathf.Max(0.01f, b.size.y);
+                    go.transform.localScale = Vector3.one * (1.8f / h);
+                    var a = go.GetComponentInChildren<Animator>() ?? go.AddComponent<Animator>();
+                    animators.Add(a);
+                }
+                Debug.Log("SUNBREAK_LINEUP (left→right): " + string.Join(", ", names));
+
+                bool posed = PoseHumanoids(animators);
+                var cam = new GameObject("Cam", typeof(Camera)).GetComponent<Camera>();
+                cam.tag = "MainCamera";
+                float width = Mathf.Max(4f, models.Count * spacing);
+                var camPos = new Vector3(0f, 1.6f, -width * 0.85f);
+                Shoot(cam, "01_characters.png", camPos, new Vector3(0f, 1.0f, 0f), SunbreakPaths.Slice6ShotsDir);
+                if (posed) AnimationMode.StopAnimationMode();
+                Debug.Log("SUNBREAK_SHOT6_OK: character lineup");
+            }
+            catch (Exception e) { Debug.LogWarning("SUNBREAK_SHOT: character lineup failed: " + e.Message); }
+        }
+
+        static bool IsAnim(string n) =>
+            n.Contains("idle") || n.Contains("walk") || n.Contains("run") || n.Contains("jump") || n.Contains("fire") ||
+            n.Contains("firing") || n.Contains("hit") || n.Contains("death") || n.Contains("kneel") || n.Contains("put away") ||
+            n.Contains("stomach") || n.Contains("reaction") || n.Contains("pistol") || n.Contains("rifle");
+
+        static Bounds KitLibraryBounds(GameObject go)
+        {
+            var rs = go.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return new Bounds(go.transform.position, new Vector3(0.5f, 1.8f, 0.5f));
+            Bounds b = rs[0].bounds;
+            for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
+            return b;
+        }
+
         // ── Slice 4 shots: economy markers, missions, and the night look ──────────
         static void CaptureSlice4()
         {

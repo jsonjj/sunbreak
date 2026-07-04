@@ -128,6 +128,22 @@ namespace SUNBREAK.EditorTools.World
             crowd.characterModel = animResult.characterModel;
             crowd.avatar = animResult.characterAvatar;
             crowd.controller = animResult.controller;
+            crowd.roster = animResult.characterModels;
+            crowd.rosterAvatars = animResult.characterAvatars;
+            crowd.policeModel = animResult.policeModel;
+            crowd.policeAvatar = animResult.policeAvatar;
+            Debug.Log("SUNBREAK_CHARACTERS: " + animResult.note);
+
+            // Visible weapon models (Kenney Blaster Kit, CC0) — mapped to the combat catalog ids.
+            var weaponLib = new GameObject("WeaponModels").AddComponent<WeaponModelLibrary>();
+            weaponLib.material = Instanced(KitLibrary.GetKitMaterial(KitLibrary.BlasterKit));
+            weaponLib.pistol = LoadBlaster("blaster-a");
+            weaponLib.smg = LoadBlaster("blaster-c");
+            weaponLib.shotgun = LoadBlaster("blaster-f");
+            weaponLib.rifle = LoadBlaster("blaster-h");
+            weaponLib.sniper = LoadBlaster("blaster-j");
+            weaponLib.rpg = LoadBlaster("blaster-r");
+            weaponLib.grenade = LoadBlaster("grenade-a");
 
             var wanted = new GameObject("WantedSystem").AddComponent<WantedSystem>();
             wanted.player = player.transform; wanted.playerState = state; wanted.crowd = crowd; wanted.city = gen;
@@ -151,6 +167,11 @@ namespace SUNBREAK.EditorTools.World
 
             var combat = player.gameObject.AddComponent<PlayerCombat>();
             combat.controller = player; combat.cameraController = camCtrl;
+
+            // Visible held weapon in the player's right hand (swaps with the equipped weapon).
+            var weaponVisuals = player.gameObject.AddComponent<WeaponVisuals>();
+            weaponVisuals.combat = combat;
+            weaponVisuals.animator = characterVisual != null ? characterVisual.GetComponentInChildren<Animator>() : null;
 
             var pickup = new GameObject("WeaponPickup").AddComponent<WeaponPickup>();
             pickup.transform.position = Geography.PLAYER_SPAWN.position + new Vector3(3f, 1f, 3f);
@@ -299,7 +320,7 @@ namespace SUNBREAK.EditorTools.World
         static void BuildEconomy()
         {
             // Acquisition interactables at their canon district coordinates.
-            MakeShop("Ironsights Armory", ShopKind.GunStore, new Vector3(235f, 1f, 40f)); // Costa Dorada
+            MakeEnterableShop("Ironsights Armory", ShopKind.GunStore, new Vector3(235f, 1f, 40f)); // Costa Dorada (enterable)
             MakeShop("Verano Motors", ShopKind.CarDealer, new Vector3(-45f, 1f, 70f));    // Miracle Row
             MakeShop("ATM / Bank", ShopKind.Bank, new Vector3(40f, 1f, -35f));            // downtown
 
@@ -350,6 +371,13 @@ namespace SUNBREAK.EditorTools.World
             var go = new GameObject(name) { transform = { position = pos } };
             var shop = go.AddComponent<Shop>();
             shop.kind = kind; shop.range = 4.5f;
+        }
+
+        static void MakeEnterableShop(string name, ShopKind kind, Vector3 pos)
+        {
+            var go = new GameObject(name) { transform = { position = pos } };
+            var shop = go.AddComponent<EnterableShop>();
+            shop.kind = kind; shop.label = name; shop.range = 4.5f;
         }
 
         static void MakeCash(Vector3 pos, int amount)
@@ -414,6 +442,9 @@ namespace SUNBREAK.EditorTools.World
             for (char c = from; c <= to; c++) l.Add(prefix + c);
             return l.ToArray();
         }
+
+        static GameObject LoadBlaster(string name) =>
+            KitLibrary.Has(KitLibrary.BlasterKit, name) ? KitLibrary.LoadModel(KitLibrary.BlasterKit, name) : null;
 
         static GameObject[] LoadList(string kitDir, string[] names)
         {
