@@ -78,9 +78,11 @@ namespace SUNBREAK.EditorTools.World
             SunbreakLook.CreateVolume();
 
             // 2) Ground surfaces.
+            // Ground plane is GroundHalf*2 m across; ~5 m asphalt tiles read crisply on the road.
+            float groundTiles = (GroundHalf * 2f) / 5f;
             Material asphalt = SunbreakLook.MakePbrGround("Road_Asphalt",
                 "Assets/SUNBREAK/Art/Environment/Textures/Asphalt025A", "Asphalt025A_2K-JPG",
-                new Vector2(0.25f, 0.25f), 0.28f);
+                new Vector2(groundTiles, groundTiles), 0.28f);
             Material paving = SunbreakLook.MakePbrGround("Sidewalk_Paving",
                 "Assets/SUNBREAK/Art/Environment/Textures/PavingStones128", "PavingStones128_2K-JPG",
                 new Vector2(0.5f, 0.5f), 0.20f);
@@ -152,8 +154,10 @@ namespace SUNBREAK.EditorTools.World
 
         static void BuildRoadMarkings(Transform parent)
         {
-            var line = LitMaterial("Mark_White", new Color(0.82f, 0.82f, 0.78f), 0f, 0.15f, Color.black);
-            var yellow = LitMaterial("Mark_Yellow", new Color(0.86f, 0.66f, 0.08f), 0f, 0.15f, Color.black);
+            // Unlit paint: real road markings are flat/matte and must not pick up the warm
+            // directional sun as an orange/pink cast. Unlit keeps them crisp white/yellow (+ fog).
+            var line = UnlitMaterial("Mark_White", new Color(0.82f, 0.82f, 0.82f));
+            var yellow = UnlitMaterial("Mark_Yellow", new Color(0.85f, 0.62f, 0.05f));
             var marks = new GameObject("RoadMarkings").transform;
             marks.SetParent(parent, false);
 
@@ -291,7 +295,7 @@ namespace SUNBREAK.EditorTools.World
             group.SetParent(parent, false);
             // Warm-white, gently emissive lamp head (subtle bloom, no orange blobs).
             var glow = LitMaterial("Lamp_Glow", new Color(1f, 0.95f, 0.85f), 0f, 0.4f,
-                new Color(1f, 0.92f, 0.78f) * 1.35f);
+                new Color(1f, 0.96f, 0.9f) * 0.5f);
             string model = KitLibrary.Has(KitLibrary.RoadsKit, "light-curved") ? "light-curved" : "light-square";
             float lx = RoadHalf + 0.7f;
 
@@ -314,7 +318,7 @@ namespace SUNBREAK.EditorTools.World
                     bulb.name = "Bulb";
                     Kill(bulb.GetComponent<Collider>());
                     bulb.transform.SetParent(head, false);
-                    bulb.transform.localScale = Vector3.one * 0.28f;
+                    bulb.transform.localScale = Vector3.one * 0.22f;
                     bulb.GetComponent<MeshRenderer>().sharedMaterial = glow;
 
                     var lightGo = new GameObject("Point");
@@ -622,6 +626,19 @@ namespace SUNBREAK.EditorTools.World
                 worldBounds.size.x / Mathf.Max(0.0001f, ls.x),
                 worldBounds.size.y / Mathf.Max(0.0001f, ls.y),
                 worldBounds.size.z / Mathf.Max(0.0001f, ls.z));
+        }
+
+        static Material UnlitMaterial(string name, Color color)
+        {
+            const string dir = "Assets/SUNBREAK/Art/Materials";
+            string path = dir + "/" + name + ".mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (mat == null) { mat = new Material(shader) { name = name }; AssetDatabase.CreateAsset(mat, path); }
+            else mat.shader = shader;
+            mat.SetColor("_BaseColor", color);
+            EditorUtility.SetDirty(mat);
+            return mat;
         }
 
         static Material LitMaterial(string name, Color color, float metallic, float smoothness, Color emission)

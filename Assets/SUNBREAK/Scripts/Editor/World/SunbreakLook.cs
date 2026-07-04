@@ -72,7 +72,7 @@ namespace SUNBREAK.EditorTools.World
             var go = new GameObject("Directional Light (Golden Hour Sun)");
             var light = go.AddComponent<Light>();
             light.type = LightType.Directional;
-            light.color = new Color(1f, 0.79f, 0.55f);   // warm low sun
+            light.color = new Color(1f, 0.86f, 0.68f);   // warm low sun (not over-orange)
             light.intensity = 1.5f;
             light.shadows = LightShadows.Soft;
             light.shadowStrength = 0.85f;
@@ -102,29 +102,33 @@ namespace SUNBREAK.EditorTools.World
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             AssetDatabase.CreateAsset(profile, VolumeProfilePath);
 
+            // Neutral (not ACES): keeps a filmic roll-off without ACES's hue skew that turned
+            // bright warm-lit whites (road paint) orange/red.
             var tone = profile.Add<Tonemapping>(true);
             tone.mode.overrideState = true;
-            tone.mode.value = TonemappingMode.ACES;
+            tone.mode.value = TonemappingMode.Neutral;
 
             var bloom = profile.Add<Bloom>(true);
-            bloom.intensity.overrideState = true; bloom.intensity.value = 0.85f;
-            bloom.threshold.overrideState = true; bloom.threshold.value = 0.9f;
-            bloom.scatter.overrideState = true; bloom.scatter.value = 0.62f;
-            bloom.tint.overrideState = true; bloom.tint.value = new Color(1f, 0.93f, 0.82f);
+            bloom.intensity.overrideState = true; bloom.intensity.value = 0.7f;
+            bloom.threshold.overrideState = true; bloom.threshold.value = 1.1f;
+            bloom.scatter.overrideState = true; bloom.scatter.value = 0.6f;
+            bloom.tint.overrideState = true; bloom.tint.value = new Color(1f, 0.98f, 0.94f); // near-white: no pink halo
 
+            // Restrained grade: warmth comes from the SUN, not from saturation/filter (which was
+            // over-saturating near-white road paint into a pink cast).
             var color = profile.Add<ColorAdjustments>(true);
-            color.postExposure.overrideState = true; color.postExposure.value = 0.25f;
-            color.contrast.overrideState = true; color.contrast.value = 14f;
-            color.saturation.overrideState = true; color.saturation.value = 8f;
-            color.colorFilter.overrideState = true; color.colorFilter.value = new Color(1f, 0.96f, 0.90f);
+            color.postExposure.overrideState = true; color.postExposure.value = 0.08f;
+            color.contrast.overrideState = true; color.contrast.value = 9f;
+            color.saturation.overrideState = true; color.saturation.value = 0f;
+            color.colorFilter.overrideState = true; color.colorFilter.value = new Color(1f, 0.99f, 0.97f);
 
             var wb = profile.Add<WhiteBalance>(true);
-            wb.temperature.overrideState = true; wb.temperature.value = 16f;  // warmer
-            wb.tint.overrideState = true; wb.tint.value = 3f;
+            wb.temperature.overrideState = true; wb.temperature.value = 6f;
+            wb.tint.overrideState = true; wb.tint.value = 1f;
 
             var smh = profile.Add<ShadowsMidtonesHighlights>(true);
-            smh.shadows.overrideState = true; smh.shadows.value = new Vector4(0.95f, 0.98f, 1.08f, 0f);   // cool shadows
-            smh.highlights.overrideState = true; smh.highlights.value = new Vector4(1.08f, 1.02f, 0.9f, 0f); // warm highlights
+            smh.shadows.overrideState = true; smh.shadows.value = new Vector4(0.97f, 0.99f, 1.04f, 0f);   // subtly cool shadows
+            smh.highlights.overrideState = true; smh.highlights.value = new Vector4(1.0f, 1.0f, 1.0f, 0f); // neutral highlights (no red push)
 
             var vignette = profile.Add<Vignette>(true);
             vignette.intensity.overrideState = true; vignette.intensity.value = 0.30f;
