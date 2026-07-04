@@ -93,6 +93,18 @@ namespace SUNBREAK.Player
             LookYaw += dYaw;
         }
 
+        /// <summary>Place the player at a world position + heading (save/load, respawn). Toggles the
+        /// CharacterController so the move happens even while it's active.</summary>
+        public void Teleport(Vector3 pos, float yaw)
+        {
+            bool was = _cc != null && _cc.enabled;
+            if (_cc != null) _cc.enabled = false;
+            transform.position = pos;
+            LookYaw = yaw;
+            _velocity = Vector3.zero;
+            if (_cc != null) _cc.enabled = was;
+        }
+
         void OnEnable()
         {
             _move.Enable(); _look.Enable(); _jump.Enable(); _sprint.Enable(); _crouch.Enable();
