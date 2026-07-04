@@ -15,31 +15,47 @@ namespace SUNBREAK.Player
     public sealed class PlayerController : MonoBehaviour
     {
         [Header("Movement (m/s)")]
-        public float walkSpeed = 4.5f;
+        public float walkSpeed = 4.6f;
         public float sprintSpeed = 8.5f;
+        public float crouchSpeed = 2.2f;
         public float jumpHeight = 1.4f;
         public float gravity = 22f;
         public float turnSharpness = 14f;
 
+        [Header("Crouch")]
+        public float standHeight = 2f;
+        public float crouchHeight = 1.2f;
+
         [Header("Look")]
         [Tooltip("Degrees of yaw/pitch per pixel of mouse delta.")]
         public float mouseSensitivity = 0.12f;
-        public float minPitch = -25f;
-        public float maxPitch = 65f;
+        public float minPitch = -35f;
+        public float maxPitch = 70f;
         public bool lockCursor = true;
 
         /// <summary>Camera yaw in degrees (world), driven by mouse X.</summary>
         public float LookYaw { get; private set; }
         /// <summary>Camera pitch in degrees, driven by mouse Y (clamped).</summary>
         public float LookPitch { get; private set; }
+        /// <summary>Horizontal speed this frame (m/s) — drives the locomotion blend tree.</summary>
+        public float PlanarSpeed { get; private set; }
+        public bool IsSprinting { get; private set; }
+        public bool IsCrouching { get; private set; }
+        public bool IsGrounded => _cc != null && _cc.isGrounded;
+        /// <summary>When aiming, the body faces LookYaw instead of the travel direction (strafe).</summary>
+        public bool StrafeToLook { get; set; }
+        /// <summary>Lock body movement (e.g. while driving) but keep look active for the camera.</summary>
+        public bool movementEnabled = true;
 
         CharacterController _cc;
-        InputAction _move, _look, _jump, _sprint;
+        InputAction _move, _look, _jump, _sprint, _crouch;
         Vector3 _velocity;
+        float _height;
 
         void Awake()
         {
             _cc = GetComponent<CharacterController>();
+            _height = standHeight;
 
             _move = new InputAction("Move", InputActionType.Value);
             _move.AddCompositeBinding("2DVector")
@@ -62,23 +78,23 @@ namespace SUNBREAK.Player
             _sprint.AddBinding("<Keyboard>/leftShift");
             _sprint.AddBinding("<Gamepad>/leftStickPress");
 
+            _crouch = new InputAction("Crouch", InputActionType.Button);
+            _crouch.AddBinding("<Keyboard>/c");
+            _crouch.AddBinding("<Keyboard>/leftCtrl");
+            _crouch.AddBinding("<Gamepad>/buttonEast");
+
             LookYaw = transform.eulerAngles.y;
         }
 
         void OnEnable()
         {
-            _move.Enable();
-            _look.Enable();
-            _jump.Enable();
-            _sprint.Enable();
+            _move.Enable(); _look.Enable(); _jump.Enable(); _sprint.Enable(); _crouch.Enable();
         }
 
         void OnDisable()
         {
-            _move.Disable();
-            _look.Disable();
-            _jump.Disable();
-            _sprint.Disable();
+            _move.Disable(); _look.Disable(); _jump.Disable(); _sprint.Disable(); _crouch.Disable();
+            PlanarSpeed = 0f;
         }
 
         void Start()
@@ -101,29 +117,41 @@ namespace SUNBREAK.Player
             if (LookYaw > 180f) LookYaw -= 360f;
             else if (LookYaw < -180f) LookYaw += 360f;
 
+            if (!movementEnabled || !_cc.enabled) { PlanarSpeed = 0f; IsSprinting = false; return; }
+
+            // ── Crouch (toggle capsule height) ──
+            IsCrouching = _crouch.IsPressed();
+            float targetH = IsCrouching ? crouchHeight : standHeight;
+            _height = Mathf.Lerp(_height, targetH, 1f - Mathf.Exp(-12f * dt));
+            _cc.height = _height;
+            _cc.center = new Vector3(0f, (_height - standHeight) * 0.5f, 0f);
+
             // ── Move (camera-relative on the XZ plane) ──
             Vector2 mv = _move.ReadValue<Vector2>();
             Vector3 wish = Quaternion.Euler(0f, LookYaw, 0f) * new Vector3(mv.x, 0f, mv.y);
             if (wish.sqrMagnitude > 1f) wish.Normalize();
 
-            float speed = _sprint.IsPressed() ? sprintSpeed : walkSpeed;
+            IsSprinting = _sprint.IsPressed() && !IsCrouching && mv.y > 0.1f;
+            float speed = IsCrouching ? crouchSpeed : (IsSprinting ? sprintSpeed : walkSpeed);
             Vector3 horizontal = wish * speed;
+            PlanarSpeed = new Vector2(horizontal.x, horizontal.z).magnitude;
 
             // ── Gravity + jump ──
             if (_cc.isGrounded)
             {
                 if (_velocity.y < 0f) _velocity.y = -2f;
-                if (_jump.WasPressedThisFrame())
+                if (_jump.WasPressedThisFrame() && !IsCrouching)
                     _velocity.y = Mathf.Sqrt(2f * jumpHeight * gravity);
             }
             _velocity.y -= gravity * dt;
 
             _cc.Move((horizontal + Vector3.up * _velocity.y) * dt);
 
-            // ── Face travel direction ──
-            if (wish.sqrMagnitude > 0.01f)
+            // ── Face travel direction (or look direction when aiming) ──
+            Vector3 face = StrafeToLook ? (Quaternion.Euler(0f, LookYaw, 0f) * Vector3.forward) : wish;
+            if (face.sqrMagnitude > 0.01f)
             {
-                Quaternion target = Quaternion.LookRotation(wish, Vector3.up);
+                Quaternion target = Quaternion.LookRotation(face, Vector3.up);
                 transform.rotation = Quaternion.Slerp(
                     transform.rotation, target, 1f - Mathf.Exp(-turnSharpness * dt));
             }
