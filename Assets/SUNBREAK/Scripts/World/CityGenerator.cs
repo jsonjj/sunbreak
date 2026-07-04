@@ -100,6 +100,15 @@ namespace SUNBREAK.World
             return h;
         }
 
+        /// <summary>Actual ground surface at (x,z): raycast the terrain/road colliders (ignoring
+        /// vehicles), falling back to the heightfield. Used to seat cars so they never sink/float.</summary>
+        public static float GroundY(float x, float z)
+        {
+            if (Physics.Raycast(new Vector3(x, 300f, z), Vector3.down, out var hit, 600f, ~(1 << CarLayer), QueryTriggerInteraction.Ignore))
+                return hit.point.y;
+            return TerrainHeight(x, z);
+        }
+
         static Color32 GroundColor(float x, float z, float height)
         {
             if (height < Geography.WATER_LEVEL + 0.15f) return new Color32(70, 66, 52, 255);   // wet mud/seabed
@@ -386,13 +395,15 @@ namespace SUNBREAK.World
             float s = Mathf.Clamp(4.2f / natLen, 0.05f, 40f);
             body.transform.localScale = Vector3.one * s;
             b = CombinedBounds(body);
-            body.transform.position += Safe(new Vector3(-b.center.x, -b.min.y, -b.center.z));
+            // Sit the body ABOVE the wheels (bottom at ~wheel-axle height) so it rides ON its wheels
+            // instead of sinking to the ground with the wheels buried (the reported "sunk" look).
+            float radius = Mathf.Clamp(b.size.y * 0.28f, 0.28f, 0.55f);
+            body.transform.position += Safe(new Vector3(-b.center.x, -b.min.y + radius, -b.center.z));
             b = CombinedBounds(body);
             Paint(body, carMat);
 
             float halfTrack = b.size.x * 0.5f * 0.92f;
             float frontZ = b.size.z * 0.5f * 0.66f;
-            float radius = Mathf.Clamp(b.size.y * 0.28f, 0.28f, 0.55f);
             var wh = new Transform[4];
             (float x, float z)[] wp = { (-halfTrack, frontZ), (halfTrack, frontZ), (-halfTrack, -frontZ), (halfTrack, -frontZ) };
             for (int i = 0; i < 4; i++)
@@ -418,8 +429,10 @@ namespace SUNBREAK.World
             root.gameObject.AddComponent<CarLights>(); // headlights at night
             root.gameObject.AddComponent<SUNBREAK.Audio.EngineAudio>(); // engine tone, distance-gated
 
-            float groundY = TerrainHeight(groundPos.x, groundPos.z);
-            root.SetPositionAndRotation(Safe(new Vector3(groundPos.x, groundY + 0.4f, groundPos.z)), Quaternion.Euler(0f, yaw, 0f));
+            // Seat on the actual ground surface (raycast the terrain/road collider; fall back to the
+            // heightfield) so cars never spawn sunk or floating.
+            float groundY = GroundY(groundPos.x, groundPos.z);
+            root.SetPositionAndRotation(Safe(new Vector3(groundPos.x, groundY + 0.2f, groundPos.z)), Quaternion.Euler(0f, yaw, 0f));
 
             // All cars live on the vehicle layer so raycast wheels + traffic sensors ignore vehicles.
             SetLayerRecursive(root.gameObject, CarLayer);
@@ -436,12 +449,10 @@ namespace SUNBREAK.World
             if (parent != null) go.transform.SetParent(parent, true);
 
             var rb = go.AddComponent<Rigidbody>();
-            // Chassis box lifted ABOVE the wheel-contact plane so the car rides on its raycast wheels
-            // (if the box rests on the ground the springs never load → zero grip → the car can't drive).
-            float wheelRadius = Mathf.Clamp(b.size.y * 0.28f, 0.28f, 0.55f);
-            float lift = wheelRadius + 0.12f;
+            // Chassis box covers the body (which now sits above the wheels), so it clears the ground
+            // and the raycast wheels carry the load (a ground-resting box → zero grip → can't drive).
             var box = go.AddComponent<BoxCollider>();
-            box.center = new Vector3(0f, lift + b.size.y * 0.5f, 0f);
+            box.center = new Vector3(0f, b.center.y, 0f);
             box.size = new Vector3(b.size.x * 0.9f, b.size.y, b.size.z * 0.98f);
             var ctrl = go.AddComponent<ArcadeCarController>();
             ctrl.groundMask = ~(1 << CarLayer); // wheels never ray-hit any vehicle

@@ -187,8 +187,10 @@ namespace SUNBREAK.Vehicles
             Vector3 right = Vector3.Cross(n, fwd).normalized;
             Vector3 contactVel = _rb.GetPointVelocity(hit.point);
 
-            // Normal load available for the friction circle.
-            float load = springForce;
+            // Normal load available for the friction circle. Keep a floor on it so the car always has
+            // grip to drive even when the springs are barely loaded (arcade forgiveness).
+            float minLoad = cornerMass * 9.81f * 0.8f;
+            float load = Mathf.Max(springForce, minLoad);
             float frictionCircle = w.frictionSlip * load;
 
             // ── Lateral grip (cancel sideways slip up to the friction budget) ──
