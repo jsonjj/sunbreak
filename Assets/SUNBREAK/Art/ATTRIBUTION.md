@@ -53,6 +53,18 @@ the whole family is texel-consistent — this is the cohesion backbone of the he
     (mixing a second kit family would fight the cohesion goal). Drop the unzipped
     kit into `Kits/Quaternius/` if you want it available for later districts.
 
+## Audio — car radio (Slice 4)
+
+Streamed at runtime from `Assets/StreamingAssets/Radio/*.mp3` (raw files shipped in the build,
+loaded via `UnityWebRequestMultimedia`). All engine/footstep/impact/gunshot/ambient SFX and the
+"SUNBREAK FM · Nightdrive" synth station are **procedurally generated in code** (no assets).
+
+- **J.S. Bach — Goldberg Variations, BWV 988** (Kimiko Ishizaka, "Open Goldberg Variations")
+  - License: **CC0 1.0 Universal** — https://creativecommons.org/publicdomain/zero/1.0/
+  - Source: https://archive.org/details/OpenGoldbergVariations (Usage: CC0 1.0 Universal)
+  - Files: `StreamingAssets/Radio/classics_01.mp3`, `classics_02.mp3`, `classics_03.mp3`
+    (Var. 17, Var. 20, Aria da Capo — the in-game "SUN Classics" station)
+
 ## First-party
-- All SUNBREAK code, generated meshes, procedural materials, and the world blueprint
-  (`Scripts/World/Geography.cs`) are original to this project.
+- All SUNBREAK code, generated meshes, procedural materials, procedural audio, and the world
+  blueprint (`Scripts/World/Geography.cs`) are original to this project.
