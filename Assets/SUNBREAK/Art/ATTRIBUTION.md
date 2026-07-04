@@ -10,14 +10,14 @@ provenance for license audits. Re-verify each source page before shipping.
 - **Kloofendal 48d Partly Cloudy (Pure Sky), 4K** — Poly Haven
   - License: **CC0** — https://polyhaven.com/license
   - Source: https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky
-  - File: `Environment/HDRI/kloofendal_puresky_4k.hdr`
-  - Download: `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/kloofendal_48d_partly_cloudy_puresky_4k.hdr`
+  - File: `Environment/HDRI/kloofendal_puresky_2k.hdr` (2K kept for repo leanness; 4K was ~20 MB)
+  - Download: `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/kloofendal_48d_partly_cloudy_puresky_2k.hdr`
 
 ### PBR ground textures (road + sidewalk)
 - **Asphalt025A (2K)** — ambientCG
   - License: **CC0** — https://ambientcg.com/
   - Source / download: `https://ambientcg.com/get?file=Asphalt025A_2K-JPG.zip`
-  - Maps kept: Color, NormalGL, Roughness, AmbientOcclusion, Displacement
+  - Maps kept: Color, NormalGL, AmbientOcclusion (downsized to 1K; Roughness/Displacement dropped — unused — for repo leanness)
   - Folder: `Environment/Textures/Asphalt025A/`
 - **PavingStones128 (2K)** — ambientCG
   - License: **CC0** — https://ambientcg.com/

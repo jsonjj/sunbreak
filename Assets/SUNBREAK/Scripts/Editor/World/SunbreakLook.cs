@@ -15,7 +15,7 @@ namespace SUNBREAK.EditorTools.World
     /// </summary>
     public static class SunbreakLook
     {
-        const string HdriPath = "Assets/SUNBREAK/Art/Environment/HDRI/kloofendal_puresky_4k.hdr";
+        const string HdriPath = "Assets/SUNBREAK/Art/Environment/HDRI/kloofendal_puresky_2k.hdr";
         const string TexRoot = "Assets/SUNBREAK/Art/Environment/Textures";
         const string SettingsDir = "Assets/SUNBREAK/Settings";
         const string MatDir = "Assets/SUNBREAK/Art/Materials";
