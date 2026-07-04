@@ -24,6 +24,8 @@ namespace SUNBREAK.World
         NavMeshAgent _agent;
         Health _health;
         CapsuleCollider _capsule;
+        Animator _animator;
+        GameObject _weaponGo;
 
         float _walk, _run, _jumpiness;
         bool _fighter;
@@ -40,6 +42,7 @@ namespace SUNBREAK.World
         {
             _agent = agent; _health = health;
             _capsule = GetComponent<CapsuleCollider>();
+            _animator = GetComponentInChildren<Animator>();
             _health.OnDamaged += OnDamaged;
             _health.OnDied += OnDied;
         }
@@ -53,13 +56,26 @@ namespace SUNBREAK.World
             Ragdoll.Reset(gameObject);
             if (_agent != null && _agent.isOnNavMesh) { _agent.isStopped = false; _agent.speed = walk; }
             _health.HideBar();
+
+            // Visible weapon for armed peds (removed on recycle so the pool stays clean).
+            ClearWeapon();
+            if (_weapon != null) _weaponGo = CrowdFactory.EquipWeapon(_animator, _weapon);
+            else CrowdFactory.SetUnarmed(_animator);
         }
 
         public void Deactivate()
         {
             Active = false;
+            ClearWeapon();
+            CrowdFactory.SetUnarmed(_animator);
             if (_agent != null && _agent.isActiveAndEnabled && _agent.isOnNavMesh) _agent.ResetPath();
             gameObject.SetActive(false);
+        }
+
+        void ClearWeapon()
+        {
+            if (_weaponGo != null) Destroy(_weaponGo);
+            _weaponGo = null;
         }
 
         void Update()
