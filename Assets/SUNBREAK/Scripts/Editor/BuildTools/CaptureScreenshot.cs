@@ -5,6 +5,8 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using SUNBREAK.EditorTools.Characters;
+using SUNBREAK.Vehicles;
+using SUNBREAK.World;
 
 namespace SUNBREAK.BuildTools
 {
@@ -26,12 +28,14 @@ namespace SUNBREAK.BuildTools
         {
             try
             {
-                if (File.Exists(SunbreakPaths.HeroScenePath))
+                if (File.Exists(SunbreakPaths.IslandScenePath))
+                    CaptureIsland();
+                else if (File.Exists(SunbreakPaths.HeroScenePath))
                     CaptureHero();
                 else if (File.Exists(SunbreakPaths.ScenePath))
                     CaptureGreybox();
                 else
-                    throw new Exception("No scene found (hero or greybox).");
+                    throw new Exception("No scene found (island, hero or greybox).");
 
                 EditorApplication.Exit(0);
             }
@@ -40,6 +44,67 @@ namespace SUNBREAK.BuildTools
                 Debug.LogError("SUNBREAK_SHOT_FAIL: " + e);
                 EditorApplication.Exit(1);
             }
+        }
+
+        static void CaptureIsland()
+        {
+            EditorSceneManager.OpenScene(SunbreakPaths.IslandScenePath, OpenSceneMode.Single);
+            Directory.CreateDirectory(SunbreakPaths.Slice2ShotsDir);
+
+            var gen = UnityEngine.Object.FindFirstObjectByType<CityGenerator>();
+            if (gen == null) throw new Exception("No CityGenerator in island scene.");
+            gen.Generate(); // build the city in edit mode for the shots (not saved)
+
+            // Pose the character in idle BEFORE any render (AnimationMode is finicky once the
+            // camera has rendered), so the third-person shot isn't a T-pose.
+            bool posed = PoseCharacterIdle();
+
+            Camera cam = GetCamera();
+            string dir = SunbreakPaths.Slice2ShotsDir;
+            var shots = new List<string>();
+
+            // District shots (cam pos offset, look target). Positioned on the sun-lit (SE) side,
+            // elevated enough to clear the buildings. Y uses terrain height.
+            shots.Add(Shoot(cam, "01_downtown_miracle_row.png",
+                new Vector3(185f, 140f, -180f), new Vector3(0f, 26f, 5f), dir));
+            shots.Add(DistrictShot(cam, dir, "02_costa_dorada.png", 320f, 12f, new Vector3(50f, 22f, 52f), 12f));
+            shots.Add(DistrictShot(cam, dir, "03_calle_sol_residential.png", -320f, -260f, new Vector3(38f, 13f, 40f), 5f));
+            shots.Add(DistrictShot(cam, dir, "04_bayfront.png", 90f, 360f, new Vector3(26f, 8f, -34f), 5f));
+            shots.Add(DistrictShot(cam, dir, "05_the_mint_industrial.png", -300f, 280f, new Vector3(44f, 18f, 46f), 7f));
+
+            // Aerial bird's-eye of the island + coastline/water.
+            shots.Add(Shoot(cam, "06_island_aerial.png",
+                new Vector3(250f, 230f, -250f), new Vector3(20f, 6f, 30f), dir));
+
+            // Traversal over-the-shoulder near spawn (idle-posed character).
+            Vector3 pp = FindPos("Player", Geography.PLAYER_SPAWN.position);
+            float pg = CityGenerator.TerrainHeight(pp.x, pp.z);
+            pp.y = pg;
+            shots.Add(Shoot(cam, "07_traversal_thirdperson.png",
+                pp + new Vector3(-2.4f, 2.3f, -6.0f), pp + new Vector3(1.5f, 1.2f, 14f), dir));
+
+            // Car on a street.
+            var car = UnityEngine.Object.FindFirstObjectByType<ArcadeCarController>();
+            if (car != null)
+            {
+                Vector3 cp = car.transform.position;
+                shots.Add(Shoot(cam, "08_car_street.png", cp + new Vector3(5f, 2.2f, 6f), cp + new Vector3(0f, 0.6f, 0f), dir));
+            }
+
+            // Top-down "minimap"/map of the island (orthographic) — shows the district layout.
+            shots.Add(ShootOrtho(cam, "09_minimap_island.png",
+                new Vector3(0f, 400f, 20f), Geography.PLAYABLE_HALF * 1.05f, dir));
+
+            if (posed) AnimationMode.StopAnimationMode();
+            Debug.Log("SUNBREAK_SHOT_OK: " + string.Join(" | ", shots));
+        }
+
+        static string DistrictShot(Camera cam, string dir, string file, float cx, float cz, Vector3 offset, float lookY)
+        {
+            float g = CityGenerator.TerrainHeight(cx, cz);
+            Vector3 pos = new Vector3(cx + offset.x, g + offset.y, cz + offset.z);
+            Vector3 look = new Vector3(cx, g + lookY, cz);
+            return Shoot(cam, file, pos, look, dir);
         }
 
         [MenuItem("SUNBREAK/Capture Screenshots")]
@@ -94,23 +159,23 @@ namespace SUNBREAK.BuildTools
             try
             {
                 var player = GameObject.Find("Player");
-                Transform charT = player != null ? player.transform.Find("Character") : null;
-                if (charT == null) return false;
+                var animator = player != null ? player.GetComponentInChildren<Animator>(true) : null;
 
                 AnimationClip idle = null;
-                foreach (var guid in AssetDatabase.FindAssets("t:AnimationClip", new[] { HumanoidAnimatorSetup.MixamoDir }))
+                foreach (var guid in AssetDatabase.FindAssets("t:GameObject", new[] { HumanoidAnimatorSetup.MixamoDir }))
                 {
                     string p = AssetDatabase.GUIDToAssetPath(guid);
-                    if (!p.ToLowerInvariant().Contains("idle")) continue;
+                    if (!Path.GetFileNameWithoutExtension(p).ToLowerInvariant().Contains("idle")) continue;
                     foreach (var o in AssetDatabase.LoadAllAssetsAtPath(p))
                         if (o is AnimationClip c && !c.name.StartsWith("__preview")) { idle = c; break; }
                     if (idle != null) break;
                 }
-                if (idle == null) return false;
+                Debug.Log($"SUNBREAK_SHOT_POSE: animator={(animator != null)} idle={(idle != null)}");
+                if (animator == null || idle == null) return false;
 
                 AnimationMode.StartAnimationMode();
                 AnimationMode.BeginSampling();
-                AnimationMode.SampleAnimationClip(charT.gameObject, idle, 1.2f);
+                AnimationMode.SampleAnimationClip(animator.gameObject, idle, 1.2f);
                 AnimationMode.EndSampling();
                 return true;
             }
@@ -152,6 +217,21 @@ namespace SUNBREAK.BuildTools
             cam.transform.rotation = Quaternion.LookRotation((lookAt - pos).normalized, Vector3.up);
             string path = Path.Combine(dir, file);
             RenderToPng(cam, path);
+            return path;
+        }
+
+        static string ShootOrtho(Camera cam, string file, Vector3 pos, float orthoSize, string dir)
+        {
+            bool prevOrtho = cam.orthographic;
+            float prevSize = cam.orthographicSize;
+            cam.orthographic = true;
+            cam.orthographicSize = orthoSize;
+            cam.transform.position = pos;
+            cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            string path = Path.Combine(dir, file);
+            RenderToPng(cam, path);
+            cam.orthographic = prevOrtho;
+            cam.orthographicSize = prevSize;
             return path;
         }
 

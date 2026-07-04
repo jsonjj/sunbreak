@@ -35,6 +35,7 @@ case "$cmd" in
   compile) _run compile "SUNBREAK.BuildTools.CompileCheck.Run" ;;
   greybox) _run greybox "SUNBREAK.EditorTools.GreyboxSceneBuilder.Build" ;;
   hero)    _run hero    "SUNBREAK.EditorTools.World.HeroStreetBuilder.Build" ;;
+  island)  _run island  "SUNBREAK.EditorTools.World.IslandSceneBuilder.Build" ;;
   build)   _run build   "SUNBREAK.BuildTools.BuildMacOS.Build" ;;
   capture) _run capture "SUNBREAK.BuildTools.CaptureScreenshot.Capture" ;;
   run)
@@ -48,7 +49,7 @@ case "$cmd" in
     ;;
   all)
     _run compile "SUNBREAK.BuildTools.CompileCheck.Run" && \
-    _run hero    "SUNBREAK.EditorTools.World.HeroStreetBuilder.Build" && \
+    _run island  "SUNBREAK.EditorTools.World.IslandSceneBuilder.Build" && \
     _run build   "SUNBREAK.BuildTools.BuildMacOS.Build" && \
     _run capture "SUNBREAK.BuildTools.CaptureScreenshot.Capture"
     ;;
@@ -59,10 +60,11 @@ Usage: ./tools/unity.sh <command>
   compile   Force a headless compile check (SUNBREAK.BuildTools.CompileCheck.Run)
   greybox   (Re)generate the greybox scene (SUNBREAK.EditorTools.GreyboxSceneBuilder.Build)
   hero      (Re)generate the Slice 1 hero street (SUNBREAK.EditorTools.World.HeroStreetBuilder.Build)
+  island    (Re)generate the Slice 2 full island scene (SUNBREAK.EditorTools.World.IslandSceneBuilder.Build)
   build     Build Builds/SUNBREAK.app (StandaloneOSX)
-  capture   Render screenshots to BuildLogs/shots/slice1/
+  capture   Render screenshots to BuildLogs/shots/
   run       Open the built .app
-  all       compile -> hero -> build -> capture
+  all       compile -> island -> build -> capture
 Env overrides: UNITY=<editor binary>  PROJECT=<project path>
 EOF
     ;;

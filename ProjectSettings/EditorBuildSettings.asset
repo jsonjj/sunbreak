@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/SUNBREAK/Scenes/Island.unity
+    guid: 290c38b5f497f4106bd6316621a59730
+  - enabled: 0
     path: Assets/SUNBREAK/Scenes/HeroStreet.unity
     guid: 7bd925532e2f24f4aac3f1b02d743724
   - enabled: 0
