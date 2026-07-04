@@ -25,8 +25,9 @@ namespace SUNBREAK.Missions
             var crowd = CrowdFactory.Instance;
             if (crowd == null) return null;
             var go = crowd.BuildHumanoid("MissionEnemy", Faction.Civilian, 90f, new Color(0.55f, 0.2f, 0.22f),
-                out var agent, out var hp, out _);
+                out var agent, out var hp, out var animator);
             if (!CrowdFactory.Place(go, agent, pos)) { Object.Destroy(go); return null; }
+            CrowdFactory.EquipWeapon(animator, weapon); // visible gun + armed hold pose
             var e = go.AddComponent<MissionEnemy>();
             e.Init(agent, hp, weapon);
             return e;

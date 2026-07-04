@@ -19,6 +19,7 @@ namespace SUNBREAK.EditorTools.Kits
         public const string CommercialKit = KenneyRoot + "/kenney_city-kit-commercial/Models/FBX format";
         public const string RoadsKit = KenneyRoot + "/kenney_city-kit-roads/Models/FBX format";
         public const string NatureKit = KenneyRoot + "/kenney_nature-kit/Models/FBX format";
+        public const string BlasterKit = KenneyRoot + "/kenney_blaster-kit/Models/FBX format";
 
         const string KitMatDir = "Assets/SUNBREAK/Art/Materials/Kits";
 

@@ -37,6 +37,10 @@ the whole family is texel-consistent — this is the cohesion backbone of the he
   - Complete buildings `building-a…n`, `building-skyscraper-a…e`, awnings/overhangs.
 - **City Kit (Roads)** — `Kits/Kenney/kenney_city-kit-roads/` — https://kenney.nl/assets/city-kit-roads
   - Streetlights (`light-square`, `light-curved`…), cones, barriers, road pieces.
+- **Blaster Kit (2.1)** — `Kits/Kenney/kenney_blaster-kit/` — https://kenney.nl/assets/blaster-kit
+  - CC0 stylized blasters used as the visible held weapons (pistol/SMG/shotgun/rifle/sniper/RPG
+    mapped to blaster-a/c/f/h/j/r + grenade-a). Realistic free weapon packs are scarce, so this
+    cohesive CC0 set matches the Kenney city/car aesthetic. Trimmed to FBX + colormap.
 - **Nature Kit** — `Kits/Kenney/kenney_nature-kit/` — https://kenney.nl/assets/nature-kit
   - Trimmed to palms only (`tree_palm*`) for the coastal Santa Vista look.
   - NOTE: Kenney nature models are **vertex-coloured** (no texture atlas); rendered via

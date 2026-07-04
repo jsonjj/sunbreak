@@ -29,6 +29,7 @@ namespace SUNBREAK.Combat
         InputAction _fire, _reload, _wheel, _scroll;
         InputAction[] _slots;
         Vector2 _wheelAim;
+        WeaponVisuals _visuals;
 
         public bool WheelOpen { get; private set; }
         public int WheelSelection { get; private set; }
@@ -42,6 +43,7 @@ namespace SUNBREAK.Combat
         void Awake()
         {
             if (controller == null) controller = GetComponent<PlayerController>();
+            _visuals = GetComponent<WeaponVisuals>();
             foreach (var id in _owned) _mag[id] = Weapons.Get(id).magSize;
 
             _fire = new InputAction("Fire", InputActionType.Value, "<Mouse>/leftButton");
@@ -98,8 +100,8 @@ namespace SUNBREAK.Combat
             }
 
             bool aiming = cameraController != null && cameraController.Aiming;
-            Vector3 muzzle = transform.position + Vector3.up * 1.15f + transform.forward * 0.4f;
-            CombatFx.Instance?.Muzzle(muzzle, w.muzzle);
+            Vector3 muzzle = _visuals != null ? _visuals.MuzzlePosition : transform.position + Vector3.up * 1.15f + transform.forward * 0.4f;
+            if (_visuals != null) _visuals.OnFire(); else CombatFx.Instance?.Muzzle(muzzle, w.muzzle);
             CombatFx.Instance?.Sfx(w.sfx, muzzle);
             ThreatBus.Gunshot(transform.position); // ped fear only; NOT wanted
 
