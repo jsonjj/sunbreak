@@ -111,9 +111,9 @@ namespace SUNBREAK.UI
             }
             Button("QUIT", new Vector2(0, y - (SaveSystem.Slots + 1) * 84), go.transform, Quit);
 
-            Text("WASD move · Mouse look · Left-click fire · F enter car · E interact · Tab weapons · Esc pause",
+            Text(Controls.OneLine,
                 18, FontStyle.Normal, new Color(1f, 1f, 1f, 0.55f), TextAnchor.LowerCenter,
-                new Vector2(0, 30), new Vector2(1600, 30), go.transform);
+                new Vector2(0, 30), new Vector2(1800, 30), go.transform);
         }
 
         Button Button(string label, Vector2 pos, Transform parent, UnityEngine.Events.UnityAction onClick)

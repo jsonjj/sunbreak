@@ -160,6 +160,7 @@ namespace SUNBREAK.EditorTools.World
             player.gameObject.AddComponent<PlayerInteractor>();
             new GameObject("ShopMenu").AddComponent<ShopMenu>();
             new GameObject("PauseMenu").AddComponent<PauseMenu>();
+            new GameObject("MapScreen").AddComponent<MapScreen>();
             var missions = new GameObject("MissionSystem").AddComponent<Missions.MissionSystem>();
             var session = new GameObject("GameSession").AddComponent<Save.GameSession>();
             session.state = state; session.player = player; session.combat = combat;

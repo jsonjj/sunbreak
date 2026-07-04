@@ -64,12 +64,13 @@ namespace SUNBREAK.UI
         {
             if (_info == null) return;
             _info.text =
-                "PAUSED\n\n" +
-                "Esc — Resume\n" +
-                $"F1 — Save Slot 1   ({SaveSystem.SlotLabel(1)})\n" +
-                $"F2 — Save Slot 2   ({SaveSystem.SlotLabel(2)})\n" +
-                $"F3 — Save Slot 3   ({SaveSystem.SlotLabel(3)})\n" +
-                "Q — Quit to Main Menu";
+                "<b>PAUSED</b>\n" +
+                "Esc — Resume        Q — Quit to Main Menu\n" +
+                $"F1 — Save Slot 1  ({SaveSystem.SlotLabel(1)})\n" +
+                $"F2 — Save Slot 2  ({SaveSystem.SlotLabel(2)})\n" +
+                $"F3 — Save Slot 3  ({SaveSystem.SlotLabel(3)})\n" +
+                "\n<b>CONTROLS</b>\n" +
+                Controls.Full;
         }
 
         void BuildUI()
@@ -95,11 +96,12 @@ namespace SUNBREAK.UI
             var textGo = new GameObject("Info", typeof(Text));
             textGo.transform.SetParent(go.transform, false);
             _info = textGo.GetComponent<Text>();
-            _info.font = _font; _info.fontSize = 30; _info.alignment = TextAnchor.MiddleCenter;
-            _info.color = Color.white; _info.lineSpacing = 1.3f;
+            _info.font = _font; _info.fontSize = 24; _info.alignment = TextAnchor.UpperCenter;
+            _info.color = Color.white; _info.lineSpacing = 1.25f; _info.supportRichText = true;
+            _info.horizontalOverflow = HorizontalWrapMode.Overflow;
             var trt = _info.rectTransform;
             trt.anchorMin = new Vector2(0.5f, 0.5f); trt.anchorMax = new Vector2(0.5f, 0.5f);
-            trt.sizeDelta = new Vector2(900, 480); trt.anchoredPosition = Vector2.zero;
+            trt.sizeDelta = new Vector2(1400, 760); trt.anchoredPosition = Vector2.zero;
         }
     }
 }

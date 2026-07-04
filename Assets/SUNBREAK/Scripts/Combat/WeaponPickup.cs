@@ -1,29 +1,33 @@
 using UnityEngine;
+using SUNBREAK.UI;
 using SUNBREAK.World;
 
 namespace SUNBREAK.Combat
 {
     /// <summary>
-    /// Walk-over weapon pickup: a spinning marker that grants its weapon to the player's
-    /// <see cref="PlayerCombat"/> on proximity, then respawns after a delay (port of the web
-    /// build's world weapon pickups). One is placed near spawn so the player is armed up quickly.
+    /// World weapon pickup: a spinning marker + beacon + map blip. Shows a "Press E — Pick up X"
+    /// prompt when near (and auto-grabs on a close walk-over), grants a REAL usable weapon to the
+    /// player's <see cref="PlayerCombat"/>, toasts it, then respawns after a delay.
     /// </summary>
-    public sealed class WeaponPickup : MonoBehaviour
+    public sealed class WeaponPickup : Interactable
     {
         public string weaponId = "rifle_carbine";
-        public float radius = 1.8f;
-        public float respawnDelay = 20f;
+        public float respawnDelay = 25f;
 
-        Transform _player;
-        PlayerCombat _combat;
         Transform _marker;
         float _readyAt;
+        bool _taken;
+
+        public override string Prompt => _taken ? "" : $"Press E — Pick up {Weapons.Get(weaponId).name}";
+        public override bool Available => !_taken && isActiveAndEnabled;
 
         void Start()
         {
-            _player = GameRefs.Player;
-            _combat = _player != null ? _player.GetComponent<PlayerCombat>() : null;
+            range = 2.6f;
+            if (Physics.Raycast(transform.position + Vector3.up * 300f, Vector3.down, out var hit, 600f, ~0, QueryTriggerInteraction.Ignore))
+                transform.position = new Vector3(transform.position.x, hit.point.y, transform.position.z);
             BuildMarker();
+            Blip.Attach(gameObject, BlipKind.Cash, new Color(1f, 0.6f, 0.25f), "Weapon");
         }
 
         void BuildMarker()
@@ -33,29 +37,55 @@ namespace SUNBREAK.Combat
             var c = box.GetComponent<Collider>(); if (c) Destroy(c);
             box.transform.SetParent(transform, false);
             box.transform.localScale = new Vector3(0.9f, 0.22f, 0.25f);
+            box.transform.localPosition = new Vector3(0f, 1.0f, 0f);
             var mr = box.GetComponent<MeshRenderer>();
             mr.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(1f, 0.6f, 0.25f) };
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            beacon.name = "beacon";
+            var bc = beacon.GetComponent<Collider>(); if (bc) Destroy(bc);
+            beacon.transform.SetParent(transform, false);
+            beacon.transform.localScale = new Vector3(0.25f, 3.5f, 0.25f);
+            beacon.transform.localPosition = new Vector3(0f, 3.5f, 0f);
+            var bmr = beacon.GetComponent<MeshRenderer>();
+            bmr.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(1f, 0.6f, 0.25f, 0.6f) };
+            bmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
             _marker = box.transform;
         }
 
+        public override void Interact(GameObject player) => Grab();
+
         void Update()
         {
-            if (_marker != null && _marker.gameObject.activeSelf)
-                _marker.localRotation = Quaternion.Euler(0f, Time.time * 90f, 0f);
-
-            if (_readyAt > 0f)
+            if (_taken)
             {
-                if (Time.time >= _readyAt) { _readyAt = 0f; if (_marker) _marker.gameObject.SetActive(true); }
+                if (Time.time >= _readyAt) { _taken = false; if (_marker) _marker.parent.gameObject.SetActive(true); SetVisible(true); }
                 return;
             }
-            if (_player == null) { _player = GameRefs.Player; _combat = _player != null ? _player.GetComponent<PlayerCombat>() : null; }
-            if (_player == null || _combat == null) return;
-            if ((_player.position - transform.position).sqrMagnitude <= radius * radius)
-            {
-                _combat.Pickup(weaponId);
-                if (_marker) _marker.gameObject.SetActive(false);
-                _readyAt = Time.time + respawnDelay;
-            }
+            if (_marker != null) _marker.localRotation = Quaternion.Euler(0f, Time.time * 90f, 0f);
+
+            // Convenience walk-over grab.
+            var p = GameRefs.Player;
+            if (p != null && (p.position - transform.position).sqrMagnitude <= 1.4f * 1.4f) Grab();
+        }
+
+        void Grab()
+        {
+            if (_taken) return;
+            var combat = GameRefs.Player != null ? GameRefs.Player.GetComponent<PlayerCombat>() : null;
+            if (combat == null) return;
+            combat.Pickup(weaponId);
+            GameHUD.Post("PICKED UP", Weapons.Get(weaponId).name);
+            _taken = true;
+            _readyAt = Time.time + respawnDelay;
+            SetVisible(false);
+        }
+
+        void SetVisible(bool on)
+        {
+            foreach (var mr in GetComponentsInChildren<MeshRenderer>(true)) mr.enabled = on;
         }
     }
 }
