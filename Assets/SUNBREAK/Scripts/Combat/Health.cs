@@ -22,6 +22,9 @@ namespace SUNBREAK.Combat
         public event Action<DamageInfo> OnDamaged;
         public event Action<DamageInfo> OnDied;
 
+        /// <summary>Fired when the PLAYER kills a person — missions/activities count these.</summary>
+        public static event Action<Faction, Vector3> PlayerKilled;
+
         public bool IsDead { get; private set; }
         Faction IDamageable.Faction => faction;
         public float Current => current;
@@ -52,6 +55,8 @@ namespace SUNBREAK.Combat
             if (lethal)
             {
                 IsDead = true;
+                if (info.fromPlayer && (faction == Faction.Civilian || faction == Faction.Police))
+                    PlayerKilled?.Invoke(faction, transform.position);
                 OnDied?.Invoke(info);
             }
         }
