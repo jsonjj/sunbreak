@@ -207,6 +207,7 @@ namespace SUNBREAK.Combat
             if (w.magSize <= 0 || _reloading || MagAmmo >= w.magSize) return;
             _reloading = true;
             _reloadDone = Time.time + w.reloadMs / 1000f;
+            _visuals?.OnReload();
         }
 
         void FinishReload()

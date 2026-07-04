@@ -15,6 +15,7 @@ namespace SUNBREAK.Combat
         static readonly int ArmedHash = Animator.StringToHash("Armed");
         static readonly int WeaponTypeHash = Animator.StringToHash("WeaponType");
         static readonly int FireHash = Animator.StringToHash("Fire");
+        static readonly int ReloadHash = Animator.StringToHash("Reload");
 
         string _currentId = "__none";
         GameObject _model;
@@ -60,6 +61,12 @@ namespace SUNBREAK.Combat
         {
             CombatFx.Instance?.Muzzle(MuzzlePosition, new Color(1f, 0.85f, 0.5f));
             if (animator != null && animator.isActiveAndEnabled) animator.SetTrigger(FireHash);
+        }
+
+        /// <summary>Reload animation trigger.</summary>
+        public void OnReload()
+        {
+            if (animator != null && animator.isActiveAndEnabled) animator.SetTrigger(ReloadHash);
         }
     }
 }

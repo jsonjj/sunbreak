@@ -81,6 +81,9 @@ namespace SUNBREAK.EditorTools.Characters
 
                 if (isCharacter)
                 {
+                    // Real on-disk URP Lit material + textures, remapped onto the FBX — embedded
+                    // material-description materials render in-editor but go WHITE in a build.
+                    SetupCharacterMaterials(mi, Path.GetFileNameWithoutExtension(path));
                     var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                     Avatar av = null;
                     foreach (var obj in AssetDatabase.LoadAllAssetsAtPath(path))
@@ -95,14 +98,6 @@ namespace SUNBREAK.EditorTools.Characters
                 foreach (var obj in AssetDatabase.LoadAllAssetsAtPath(path))
                     if (obj is AnimationClip clip && !clip.name.StartsWith("__preview") && !clips.ContainsKey(role))
                         clips[role] = clip;
-            }
-
-            // Textures for the character we extracted earlier already exist; other rigs use the
-            // embedded material description import so they aren't blank grey.
-            if (models.Count > 0)
-            {
-                var mi0 = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(models[0])) as ModelImporter;
-                if (mi0 != null) TryExtractTextures(mi0);
             }
 
             if (policeIdx < 0 && models.Count > 1) policeIdx = models.Count - 1; // distinct from civilians
@@ -153,6 +148,8 @@ namespace SUNBREAK.EditorTools.Characters
             controller.AddParameter("Armed", AnimatorControllerParameterType.Bool);
             controller.AddParameter("WeaponType", AnimatorControllerParameterType.Int); // 0 unarmed,1 pistol,2 rifle
             controller.AddParameter("Fire", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Reload", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("Die", AnimatorControllerParameterType.Trigger);
 
             var sm = controller.layers[0].stateMachine;
 
@@ -198,6 +195,31 @@ namespace SUNBREAK.EditorTools.Characters
             backP.AddCondition(AnimatorConditionMode.Equals, 1, "WeaponType");
             backP.hasExitTime = true; backP.exitTime = 0.5f; backP.duration = 0.1f;
 
+            // Reload state (from either armed state on the Reload trigger, back by weapon type).
+            clips.TryGetValue("reload", out var reloadClip);
+            var reloadState = sm.AddState("Reload");
+            reloadState.motion = reloadClip ?? rIdle ?? idle;
+            foreach (var armed in new[] { pistol, rifle })
+            {
+                var t = armed.AddTransition(reloadState);
+                t.AddCondition(AnimatorConditionMode.If, 0f, "Reload");
+                t.hasExitTime = false; t.duration = 0.05f;
+            }
+            var rbk = reloadState.AddTransition(rifle); rbk.AddCondition(AnimatorConditionMode.Equals, 2, "WeaponType"); rbk.hasExitTime = true; rbk.exitTime = 0.85f; rbk.duration = 0.15f;
+            var rpk = reloadState.AddTransition(pistol); rpk.AddCondition(AnimatorConditionMode.Equals, 1, "WeaponType"); rpk.hasExitTime = true; rpk.exitTime = 0.85f; rpk.duration = 0.15f;
+            var ruk = reloadState.AddTransition(unarmed); ruk.AddCondition(AnimatorConditionMode.Equals, 0, "WeaponType"); ruk.hasExitTime = true; ruk.exitTime = 0.85f; ruk.duration = 0.15f;
+
+            // Death state (any-state Die trigger). Ragdoll still takes over physically; this is the
+            // brief on-death pose for cases where ragdoll is disabled.
+            if (clips.TryGetValue("death", out var deathClip) && deathClip != null)
+            {
+                var deathState = sm.AddState("Death");
+                deathState.motion = deathClip;
+                var anyDeath = sm.AddAnyStateTransition(deathState);
+                anyDeath.AddCondition(AnimatorConditionMode.If, 0f, "Die");
+                anyDeath.hasExitTime = false; anyDeath.duration = 0.05f; anyDeath.canTransitionToSelf = false;
+            }
+
             EditorUtility.SetDirty(controller);
             return controller;
         }
@@ -229,23 +251,107 @@ namespace SUNBREAK.EditorTools.Characters
             return $"civilians={civModels.Count}, police='{police}'. " +
                    $"base idle/walk/run={Have("idle")}/{Have("walk")}/{Have("run")}; " +
                    $"pistol idle/run={Have("pistol_idle")}/{Have("pistol_run")}; " +
-                   $"rifle idle/run/fire={Have("rifle_idle")}/{Have("rifle_run")}/{Have("fire")}. " +
-                   "MISSING for full combat: pistol FIRE, pistol/rifle RELOAD, unarmed death, per-weapon shotgun/smg/sniper/rpg fire.";
+                   $"rifle idle/run={Have("rifle_idle")}/{Have("rifle_run")}; " +
+                   $"fire={Have("fire")}; reload={Have("reload")}; death={Have("death")}. " +
+                   "Optional polish still missing: pistol-specific fire, per-weapon (shotgun/smg/sniper/rpg) fire, ADS/aim pose.";
         }
 
-        static void TryExtractTextures(ModelImporter mi)
+        /// <summary>
+        /// Give a character FBX a real, build-safe material: extract its embedded textures, build a
+        /// URP Lit .mat (diffuse + normal), and remap every FBX material to it via externalObjects.
+        /// Real on-disk material + texture assets survive the build (embedded ones render white).
+        /// </summary>
+        static void SetupCharacterMaterials(ModelImporter mi, string charName)
         {
             try
             {
                 string texDir = MixamoDir + "/Textures";
-                bool already = AssetDatabase.IsValidFolder(texDir) &&
-                               AssetDatabase.FindAssets("t:Texture2D", new[] { texDir }).Length > 0;
-                if (mi.materialImportMode != ModelImporterMaterialImportMode.ImportViaMaterialDescription)
-                    mi.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
-                if (!already) { EnsureFolder(texDir); mi.ExtractTextures(texDir); AssetDatabase.Refresh(); }
+                EnsureFolder(texDir);
+
+                var before = new HashSet<string>(Directory.GetFiles(texDir, "*.png"));
+                mi.ExtractTextures(texDir);
+                AssetDatabase.Refresh();
+                var after = Directory.GetFiles(texDir, "*.png");
+
+                // This FBX's textures = the newly-extracted ones (+ any already named for it).
+                var mine = new List<string>();
+                foreach (var f in after)
+                {
+                    string leaf = Path.GetFileName(f);
+                    if (!before.Contains(f) || leaf.StartsWith(charName, System.StringComparison.OrdinalIgnoreCase))
+                        mine.Add(f.Replace('\\', '/'));
+                }
+                if (mine.Count == 0) foreach (var f in after) mine.Add(f.Replace('\\', '/'));
+
+                string diffuse = PickTex(mine, "diffuse", "albedo", "basecolor", "base_color", "color", "_d");
+                string normal = PickTex(mine, "normal", "_n", "nrm");
+                if (normal != null) MarkNormalMap(normal);
+
+                var diffuseTex = diffuse != null ? AssetDatabase.LoadAssetAtPath<Texture2D>(diffuse) : null;
+                var normalTex = normal != null ? AssetDatabase.LoadAssetAtPath<Texture2D>(normal) : null;
+
+                string matDir = CharDir + "/Materials";
+                EnsureFolder(matDir);
+                string matPath = $"{matDir}/Mat_{Sanitize(charName)}.mat";
+                var urpLit = Shader.Find("Universal Render Pipeline/Lit");
+                var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+                if (mat == null) { mat = new Material(urpLit) { name = "Mat_" + charName }; AssetDatabase.CreateAsset(mat, matPath); }
+                else mat.shader = urpLit;
+                if (diffuseTex != null) { mat.SetTexture("_BaseMap", diffuseTex); mat.SetTexture("_MainTex", diffuseTex); }
+                mat.SetColor("_BaseColor", Color.white);
+                if (normalTex != null) { mat.SetTexture("_BumpMap", normalTex); mat.EnableKeyword("_NORMALMAP"); }
+                if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.1f);
+                if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+                EditorUtility.SetDirty(mat);
+
+                // Remap every material the FBX exposes to the one real material.
+                var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(mi.assetPath);
+                var seen = new HashSet<string>();
+                if (fbx != null)
+                    foreach (var r in fbx.GetComponentsInChildren<Renderer>(true))
+                        foreach (var m in r.sharedMaterials)
+                            if (m != null && seen.Add(m.name))
+                                mi.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), m.name), mat);
+
                 mi.SaveAndReimport();
+                Debug.Log($"[chars] {charName}: diffuse={(diffuseTex != null)} normal={(normalTex != null)} remapped={seen.Count}");
             }
-            catch (System.Exception e) { Debug.LogWarning("[HumanoidAnimatorSetup] texture extract failed: " + e.Message); }
+            catch (System.Exception e) { Debug.LogWarning("[chars] material setup failed for " + charName + ": " + e.Message); }
+        }
+
+        static string PickTex(List<string> paths, params string[] keys)
+        {
+            // Prefer the primary UDIM tile (1001) when present.
+            foreach (var p in paths)
+            {
+                string l = Path.GetFileName(p).ToLowerInvariant();
+                if (l.Contains("1001") && MatchesAny(l, keys)) return p;
+            }
+            foreach (var p in paths)
+                if (MatchesAny(Path.GetFileName(p).ToLowerInvariant(), keys)) return p;
+            return null;
+        }
+
+        static bool MatchesAny(string l, string[] keys)
+        {
+            foreach (var k in keys) if (l.Contains(k)) return true;
+            return false;
+        }
+
+        static void MarkNormalMap(string assetPath)
+        {
+            if (AssetImporter.GetAtPath(assetPath) is TextureImporter ti && ti.textureType != TextureImporterType.NormalMap)
+            {
+                ti.textureType = TextureImporterType.NormalMap;
+                ti.SaveAndReimport();
+            }
+        }
+
+        static string Sanitize(string s)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var c in s) sb.Append(char.IsLetterOrDigit(c) ? c : '_');
+            return sb.ToString();
         }
 
         static bool SetClipsLooping(ModelImporter mi)
@@ -271,13 +377,16 @@ namespace SUNBREAK.EditorTools.Characters
         /// <summary>Map a filename to an animation role (weapon-specific first, then plain locomotion).</summary>
         static string RoleFor(string n)
         {
+            if (n.Contains("reload")) return "reload";
+            if (n == "death" || n.Contains("dying")) return "death";
             if (n.Contains("pistol") && n.Contains("idle")) return "pistol_idle";
             if (n.Contains("pistol") && n.Contains("run")) return "pistol_run";
             if (n.Contains("rifle") && n.Contains("idle")) return "rifle_idle";
             if (n.Contains("rifle") && n.Contains("run")) return "rifle_run";
-            if (n.Contains("firing") || (n.Contains("rifle") && n.Contains("fire"))) return "fire";
+            if (n.Contains("firing") || n.Contains("shooting") || n.Contains("gunplay") || (n.Contains("rifle") && n.Contains("fire")))
+                return "fire";
             bool weapon = n.Contains("pistol") || n.Contains("rifle") || n.Contains("firing") || n.Contains("aim") || n.Contains("shot");
-            if (weapon) return null; // other weapon clips (kneeling/walk-back/put-away/death) unused for now
+            if (weapon) return null; // remaining weapon clips (kneeling/walk-back/put-away) unused for now
             if (n.Contains("idle")) return "idle";
             if (n.Contains("run") || n.Contains("jog") || n.Contains("sprint")) return "run";
             if (n.Contains("walk")) return "walk";
