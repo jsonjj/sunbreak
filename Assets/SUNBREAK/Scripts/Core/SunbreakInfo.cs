@@ -8,6 +8,6 @@ namespace SUNBREAK.Core
     {
         public const string GameName = "SUNBREAK";
         public const string CityName = "Santa Vista";
-        public const string Slice = "Slice 0 — Greybox";
+        public const string Slice = "Slice 1 — Look-Lock (Hero Street)";
     }
 }

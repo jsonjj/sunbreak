@@ -34,6 +34,7 @@ cmd="${1:-help}"
 case "$cmd" in
   compile) _run compile "SUNBREAK.BuildTools.CompileCheck.Run" ;;
   greybox) _run greybox "SUNBREAK.EditorTools.GreyboxSceneBuilder.Build" ;;
+  hero)    _run hero    "SUNBREAK.EditorTools.World.HeroStreetBuilder.Build" ;;
   build)   _run build   "SUNBREAK.BuildTools.BuildMacOS.Build" ;;
   capture) _run capture "SUNBREAK.BuildTools.CaptureScreenshot.Capture" ;;
   run)
@@ -47,7 +48,7 @@ case "$cmd" in
     ;;
   all)
     _run compile "SUNBREAK.BuildTools.CompileCheck.Run" && \
-    _run greybox "SUNBREAK.EditorTools.GreyboxSceneBuilder.Build" && \
+    _run hero    "SUNBREAK.EditorTools.World.HeroStreetBuilder.Build" && \
     _run build   "SUNBREAK.BuildTools.BuildMacOS.Build" && \
     _run capture "SUNBREAK.BuildTools.CaptureScreenshot.Capture"
     ;;
@@ -57,10 +58,11 @@ SUNBREAK Unity headless wrapper
 Usage: ./tools/unity.sh <command>
   compile   Force a headless compile check (SUNBREAK.BuildTools.CompileCheck.Run)
   greybox   (Re)generate the greybox scene (SUNBREAK.EditorTools.GreyboxSceneBuilder.Build)
+  hero      (Re)generate the Slice 1 hero street (SUNBREAK.EditorTools.World.HeroStreetBuilder.Build)
   build     Build Builds/SUNBREAK.app (StandaloneOSX)
-  capture   Render screenshots to BuildLogs/shots/
+  capture   Render screenshots to BuildLogs/shots/slice1/
   run       Open the built .app
-  all       compile -> greybox -> build -> capture
+  all       compile -> hero -> build -> capture
 Env overrides: UNITY=<editor binary>  PROJECT=<project path>
 EOF
     ;;

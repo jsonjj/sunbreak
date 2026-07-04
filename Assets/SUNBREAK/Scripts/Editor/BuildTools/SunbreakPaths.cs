@@ -12,12 +12,15 @@ namespace SUNBREAK.BuildTools
     {
         public const string SceneDir = "Assets/SUNBREAK/Scenes";
         public const string ScenePath = SceneDir + "/Greybox.unity";
+        /// <summary>Slice 1 hero street scene (the current look-lock target).</summary>
+        public const string HeroScenePath = SceneDir + "/HeroStreet.unity";
 
         /// <summary>Absolute path to the project root (the folder that contains Assets/).</summary>
         public static string ProjectRoot => Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
         public static string BuildsDir => Path.Combine(ProjectRoot, "Builds");
         public static string BuildLogsDir => Path.Combine(ProjectRoot, "BuildLogs");
         public static string ShotsDir => Path.Combine(BuildLogsDir, "shots");
+        public static string Slice1ShotsDir => Path.Combine(ShotsDir, "slice1");
         public static string AppPath => Path.Combine(BuildsDir, "SUNBREAK.app");
     }
 }
