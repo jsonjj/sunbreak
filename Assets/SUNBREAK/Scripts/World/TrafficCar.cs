@@ -24,6 +24,46 @@ namespace SUNBREAK.World
         public void Init(Transform[] wheels, float spacing)
         {
             _wheels = wheels; _spacing = spacing;
+
+            // Solid so the player can't walk through it (kinematic — moved by transform).
+            var rb = gameObject.AddComponent<Rigidbody>();
+            rb.isKinematic = true; rb.useGravity = false;
+            var box = gameObject.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.7f, 0f);
+            box.size = new Vector3(1.8f, 1.3f, 4.2f);
+
+            BuildDriver();
+        }
+
+        void BuildDriver()
+        {
+            var torso = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            torso.name = "driver";
+            var col = torso.GetComponent<Collider>(); if (col) Destroy(col);
+            torso.transform.SetParent(transform, false);
+            torso.transform.localPosition = new Vector3(-0.35f, 0.95f, 0.35f);
+            torso.transform.localScale = new Vector3(0.42f, 0.42f, 0.42f);
+            var mr = torso.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"))
+            { color = new Color(0.2f, 0.22f, 0.28f) };
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            head.name = "head";
+            var hc = head.GetComponent<Collider>(); if (hc) Destroy(hc);
+            head.transform.SetParent(torso.transform, false);
+            head.transform.localPosition = new Vector3(0f, 1.1f, 0f);
+            head.transform.localScale = Vector3.one * 0.7f;
+            var hmr = head.GetComponent<MeshRenderer>();
+            hmr.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"))
+            { color = new Color(0.82f, 0.62f, 0.5f) };
+            hmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            SetLayer(torso);
+        }
+
+        static void SetLayer(GameObject go)
+        {
+            go.layer = CityGenerator.CarLayer;
+            foreach (Transform t in go.transform) SetLayer(t.gameObject);
         }
 
         /// <summary>Place the car on a random road-grid lane near a start point.</summary>
@@ -74,7 +114,9 @@ namespace SUNBREAK.World
             Vector3 fwd = Heading();
             Vector3 eye = transform.position + Vector3.up * 0.6f + fwd * 1.5f;
             float target = Cruise;
-            if (Physics.Raycast(eye, fwd, out var hit, LookAhead, ~0, QueryTriggerInteraction.Ignore))
+            // Brake for buildings + the player, but IGNORE other vehicles (layer) so they never gridlock.
+            int mask = ~(1 << CityGenerator.CarLayer);
+            if (Physics.Raycast(eye, fwd, out var hit, LookAhead, mask, QueryTriggerInteraction.Ignore))
                 if (hit.distance < StopDist) target = 0f;
                 else target = Mathf.Lerp(0f, Cruise, Mathf.InverseLerp(StopDist, LookAhead, hit.distance));
             _speed = Mathf.MoveTowards(_speed, target, 12f * dt);
