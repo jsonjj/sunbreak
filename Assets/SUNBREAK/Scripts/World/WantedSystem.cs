@@ -209,6 +209,10 @@ namespace SUNBREAK.World
             var go = city.BuildCarVisual(pos, 0f, new Color(0.15f, 0.2f, 0.32f), out var wheels, out _);
             if (go == null) return null;
             go.name = "CopCar";
+            var rb = go.AddComponent<Rigidbody>();
+            rb.isKinematic = true; rb.useGravity = false;
+            var box = go.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 0.7f, 0f); box.size = new Vector3(1.8f, 1.3f, 4.2f);
             var car = go.AddComponent<CopCar>();
             car.Init(this, player, wheels);
             return car;

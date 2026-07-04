@@ -64,12 +64,13 @@ namespace SUNBREAK.World
                      || block.collider.CompareTag("Player");
             if (HasLos) LastSeen = Time.time;
 
-            // Chase to the standoff.
+            // Chase to the standoff; when sight is lost, SEARCH the last-known position instead of
+            // magically tracking the player (GTA-style search before de-escalation).
+            Vector3 dest = HasLos ? pp : (ws.Searching ? ws.Lkp : pp);
             if (_agent != null && _agent.isOnNavMesh)
             {
-                if (dist > Standoff) _agent.isStopped = false;
-                else _agent.isStopped = true;
-                _agent.SetDestination(pp);
+                _agent.isStopped = HasLos && dist <= Standoff;
+                _agent.SetDestination(dest);
             }
             Vector3 face = pp - me; face.y = 0f;
             if (face.sqrMagnitude > 0.01f) transform.rotation = Quaternion.Slerp(transform.rotation,
