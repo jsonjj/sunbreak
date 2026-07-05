@@ -51,9 +51,10 @@ namespace SUNBREAK.Combat
 
         public void Set(float fraction)
         {
+            fraction = Mathf.Clamp01(fraction);
+            if (fraction >= 0.9f) { Hide(); return; } // only show for clearly-hurt NPCs (no near-full green blob)
             gameObject.SetActive(true);
             _hideAt = Time.time + HideAfter;
-            fraction = Mathf.Clamp01(fraction);
             float w = Width * fraction;
             _fill.localScale = new Vector3(w, Height * 0.72f, 1f);
             _fill.localPosition = new Vector3(-(Width - w) * 0.5f, 0f, 0.01f);

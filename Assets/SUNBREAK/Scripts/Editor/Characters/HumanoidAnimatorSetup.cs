@@ -32,10 +32,13 @@ namespace SUNBREAK.EditorTools.Characters
             public int humanoidModels;
             public GameObject characterModel;   // player rig (roster[0])
             public Avatar characterAvatar;
+            public Material characterMaterial;
             public GameObject[] characterModels; // full roster (crowd variety)
             public Avatar[] characterAvatars;
+            public Material[] characterMaterials;
             public GameObject policeModel;       // SWAT / police
             public Avatar policeAvatar;
+            public Material policeMaterial;
             public string note;
         }
 
@@ -47,6 +50,7 @@ namespace SUNBREAK.EditorTools.Characters
             var clips = new Dictionary<string, AnimationClip>();
             var models = new List<GameObject>();
             var avatars = new List<Avatar>();
+            var mats = new List<Material>();
             int policeIdx = -1;
             int humanoidCount = 0;
 
@@ -82,13 +86,14 @@ namespace SUNBREAK.EditorTools.Characters
                 if (isCharacter)
                 {
                     // Real on-disk URP Lit material + textures, remapped onto the FBX — embedded
-                    // material-description materials render in-editor but go WHITE in a build.
-                    SetupCharacterMaterials(mi, Path.GetFileNameWithoutExtension(path));
+                    // material-description materials render in-editor but go WHITE in a build. The
+                    // returned material is ALSO force-assigned at runtime (bulletproof vs remap misses).
+                    var charMat = SetupCharacterMaterials(mi, Path.GetFileNameWithoutExtension(path));
                     var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                     Avatar av = null;
                     foreach (var obj in AssetDatabase.LoadAllAssetsAtPath(path))
                         if (obj is Avatar a) { av = a; break; }
-                    models.Add(model); avatars.Add(av);
+                    models.Add(model); avatars.Add(av); mats.Add(charMat);
                     foreach (var h in PoliceHints) if (lower.Contains(h)) { policeIdx = models.Count - 1; break; }
                     continue;
                 }
@@ -106,19 +111,23 @@ namespace SUNBREAK.EditorTools.Characters
 
             GameObject policeModel = policeIdx >= 0 && policeIdx < models.Count ? models[policeIdx] : null;
             Avatar policeAvatar = policeIdx >= 0 && policeIdx < avatars.Count ? avatars[policeIdx] : null;
+            Material policeMat = policeIdx >= 0 && policeIdx < mats.Count ? mats[policeIdx] : null;
 
             // Civilian roster EXCLUDES the police/SWAT rig so cops stay visually distinct.
             var civModels = new List<GameObject>();
             var civAvatars = new List<Avatar>();
+            var civMats = new List<Material>();
             for (int i = 0; i < models.Count; i++)
             {
                 if (i == policeIdx) continue;
                 civModels.Add(models[i]); civAvatars.Add(i < avatars.Count ? avatars[i] : null);
+                civMats.Add(i < mats.Count ? mats[i] : null);
             }
-            if (civModels.Count == 0) { civModels.AddRange(models); civAvatars.AddRange(avatars); }
+            if (civModels.Count == 0) { civModels.AddRange(models); civAvatars.AddRange(avatars); civMats.AddRange(mats); }
 
             GameObject playerModel = civModels.Count > 0 ? civModels[0] : policeModel;
             Avatar playerAvatar = civAvatars.Count > 0 ? civAvatars[0] : policeAvatar;
+            Material playerMat = civMats.Count > 0 ? civMats[0] : policeMat;
             if (playerAvatar == null) foreach (var a in civAvatars) if (a != null) { playerAvatar = a; break; }
 
             bool wired = clips.ContainsKey("idle") || clips.ContainsKey("walk") || clips.ContainsKey("run");
@@ -129,10 +138,13 @@ namespace SUNBREAK.EditorTools.Characters
                 humanoidModels = humanoidCount,
                 characterModel = playerModel,
                 characterAvatar = playerAvatar,
+                characterMaterial = playerMat,
                 characterModels = civModels.ToArray(),
                 characterAvatars = civAvatars.ToArray(),
+                characterMaterials = civMats.ToArray(),
                 policeModel = policeModel ?? playerModel,
                 policeAvatar = policeModel != null ? policeAvatar : playerAvatar,
+                policeMaterial = policeModel != null ? policeMat : playerMat,
                 note = BuildNote(clips, civModels, policeModel),
             };
         }
@@ -261,7 +273,7 @@ namespace SUNBREAK.EditorTools.Characters
         /// URP Lit .mat (diffuse + normal), and remap every FBX material to it via externalObjects.
         /// Real on-disk material + texture assets survive the build (embedded ones render white).
         /// </summary>
-        static void SetupCharacterMaterials(ModelImporter mi, string charName)
+        static Material SetupCharacterMaterials(ModelImporter mi, string charName)
         {
             try
             {
@@ -315,8 +327,9 @@ namespace SUNBREAK.EditorTools.Characters
 
                 mi.SaveAndReimport();
                 Debug.Log($"[chars] {charName}: diffuse={(diffuseTex != null)} normal={(normalTex != null)} remapped={seen.Count}");
+                return mat;
             }
-            catch (System.Exception e) { Debug.LogWarning("[chars] material setup failed for " + charName + ": " + e.Message); }
+            catch (System.Exception e) { Debug.LogWarning("[chars] material setup failed for " + charName + ": " + e.Message); return null; }
         }
 
         static string PickTex(List<string> paths, params string[] keys)

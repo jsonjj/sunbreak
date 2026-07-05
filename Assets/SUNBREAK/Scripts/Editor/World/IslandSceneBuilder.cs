@@ -131,8 +131,10 @@ namespace SUNBREAK.EditorTools.World
             crowd.controller = animResult.controller;
             crowd.roster = animResult.characterModels;
             crowd.rosterAvatars = animResult.characterAvatars;
+            crowd.rosterMaterials = animResult.characterMaterials;
             crowd.policeModel = animResult.policeModel;
             crowd.policeAvatar = animResult.policeAvatar;
+            crowd.policeMaterial = animResult.policeMaterial;
             Debug.Log("SUNBREAK_CHARACTERS: " + animResult.note);
 
             // Visible weapon models (Kenney Blaster Kit, CC0) — mapped to the combat catalog ids.
@@ -262,6 +264,7 @@ namespace SUNBREAK.EditorTools.World
                 charGo.transform.localPosition += new Vector3(0f, -1f - localFeet, 0f);
                 animator = charGo.GetComponent<Animator>() ?? charGo.AddComponent<Animator>();
                 if (anim.characterAvatar != null) animator.avatar = anim.characterAvatar;
+                CrowdFactory.ApplyMaterial(charGo, anim.characterMaterial); // force textured material
                 characterVisual = charGo;
             }
             else

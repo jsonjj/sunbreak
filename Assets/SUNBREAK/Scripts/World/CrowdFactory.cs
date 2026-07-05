@@ -20,25 +20,43 @@ namespace SUNBREAK.World
         public RuntimeAnimatorController controller;
         public GameObject[] roster;         // varied civilian/NPC character models
         public Avatar[] rosterAvatars;      // parallel to roster
+        public Material[] rosterMaterials;  // parallel to roster (real diffuse+normal materials)
         public GameObject policeModel;      // SWAT / police model
         public Avatar policeAvatar;
+        public Material policeMaterial;
         public float targetHeight = 1.8f;
 
         int _nextNetId = 100000;
         void Awake() { Instance = this; }
         void OnDestroy() { if (Instance == this) Instance = null; }
 
-        void PickModel(Faction faction, out GameObject model, out Avatar av)
+        void PickModel(Faction faction, out GameObject model, out Avatar av, out Material mat)
         {
-            if (faction == Faction.Police && policeModel != null) { model = policeModel; av = policeAvatar; return; }
+            if (faction == Faction.Police && policeModel != null) { model = policeModel; av = policeAvatar; mat = policeMaterial; return; }
             if (roster != null && roster.Length > 0)
             {
                 int i = Random.Range(0, roster.Length);
                 model = roster[i];
                 av = rosterAvatars != null && i < rosterAvatars.Length && rosterAvatars[i] != null ? rosterAvatars[i] : avatar;
+                mat = rosterMaterials != null && i < rosterMaterials.Length ? rosterMaterials[i] : null;
                 return;
             }
-            model = characterModel; av = avatar;
+            model = characterModel; av = avatar; mat = null;
+        }
+
+        /// <summary>Force the real diffuse+normal material onto every skinned renderer (bulletproof
+        /// against embedded/remap misses that render green/white in a build).</summary>
+        public static void ApplyMaterial(GameObject vis, Material mat)
+        {
+            if (mat == null || vis == null) return;
+            foreach (var r in vis.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r is ParticleSystemRenderer) continue;
+                int n = Mathf.Max(1, r.sharedMaterials.Length);
+                var arr = new Material[n];
+                for (int i = 0; i < n; i++) arr[i] = mat;
+                r.sharedMaterials = arr;
+            }
         }
 
         /// <summary>Build a humanoid shell (visual + agent + collider + health + anim driver); no AI.</summary>
@@ -47,15 +65,17 @@ namespace SUNBREAK.World
         {
             var root = new GameObject(name);
             agent = root.AddComponent<NavMeshAgent>();
-            agent.radius = 0.35f; agent.height = 1.8f; agent.baseOffset = 0f;
-            agent.speed = 1.4f; agent.angularSpeed = 480f; agent.acceleration = 14f;
-            agent.autoBraking = true; agent.stoppingDistance = 0.4f; agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
+            agent.radius = 0.3f; agent.height = 1.8f; agent.baseOffset = 0f;
+            agent.speed = 1.4f; agent.angularSpeed = 220f; agent.acceleration = 10f; // smoother turns, less spin
+            agent.autoBraking = true; agent.stoppingDistance = 0.5f; agent.updateRotation = true;
+            agent.obstacleAvoidanceType = ObstacleAvoidanceType.MedQualityObstacleAvoidance;
+            agent.avoidancePriority = Random.Range(30, 70); // vary so they don't fight for the same lane
 
             var col = root.AddComponent<CapsuleCollider>();
             col.radius = 0.35f; col.height = 1.8f; col.center = new Vector3(0f, 0.9f, 0f);
 
             animator = null;
-            PickModel(faction, out var model, out var av);
+            PickModel(faction, out var model, out var av, out var mat);
             if (model != null)
             {
                 var vis = Instantiate(model, root.transform);
@@ -72,6 +92,7 @@ namespace SUNBREAK.World
                 animator.runtimeAnimatorController = controller;
                 animator.applyRootMotion = false;
                 animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+                ApplyMaterial(vis, mat); // guarantee the textured material renders in the build
                 // Police keep their authored (SWAT) look; civilians get a subtle wardrobe tint.
                 if (faction != Faction.Police) Tint(vis, tint);
             }
@@ -154,8 +175,13 @@ namespace SUNBREAK.World
 
         public static Color RandomCivilianTint()
         {
-            float[] hues = { 0.58f, 0.08f, 0.11f, 0.33f, 0.0f, 0.75f };
-            Color c = Color.HSVToRGB(hues[Random.Range(0, hues.Length)], Random.Range(0.15f, 0.5f), Random.Range(0.6f, 0.95f));
+            // The tint MULTIPLIES the whole diffuse (skin + clothes) via _BaseColor, so a saturated
+            // hue turns the entire NPC that colour (the old palette's green/0.33 made "green NPCs").
+            // Keep it near-white / low-saturation: subtle wardrobe variation, texture stays readable.
+            float[] hues = { 0.58f, 0.08f, 0.10f, 0.62f, 0.03f, 0.72f }; // blues / warms / faint violet
+            Color c = Color.HSVToRGB(hues[Random.Range(0, hues.Length)],
+                                     Random.Range(0.05f, 0.17f),   // low saturation
+                                     Random.Range(0.85f, 1.0f));   // stay bright, don't darken skin
             return c;
         }
     }
