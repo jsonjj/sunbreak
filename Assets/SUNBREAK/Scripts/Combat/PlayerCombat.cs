@@ -26,7 +26,7 @@ namespace SUNBREAK.Combat
         readonly Dictionary<string, int> _mag = new();
         string _current = "pistol_9mm";
         float _nextFire, _reloadDone, _bloom;
-        float _lastFireCrimeT, _lastAimCrimeT;
+        float _lastFireCrimeT;
         bool _reloading, _wasAiming;
 
         InputAction _fire, _reload, _wheel, _scroll;
@@ -75,13 +75,10 @@ namespace SUNBREAK.Combat
             float dt = Time.unscaledDeltaTime;
             _bloom = Mathf.Max(0f, _bloom - 2.5f * dt);
 
-            // Drawing a gun near people scares them; if witnessed it's a (minor) crime.
+            // Aiming a gun scares nearby peds (panic) but is NOT itself a crime — walking around with
+            // a weapon out (or aiming it) must never raise wanted. Only firing/hitting someone does.
             bool aimingNow = _current != "fists" && cameraController != null && cameraController.Aiming;
-            if (aimingNow && !_wasAiming)
-            {
-                ThreatBus.Brandish(transform.position);
-                if (Time.time - _lastAimCrimeT > 2f) { ThreatBus.Crime(transform.position, 0.6f); _lastAimCrimeT = Time.time; }
-            }
+            if (aimingNow && !_wasAiming) ThreatBus.Brandish(transform.position);
             _wasAiming = aimingNow;
 
             HandleWheel();
@@ -171,8 +168,7 @@ namespace SUNBREAK.Combat
         void Melee(WeaponSpec w)
         {
             CombatFx.Instance?.Sfx("melee", transform.position + Vector3.up * 1.0f);
-            ThreatBus.Melee(transform.position);
-            ThreatBus.Crime(transform.position, 1.2f); // swinging at people in the open is witnessable
+            ThreatBus.Melee(transform.position); // fear pulse only — swinging at air is not a crime
 
             // Play the fitting animation (real clip if present); the hit lands at the swing apex.
             var (move, dmgMul, delay) = MeleeChoreo(w.id);
@@ -228,6 +224,9 @@ namespace SUNBREAK.Combat
                 {
                     amount = w.damage * dmgMul, point = bestPt, dir = dir, impulse = w.impulse * dmgMul, fromPlayer = true, attacker = gameObject, kind = DamageKind.Melee,
                 });
+                // Hitting a person is a witnessable crime (only on a real connect, not an air swing).
+                if (best.Faction == Faction.Civilian || best.Faction == Faction.Police)
+                    ThreatBus.Crime(transform.position, 1.2f);
                 GameHUD.Hitmarker();
                 CameraShake.Add(0.12f + 0.08f * dmgMul);
             }
