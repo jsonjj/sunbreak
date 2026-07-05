@@ -22,13 +22,20 @@ namespace SUNBREAK.World
         float _fireT, _deadAt;
         bool _dead;
 
+        Animator _animator;
+        GameObject _weaponModel;
+        int _weaponType;
+        bool _weaponShown = true;
+
         public bool Removed { get; private set; }
         public bool HasLos { get; private set; }
         public float LastSeen { get; private set; }
 
-        public void Init(NavMeshAgent agent, Health health, string weapon, float accuracy, int star)
+        public void Init(NavMeshAgent agent, Health health, string weapon, float accuracy, int star,
+            GameObject weaponModel = null, Animator animator = null, int weaponType = 0)
         {
             _agent = agent; _health = health; _weapon = weapon; _accuracy = accuracy;
+            _weaponModel = weaponModel; _animator = animator; _weaponType = weaponType;
             _capsule = GetComponent<CapsuleCollider>();
             if (_agent != null) { _agent.speed = ChaseSpeed; _agent.stoppingDistance = Standoff * 0.9f; }
             _fireT = 0.4f + Random.value * 0.6f;
@@ -64,17 +71,37 @@ namespace SUNBREAK.World
                      || block.collider.CompareTag("Player");
             if (HasLos) LastSeen = Time.time;
 
+            // Posture: at low heat (and while the player complies) cops APPREHEND — no guns drawn,
+            // walk right up and cuff. They only draw + fire once force is authorised (2★+ / resisting).
+            bool mayShoot = ws.CopsMayShoot;
+            ShowWeapon(mayShoot);
+
+            Vector3 face = pp - me; face.y = 0f;
+            if (face.sqrMagnitude > 0.01f) transform.rotation = Quaternion.Slerp(transform.rotation,
+                Quaternion.LookRotation(face), 1f - Mathf.Exp(-8f * dt));
+
+            if (!mayShoot)
+            {
+                // Approach to cuffing range and BUST on contact — no firefight.
+                if (_agent != null && _agent.isOnNavMesh)
+                {
+                    _agent.stoppingDistance = 1.1f;
+                    _agent.isStopped = false;
+                    _agent.SetDestination(HasLos ? pp : (ws.Searching ? ws.Lkp : pp));
+                }
+                if (dist < 2.3f && HasLos && !state.IsDead) { WastedBusted.Instance?.Bust(); }
+                return;
+            }
+
             // Chase to the standoff; when sight is lost, SEARCH the last-known position instead of
             // magically tracking the player (GTA-style search before de-escalation).
             Vector3 dest = HasLos ? pp : (ws.Searching ? ws.Lkp : pp);
             if (_agent != null && _agent.isOnNavMesh)
             {
+                _agent.stoppingDistance = Standoff * 0.9f;
                 _agent.isStopped = HasLos && dist <= Standoff;
                 _agent.SetDestination(dest);
             }
-            Vector3 face = pp - me; face.y = 0f;
-            if (face.sqrMagnitude > 0.01f) transform.rotation = Quaternion.Slerp(transform.rotation,
-                Quaternion.LookRotation(face), 1f - Mathf.Exp(-8f * dt));
 
             // Arrest: right on top of an unarmed or nearly-downed player → BUSTED, not a firefight.
             if (dist < 2.6f && CanArrest(state)) { WastedBusted.Instance?.Bust(); return; }
@@ -85,6 +112,19 @@ namespace SUNBREAK.World
             {
                 bool fired = NpcGun.FireAt(gameObject, player, state, _weapon, _accuracy);
                 _fireT = fired ? FireInterval : 0.35f;
+            }
+        }
+
+        /// <summary>Holster (hide) or draw (show) the visible sidearm + sync the armed hold pose.</summary>
+        void ShowWeapon(bool shown)
+        {
+            if (_weaponShown == shown) return;
+            _weaponShown = shown;
+            if (_weaponModel != null) _weaponModel.SetActive(shown);
+            if (_animator != null)
+            {
+                _animator.SetInteger("WeaponType", shown ? _weaponType : 0);
+                _animator.SetBool("Armed", shown && _weaponType != 0);
             }
         }
 

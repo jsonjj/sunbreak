@@ -121,6 +121,12 @@ namespace SUNBREAK.World
             return go;
         }
 
+        static int WeaponTypeOf(string weaponId)
+        {
+            var lib = SUNBREAK.Combat.WeaponModelLibrary.Instance;
+            return lib != null ? lib.WeaponTypeFor(weaponId) : 0;
+        }
+
         public static void SetUnarmed(Animator animator)
         {
             if (animator == null) return;
@@ -135,9 +141,9 @@ namespace SUNBREAK.World
             if (!Place(go, agent, pos)) { Destroy(go); return null; }
             // 4–5★ SWAT: the Ch15 model gets a dark tactical tint + a touch more presence.
             if (swat) { Tint(go, new Color(0.27f, 0.29f, 0.35f)); go.transform.localScale = Vector3.one * 1.05f; }
-            EquipWeapon(animator, weapon);
+            var weaponModel = EquipWeapon(animator, weapon);
             var cop = go.AddComponent<Cop>();
-            cop.Init(agent, hp, weapon, accuracy, star);
+            cop.Init(agent, hp, weapon, accuracy, star, weaponModel, animator, WeaponTypeOf(weapon));
             return cop;
         }
 

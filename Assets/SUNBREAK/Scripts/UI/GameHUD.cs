@@ -40,6 +40,10 @@ namespace SUNBREAK.UI
         static string _activityMsg;
         /// <summary>Set the on-screen side-activity status line (taxi timer, race checkpoints). Null hides it.</summary>
         public static void SetActivity(string s) { _activityMsg = s; }
+        Text _alertText;
+        static string _alertMsg;
+        /// <summary>Set the on-screen alert line (police arrest / surrender prompt). Null hides it.</summary>
+        public static void SetAlert(string s) { _alertMsg = s; }
         Text _toastTitle, _toastSub;
         float _toastUntil;
         RawImage _vignette;
@@ -157,6 +161,19 @@ namespace SUNBREAK.UI
             // Interaction prompt (center-low).
             if (_promptText != null)
                 _promptText.text = interactor != null ? (interactor.Prompt ?? "") : "";
+
+            // Police alert / surrender prompt (center, pulsing).
+            if (_alertText != null)
+            {
+                bool on = !string.IsNullOrEmpty(_alertMsg);
+                if (_alertText.enabled != on) _alertText.enabled = on;
+                if (on)
+                {
+                    _alertText.text = _alertMsg;
+                    float a = 0.65f + 0.35f * Mathf.Abs(Mathf.Sin(Time.unscaledTime * 3.5f));
+                    _alertText.color = new Color(1f, 0.4f, 0.35f, a);
+                }
+            }
 
             // Mission dialogue / reward toast (center-upper, fades out).
             if (_toastTitle != null)
@@ -451,6 +468,13 @@ namespace SUNBREAK.UI
             _promptText = Label(root, "", 24, TextAnchor.LowerCenter, new Vector2(0.5f, 0),
                 new Vector2(0, 180), new Vector2(1000, 40));
             _promptText.color = new Color(1f, 0.92f, 0.7f);
+
+            // Police alert / surrender prompt (center, above the reticle)
+            _alertText = Label(root, "", 26, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f),
+                new Vector2(0, 120), new Vector2(1200, 40));
+            _alertText.fontStyle = FontStyle.Bold;
+            _alertText.color = new Color(1f, 0.4f, 0.35f, 0f);
+            _alertText.enabled = false;
 
             // Mission dialogue / reward toast (center-upper)
             _toastTitle = Label(root, "", 28, TextAnchor.UpperCenter, new Vector2(0.5f, 1f),
