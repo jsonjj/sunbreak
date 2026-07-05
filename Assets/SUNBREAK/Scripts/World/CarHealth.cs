@@ -11,7 +11,20 @@ namespace SUNBREAK.World
     /// </summary>
     public sealed class CarHealth : MonoBehaviour, IDamageable
     {
-        public float max = 150f;
+        // Cars are TANKY (GTA-like): a big pool + weapon-dependent resistance means small arms only
+        // chip away (dozens of rounds) while explosives wreck them fast.
+        public float max = 800f;
+
+        // Per damage-class scaling applied to incoming damage before it hits the car's health.
+        const float BulletMul = 0.9f;     // pistol/SMG/rifle chip away → dozens of rounds
+        const float MeleeMul = 0.15f;     // barely scratches paint
+        const float ExplosiveMul = 6f;    // RPG one-shots, grenade ~2
+
+        // Collisions: ignore anything below a hard-crash speed, then scale gently (capped).
+        const float CrashMinSpeed = 18f;  // ~65 km/h relative — normal bumps do nothing
+        const float CrashPerSpeed = 3f;
+        const float CrashMaxHit = 70f;
+
         float _cur;
         bool _dead;
         float _lastCollisionT;
@@ -32,7 +45,13 @@ namespace SUNBREAK.World
         public void ApplyDamage(in DamageInfo info)
         {
             if (_dead) return;
-            _cur -= info.amount;
+            float mul = info.kind switch
+            {
+                DamageKind.Explosive => ExplosiveMul,
+                DamageKind.Melee => MeleeMul,
+                _ => BulletMul,
+            };
+            _cur -= info.amount * mul;
             UpdateFx();
             if (_cur <= 0f) Explode(info.point);
         }
@@ -53,9 +72,9 @@ namespace SUNBREAK.World
         {
             if (_dead) return;
             float v = c.relativeVelocity.magnitude;
-            if (v < 9f || Time.time - _lastCollisionT < 0.25f) return;
+            if (v < CrashMinSpeed || Time.time - _lastCollisionT < 0.25f) return;
             _lastCollisionT = Time.time;
-            _cur -= (v - 9f) * 3.5f;
+            _cur -= Mathf.Min(CrashMaxHit, (v - CrashMinSpeed) * CrashPerSpeed);
             UpdateFx();
             if (_cur <= 0f) Explode(c.contacts.Length > 0 ? c.contacts[0].point : transform.position + Vector3.up);
         }
@@ -66,14 +85,14 @@ namespace SUNBREAK.World
             if (_smoke != null)
             {
                 var em = _smoke.emission;
-                bool on = f < 0.55f;
+                bool on = f < 0.3f;   // only a genuinely battered car smokes
                 if (on && !_smoke.isPlaying) _smoke.Play();
                 else if (!on && _smoke.isPlaying) _smoke.Stop();
-                em.rateOverTime = f < 0.25f ? 26f : 12f;
+                em.rateOverTime = f < 0.15f ? 26f : 12f;
                 var main = _smoke.main;
-                main.startColor = f < 0.25f ? new Color(0.1f, 0.1f, 0.1f, 0.7f) : new Color(0.5f, 0.5f, 0.5f, 0.5f);
+                main.startColor = f < 0.15f ? new Color(0.1f, 0.1f, 0.1f, 0.7f) : new Color(0.5f, 0.5f, 0.5f, 0.5f);
             }
-            if (_fire != null) _fire.enabled = f < 0.22f;
+            if (_fire != null) _fire.enabled = f < 0.1f;   // near-death only
         }
 
         void Explode(Vector3 at)
@@ -94,7 +113,7 @@ namespace SUNBREAK.World
             {
                 var d = col.GetComponentInParent<IDamageable>();
                 if (d != null && !ReferenceEquals(d, this) && !d.IsDead)
-                    d.ApplyDamage(new DamageInfo { amount = 55f, point = at, dir = Vector3.up, impulse = 6f, fromPlayer = false });
+                    d.ApplyDamage(new DamageInfo { amount = 55f, point = at, dir = Vector3.up, impulse = 6f, fromPlayer = false, kind = DamageKind.Explosive });
             }
             var st = GameRefs.PlayerState;
             if (st != null && GameRefs.Player != null && (GameRefs.Player.position - at).sqrMagnitude < 7f * 7f)

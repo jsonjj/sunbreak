@@ -226,7 +226,7 @@ namespace SUNBREAK.Combat
             {
                 best.ApplyDamage(new DamageInfo
                 {
-                    amount = w.damage * dmgMul, point = bestPt, dir = dir, impulse = w.impulse * dmgMul, fromPlayer = true, attacker = gameObject,
+                    amount = w.damage * dmgMul, point = bestPt, dir = dir, impulse = w.impulse * dmgMul, fromPlayer = true, attacker = gameObject, kind = DamageKind.Melee,
                 });
                 GameHUD.Hitmarker();
                 CameraShake.Add(0.12f + 0.08f * dmgMul);

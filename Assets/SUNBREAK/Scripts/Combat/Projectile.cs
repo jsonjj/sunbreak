@@ -79,7 +79,7 @@ namespace SUNBREAK.Combat
                     idmg.ApplyDamage(new DamageInfo
                     {
                         amount = dmg, point = col.transform.position, dir = (col.transform.position - c).normalized,
-                        impulse = _impulse, fromPlayer = fromPlayer, attacker = _owner,
+                        impulse = _impulse, fromPlayer = fromPlayer, attacker = _owner, kind = DamageKind.Explosive,
                     });
                     continue;
                 }
