@@ -11,9 +11,9 @@ namespace SUNBREAK.UI
     public sealed class MinimapController : MonoBehaviour
     {
         public Transform target;
-        public float height = 140f;
-        public float orthoSize = 110f;
-        public int textureSize = 256;
+        public float height = 160f;
+        public float orthoSize = 95f;
+        public int textureSize = 512;
 
         Camera _cam;
         public RenderTexture Texture { get; private set; }
@@ -25,16 +25,19 @@ namespace SUNBREAK.UI
             _cam.orthographicSize = orthoSize;
             _cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f); // straight down, north-up
             _cam.clearFlags = CameraClearFlags.SolidColor;
-            _cam.backgroundColor = new Color(0.06f, 0.09f, 0.13f, 1f);
+            _cam.backgroundColor = new Color(0.10f, 0.16f, 0.24f, 1f); // sea blue
             _cam.nearClipPlane = 0.3f;
             _cam.farClipPlane = height + 60f;
             _cam.allowMSAA = false;
             _cam.allowHDR = false;
+            // A clean map: skip vehicle/effect clutter so it reads as roads + district land + water.
+            _cam.cullingMask = ~(1 << World.CityGenerator.CarLayer);
 
             Texture = new RenderTexture(textureSize, textureSize, 16, RenderTextureFormat.ARGB32)
             {
                 name = "MinimapRT",
-                antiAliasing = 1,
+                antiAliasing = 2,
+                filterMode = FilterMode.Bilinear,
             };
             _cam.targetTexture = Texture;
         }

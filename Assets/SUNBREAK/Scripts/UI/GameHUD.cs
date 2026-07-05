@@ -32,10 +32,12 @@ namespace SUNBREAK.UI
         Font _font;
         Image _healthFill;
         Text _cashText, _speedText, _hintText, _starsText, _weaponText, _reticle;
-        Text _clockText, _objectiveText, _promptText, _radioText;
+        Text _clockText, _promptText, _radioText;
+        Image _missionPanel;
+        Text _missionTitle, _missionObjective;
         Text _toastTitle, _toastSub;
         float _toastUntil;
-        RectTransform _blip, _wheelRoot;
+        RectTransform _blip, _blipBack, _wheelRoot;
         Text[] _wheelSlots;
         Text _wheelName;
         Transform _mapRoot;
@@ -71,7 +73,11 @@ namespace SUNBREAK.UI
         void Update()
         {
             if (_blip != null && player != null)
-                _blip.localRotation = Quaternion.Euler(0f, 0f, -player.eulerAngles.y);
+            {
+                var rot = Quaternion.Euler(0f, 0f, -player.eulerAngles.y);
+                _blip.localRotation = rot;
+                if (_blipBack != null) _blipBack.localRotation = rot;
+            }
 
             if (_speedText != null)
             {
@@ -106,13 +112,19 @@ namespace SUNBREAK.UI
             if (_clockText != null && dayNight != null)
                 _clockText.text = (DayNightSystem.IsNight ? "\u263D " : "\u2600 ") + dayNight.Clock;
 
-            // Objective tracker.
-            if (_objectiveText != null)
+            // Mission panel (top-left): title + current objective + distance.
+            if (_missionPanel != null)
             {
-                if (missions != null && missions.HasActive)
-                    _objectiveText.text = $"<b>{missions.ActiveTitle}</b>\n{missions.ObjectiveText}" +
-                        (missions.HasWaypoint ? $"\n{Distance(missions.WaypointPos)} m" : "");
-                else _objectiveText.text = "";
+                bool active = missions != null && missions.HasActive;
+                _missionPanel.enabled = active;
+                _missionTitle.enabled = active;
+                _missionObjective.enabled = active;
+                if (active)
+                {
+                    _missionTitle.text = "\u25B8 " + missions.ActiveTitle.ToUpperInvariant();
+                    _missionObjective.text = missions.ObjectiveText +
+                        (missions.HasWaypoint ? $"   ·   {Distance(missions.WaypointPos)} m" : "");
+                }
             }
 
             // Interaction prompt (center-low).
@@ -321,15 +333,28 @@ namespace SUNBREAK.UI
                 _blipDots[i] = im;
             }
 
+            // Player arrow — a dark backing arrow + a bright white arrow on top so it reads clearly
+            // against the map and never blends with the coloured blips (GTA-style player marker).
+            var blipBackGo = new GameObject("BlipOutline", typeof(Image));
+            blipBackGo.transform.SetParent(mmGo.transform, false);
+            var blipBack = blipBackGo.GetComponent<Image>();
+            blipBack.sprite = ArrowSprite();
+            blipBack.color = new Color(0f, 0f, 0f, 0.85f);
+            var backRt = blipBack.rectTransform;
+            backRt.anchorMin = backRt.anchorMax = new Vector2(0.5f, 0.5f);
+            backRt.sizeDelta = new Vector2(26, 30);
+            backRt.anchoredPosition = Vector2.zero;
+
             var blipGo = new GameObject("Blip", typeof(Image));
             blipGo.transform.SetParent(mmGo.transform, false);
             var blip = blipGo.GetComponent<Image>();
             blip.sprite = ArrowSprite();
-            blip.color = new Color(0.4f, 0.75f, 1f);
+            blip.color = Color.white;
             _blip = blip.rectTransform;
             _blip.anchorMin = _blip.anchorMax = new Vector2(0.5f, 0.5f);
-            _blip.sizeDelta = new Vector2(18, 22);
+            _blip.sizeDelta = new Vector2(20, 24);
             _blip.anchoredPosition = Vector2.zero;
+            _blipBack = backRt;
             Label(mmFrame.transform, "SANTA VISTA", 12, TextAnchor.UpperCenter, new Vector2(0.5f, 1f), new Vector2(0, -2), new Vector2(200, 18));
 
             // Controls hint (top-center)
@@ -347,10 +372,16 @@ namespace SUNBREAK.UI
                 new Vector2(-30, -74), new Vector2(320, 32));
             _clockText.color = new Color(0.9f, 0.92f, 1f);
 
-            // Objective tracker (top-right, below the clock)
-            _objectiveText = Label(root, "", 20, TextAnchor.UpperRight, new Vector2(1, 1),
-                new Vector2(-30, -116), new Vector2(520, 140));
-            _objectiveText.color = new Color(0.55f, 0.85f, 1f);
+            // Mission panel (top-left corner) — GTA-style active mission + objective.
+            _missionPanel = Panel(root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(28, -28), new Vector2(450, 84), new Color(0f, 0f, 0f, 0.52f));
+            var accent = Panel(_missionPanel.transform, new Vector2(0, 0), new Vector2(0, 1), new Vector2(0, 0), new Vector2(5, 0), new Color(1f, 0.82f, 0.28f, 0.95f));
+            accent.rectTransform.pivot = new Vector2(0f, 0.5f);
+            accent.rectTransform.anchoredPosition = Vector2.zero;
+            _missionTitle = Label(_missionPanel.transform, "", 20, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(18, -10), new Vector2(420, 28));
+            _missionTitle.color = new Color(1f, 0.85f, 0.4f); _missionTitle.fontStyle = FontStyle.Bold;
+            _missionObjective = Label(_missionPanel.transform, "", 17, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(18, -44), new Vector2(420, 34));
+            _missionObjective.color = new Color(0.9f, 0.95f, 1f);
+            _missionPanel.enabled = false; _missionTitle.enabled = false; _missionObjective.enabled = false;
 
             // Interaction prompt (bottom-center, above the health bar)
             _promptText = Label(root, "", 24, TextAnchor.LowerCenter, new Vector2(0.5f, 0),
