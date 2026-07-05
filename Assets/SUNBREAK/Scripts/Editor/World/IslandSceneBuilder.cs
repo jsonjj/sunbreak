@@ -192,6 +192,7 @@ namespace SUNBREAK.EditorTools.World
             var session = new GameObject("GameSession").AddComponent<Save.GameSession>();
             session.state = state; session.player = player; session.combat = combat;
             BuildEconomy();
+            BuildTraversal();
 
             // 7c) Audio — bus + ambient bed, footsteps, car radio (engine audio is per-car).
             new GameObject("GameAudio").AddComponent<Audio.GameAudio>();
@@ -399,6 +400,22 @@ namespace SUNBREAK.EditorTools.World
             var go = new GameObject(name) { transform = { position = pos } };
             var shop = go.AddComponent<EnterableShop>();
             shop.kind = kind; shop.label = name; shop.range = 4.5f;
+        }
+
+        // ── Traversal: airport + marina made real, + boat/heli/plane spawns ──────────────────────
+        static void BuildTraversal()
+        {
+            new GameObject("TraversalSites").AddComponent<TraversalSites>();
+            foreach (var d in TraversalSites.BoatDocks) MakeCraft(CraftKind.Boat, d, 20f);
+            MakeCraft(CraftKind.Helicopter, TraversalSites.Helipad, 0f);
+            MakeCraft(CraftKind.Plane, TraversalSites.RunwaySouth, 0f);
+        }
+
+        static void MakeCraft(CraftKind kind, Vector3 pos, float yaw)
+        {
+            var go = new GameObject("CraftSpawn_" + kind) { transform = { position = new Vector3(pos.x, 1f, pos.z) } };
+            var s = go.AddComponent<CraftSpawner>();
+            s.kind = kind; s.yaw = yaw;
         }
 
         static void MakeService(ServiceKind kind, Vector3 pos)
