@@ -122,6 +122,7 @@ namespace SUNBREAK.Combat
 
             // Hitscan (+ pellets).
             Vector3 aimTarget = CrosshairPoint(w.rangeM);
+            if (aiming && Settings.AimAssist) aimTarget = AimAssistPoint(aimTarget, w.rangeM);
             float moveMul = controller != null && controller.PlanarSpeed > 0.6f ? 1.5f : 1f;
             float spread = w.spreadDeg * (aiming ? w.adsSpreadMul : 1f) * moveMul + _bloom * 4.5f;
             for (int p = 0; p < Mathf.Max(1, w.pellets); p++)
@@ -151,6 +152,7 @@ namespace SUNBREAK.Combat
                     {
                         amount = dmg, point = h.point, dir = dir, impulse = w.impulse, fromPlayer = true, attacker = gameObject,
                     });
+                    GameHUD.Hitmarker();
                 }
                 CombatFx.Instance?.Impact(h.point, h.normal);
                 break;
@@ -176,6 +178,8 @@ namespace SUNBREAK.Combat
                     {
                         amount = w.damage, point = c.ClosestPoint(origin), dir = dir, impulse = w.impulse, fromPlayer = true, attacker = gameObject,
                     });
+                    GameHUD.Hitmarker();
+                    CameraShake.Add(0.12f);
                     break; // one target per swing
                 }
             }
@@ -212,6 +216,24 @@ namespace SUNBREAK.Combat
             if (controller == null) return;
             float mul = aiming ? w.recoil.adsMul : 1f;
             controller.AddLook(-w.recoil.pitch * mul, Random.Range(-w.recoil.yaw, w.recoil.yaw) * mul);
+            CameraShake.Add(0.02f + w.recoil.pitch * 0.02f); // subtle firing kick
+        }
+
+        /// <summary>Soft-lock: while aiming, bias the shot toward the nearest target near the crosshair.</summary>
+        Vector3 AimAssistPoint(Vector3 fallback, float range)
+        {
+            if (aimCamera == null) return fallback;
+            Ray r = aimCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            var hits = Physics.SphereCastAll(r, 1.3f, range, ~0, QueryTriggerInteraction.Ignore);
+            System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
+            foreach (var h in hits)
+            {
+                if (h.transform == transform || h.transform.IsChildOf(transform)) continue;
+                var d = h.collider.GetComponentInParent<IDamageable>();
+                if (d != null && !d.IsDead && (d.Faction == Faction.Civilian || d.Faction == Faction.Police))
+                    return h.collider.bounds.center;
+            }
+            return fallback;
         }
 
         // ── Reload ──────────────────────────────────────────────────────────────
@@ -303,6 +325,12 @@ namespace SUNBREAK.Combat
         {
             slot = Mathf.Clamp(slot, 0, Weapons.WheelOrder.Length - 1);
             string id = Weapons.WheelOrder[slot];
+            // The melee slot upgrades to the best owned melee weapon (knife > bat > fists).
+            if (id == "fists")
+            {
+                if (_owned.Contains("knife")) id = "knife";
+                else if (_owned.Contains("bat")) id = "bat";
+            }
             if (!_owned.Contains(id)) return;
             _current = id;
             _reloading = false;

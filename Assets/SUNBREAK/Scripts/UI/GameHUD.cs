@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using SUNBREAK.Audio;
+using SUNBREAK.Cameras;
 using SUNBREAK.Combat;
 using SUNBREAK.Missions;
 using SUNBREAK.Vehicles;
@@ -37,6 +38,12 @@ namespace SUNBREAK.UI
         Text _missionTitle, _missionObjective;
         Text _toastTitle, _toastSub;
         float _toastUntil;
+        RawImage _vignette;
+        float _vignetteAmt;
+        Text _hitmarker;
+        float _hitUntil;
+        bool _dmgHooked;
+        static Texture2D _vigTex;
         RectTransform _blip, _blipBack, _wheelRoot;
         Text[] _wheelSlots;
         Text _wheelName;
@@ -46,6 +53,8 @@ namespace SUNBREAK.UI
 
         /// <summary>Post a mission dialogue / reward toast (title + subtitle).</summary>
         public static void Post(string title, string sub) => Instance?.ShowToast(title, sub);
+        /// <summary>Flash an on-screen hitmarker (player landed a hit on an enemy).</summary>
+        public static void Hitmarker() { if (Instance != null) Instance._hitUntil = Time.time + 0.13f; }
 
         void ShowToast(string title, string sub)
         {
@@ -61,13 +70,19 @@ namespace SUNBREAK.UI
         {
             _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             BuildUI();
-            if (state != null) { state.Changed += Refresh; Refresh(); }
+            if (state != null) { state.Changed += Refresh; state.Damaged += OnPlayerDamaged; Refresh(); }
         }
 
         void OnDestroy()
         {
-            if (state != null) state.Changed -= Refresh;
+            if (state != null) { state.Changed -= Refresh; state.Damaged -= OnPlayerDamaged; }
             if (Instance == this) Instance = null;
+        }
+
+        void OnPlayerDamaged(float amount)
+        {
+            _vignetteAmt = Mathf.Clamp01(_vignetteAmt + 0.3f + amount / 60f);
+            CameraShake.Add(0.15f + Mathf.Clamp01(amount / 70f) * 0.35f);
         }
 
         void Update()
@@ -138,6 +153,19 @@ namespace SUNBREAK.UI
                 float a = Mathf.Clamp01(Mathf.Min(remain, 1f));
                 _toastTitle.color = new Color(1f, 0.85f, 0.4f, a);
                 _toastSub.color = new Color(1f, 1f, 1f, a * 0.95f);
+            }
+
+            // Hit feedback: damage vignette + hitmarker fades (unscaled so they show even at low timescale).
+            float udt = Time.unscaledDeltaTime;
+            if (_vignette != null)
+            {
+                _vignetteAmt = Mathf.Max(0f, _vignetteAmt - udt * 1.6f);
+                _vignette.color = new Color(0.7f, 0.05f, 0.05f, _vignetteAmt * 0.6f);
+            }
+            if (_hitmarker != null)
+            {
+                float ha = Mathf.Clamp01((_hitUntil - Time.time) / 0.13f);
+                _hitmarker.color = new Color(1f, 0.95f, 0.7f, ha);
             }
 
             // Radio now-playing (while driving).
@@ -420,9 +448,21 @@ namespace SUNBREAK.UI
             _weaponText = Label(root, "", 22, TextAnchor.LowerRight, new Vector2(1, 0), new Vector2(-30, 260), new Vector2(420, 60));
             _weaponText.color = new Color(0.95f, 0.95f, 0.95f);
 
+            // Damage vignette (full-screen red edge flash on taking damage)
+            var vg = new GameObject("Vignette", typeof(RawImage));
+            vg.transform.SetParent(root, false);
+            _vignette = vg.GetComponent<RawImage>();
+            _vignette.texture = VignetteTex(); _vignette.raycastTarget = false;
+            _vignette.color = new Color(0.7f, 0.05f, 0.05f, 0f);
+            var vrt = _vignette.rectTransform; vrt.anchorMin = Vector2.zero; vrt.anchorMax = Vector2.one; vrt.offsetMin = Vector2.zero; vrt.offsetMax = Vector2.zero;
+
             // Reticle (centre)
             _reticle = Label(root, "+", 30, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40, 40));
             _reticle.color = new Color(1f, 1f, 1f, 0.75f);
+
+            // Hitmarker (brief X at centre when you damage an enemy)
+            _hitmarker = Label(root, "\u2715", 30, TextAnchor.MiddleCenter, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(60, 60));
+            _hitmarker.color = new Color(1f, 0.95f, 0.7f, 0f); _hitmarker.fontStyle = FontStyle.Bold;
 
             // Weapon wheel overlay (hidden until hold-Tab)
             var wheelGo = new GameObject("Wheel", typeof(RectTransform));
@@ -461,6 +501,25 @@ namespace SUNBREAK.UI
             rt.sizeDelta = size;
             rt.anchoredPosition = pos;
             return img;
+        }
+
+        static Texture2D VignetteTex()
+        {
+            if (_vigTex != null) return _vigTex;
+            const int n = 64;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            Vector2 c = new Vector2((n - 1) * 0.5f, (n - 1) * 0.5f);
+            float maxD = c.magnitude;
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                {
+                    float d = (new Vector2(x, y) - c).magnitude / maxD; // 0 centre → 1 corner
+                    float a = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.5f, 1f, d));
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+                }
+            tex.Apply();
+            _vigTex = tex;
+            return tex;
         }
 
         Text Label(Transform parent, string text, int size, TextAnchor anchor, Vector2 anch, Vector2 pos, Vector2 sizeDelta)

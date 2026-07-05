@@ -99,6 +99,11 @@ namespace SUNBREAK.World
             var st = GameRefs.PlayerState;
             if (st != null && GameRefs.Player != null && (GameRefs.Player.position - at).sqrMagnitude < 7f * 7f)
                 st.Damage(45f);
+            if (GameRefs.Player != null)
+            {
+                float d2 = (GameRefs.Player.position - at).sqrMagnitude;
+                if (d2 < 30f * 30f) SUNBREAK.Cameras.CameraShake.Add(Mathf.Clamp01(1f - d2 / (30f * 30f)) * 0.8f);
+            }
 
             // Become a burnt wreck.
             var mpb = new MaterialPropertyBlock();

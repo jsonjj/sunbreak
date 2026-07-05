@@ -73,6 +73,7 @@ namespace SUNBREAK.UI
             switch (_kind)
             {
                 case ShopKind.GunStore:
+                    Add("bat", "Baseball Bat", 300);
                     Add("pistol_9mm", "9mm Pistol", 900);
                     Add("smg_vector", "Compact SMG", 3200);
                     Add("shotgun_pump", "Pump Shotgun", 4800);

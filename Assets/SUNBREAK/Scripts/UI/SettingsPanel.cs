@@ -32,12 +32,12 @@ namespace SUNBREAK.UI
             var bg = Image(transform, new Color(0.03f, 0.04f, 0.06f, 0.96f));
             var rt = bg.rectTransform;
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(820, 660); rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(820, 720); rt.anchoredPosition = Vector2.zero;
 
             Label(bg.transform, "SETTINGS", 34, TextAnchor.UpperCenter, new Vector2(0, -22), new Vector2(760, 44),
                 new Color(1f, 0.85f, 0.4f), FontStyle.Bold);
 
-            float y = -96f, step = 62f;
+            float y = 226f, step = 54f;
             Row(bg.transform, ref y, step, "Master Volume", () => Pct(Settings.Master),
                 () => { Settings.Master = Clamp01(Settings.Master - 0.1f); }, () => { Settings.Master = Clamp01(Settings.Master + 0.1f); });
             Row(bg.transform, ref y, step, "Music Volume", () => Pct(Settings.Music),
@@ -49,6 +49,8 @@ namespace SUNBREAK.UI
                 () => { Settings.Sensitivity = Mathf.Clamp(Settings.Sensitivity + 0.02f, Settings.SensMin, Settings.SensMax); });
             Row(bg.transform, ref y, step, "Invert Look Y", () => Settings.InvertY ? "ON" : "OFF",
                 () => { Settings.InvertY = !Settings.InvertY; }, () => { Settings.InvertY = !Settings.InvertY; });
+            Row(bg.transform, ref y, step, "Aim Assist", () => Settings.AimAssist ? "ON" : "OFF",
+                () => { Settings.AimAssist = !Settings.AimAssist; }, () => { Settings.AimAssist = !Settings.AimAssist; });
             Row(bg.transform, ref y, step, "Field of View", () => Mathf.RoundToInt(Settings.Fov) + "\u00B0",
                 () => { Settings.Fov = Mathf.Clamp(Settings.Fov - 5f, Settings.FovMin, Settings.FovMax); },
                 () => { Settings.Fov = Mathf.Clamp(Settings.Fov + 5f, Settings.FovMin, Settings.FovMax); });

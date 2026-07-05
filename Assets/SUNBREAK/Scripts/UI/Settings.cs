@@ -17,6 +17,7 @@ namespace SUNBREAK.UI
         public static float Master = 0.9f, Music = 0.75f, Sfx = 0.9f;
         public static float Sensitivity = 0.12f;   // degrees of look per pixel of mouse delta
         public static bool InvertY = false;
+        public static bool AimAssist = true;       // soft-lock aim toward the nearest target while ADS
         public static float Fov = 52f;             // third-person base vertical FOV
         public static float Brightness = 1f;       // 0.6 (dark) .. 1.4 (bright)
 
@@ -36,6 +37,7 @@ namespace SUNBREAK.UI
             Sfx = PlayerPrefs.GetFloat(P + "sfx", Sfx);
             Sensitivity = PlayerPrefs.GetFloat(P + "sens", Sensitivity);
             InvertY = PlayerPrefs.GetInt(P + "invy", 0) != 0;
+            AimAssist = PlayerPrefs.GetInt(P + "aim", 1) != 0;
             Fov = PlayerPrefs.GetFloat(P + "fov", Fov);
             Brightness = PlayerPrefs.GetFloat(P + "bright", Brightness);
         }
@@ -47,6 +49,7 @@ namespace SUNBREAK.UI
             PlayerPrefs.SetFloat(P + "sfx", Sfx);
             PlayerPrefs.SetFloat(P + "sens", Sensitivity);
             PlayerPrefs.SetInt(P + "invy", InvertY ? 1 : 0);
+            PlayerPrefs.SetInt(P + "aim", AimAssist ? 1 : 0);
             PlayerPrefs.SetFloat(P + "fov", Fov);
             PlayerPrefs.SetFloat(P + "bright", Brightness);
             PlayerPrefs.Save();

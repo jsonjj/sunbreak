@@ -55,8 +55,11 @@ namespace SUNBREAK.Combat
             if (prefab != null) _map[id] = new Entry { prefab = prefab, length = length, weaponType = weaponType, pos = pos, euler = euler };
         }
 
+        // Procedural melee weapons (no kit prefab) — built in-hand on Attach.
+        static readonly HashSet<string> Melee = new() { "bat", "knife" };
+
         public int WeaponTypeFor(string id) => _map.TryGetValue(id, out var e) ? e.weaponType : 0;
-        public bool Has(string id) => _map.ContainsKey(id);
+        public bool Has(string id) => _map.ContainsKey(id) || Melee.Contains(id);
 
         /// <summary>Find the right-hand bone by name (Mixamo: "mixamorig:RightHand") — avoids the
         /// HumanoidBodyBones enum (not in this assembly set) and works on any similarly-named rig.</summary>
@@ -81,7 +84,9 @@ namespace SUNBREAK.Combat
         public GameObject Attach(Transform hand, string weaponId, out Transform muzzle)
         {
             muzzle = null;
-            if (hand == null || !_map.TryGetValue(weaponId, out var e) || e.prefab == null) return null;
+            if (hand == null) return null;
+            if (Melee.Contains(weaponId)) return AttachMelee(hand, weaponId);
+            if (!_map.TryGetValue(weaponId, out var e) || e.prefab == null) return null;
 
             var go = Instantiate(e.prefab, hand);
             go.name = "Weapon_" + weaponId;
@@ -113,6 +118,36 @@ namespace SUNBREAK.Combat
             m.position = b.center + go.transform.forward * (b.size.z * 0.5f + 0.02f);
             muzzle = m;
             return go;
+        }
+
+        /// <summary>Build a procedural melee weapon (bat / knife) in the hand.</summary>
+        static GameObject AttachMelee(Transform hand, string id)
+        {
+            var root = new GameObject("Weapon_" + id);
+            root.transform.SetParent(hand, false);
+            root.transform.localPosition = new Vector3(0.02f, -0.02f, 0.05f);
+            root.transform.localRotation = Quaternion.Euler(72f, 0f, 0f);
+            if (id == "knife")
+            {
+                Prim(root.transform, PrimitiveType.Cube, new Vector3(0f, 0f, 0.15f), new Vector3(0.02f, 0.02f, 0.22f), new Color(0.78f, 0.8f, 0.84f));
+                Prim(root.transform, PrimitiveType.Cube, Vector3.zero, new Vector3(0.03f, 0.03f, 0.08f), new Color(0.14f, 0.12f, 0.11f));
+            }
+            else // bat
+            {
+                var bat = Prim(root.transform, PrimitiveType.Cylinder, new Vector3(0f, 0f, 0.18f), new Vector3(0.05f, 0.32f, 0.05f), new Color(0.5f, 0.34f, 0.18f));
+                bat.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            }
+            return root;
+        }
+
+        static Transform Prim(Transform parent, PrimitiveType type, Vector3 pos, Vector3 scale, Color c)
+        {
+            var go = GameObject.CreatePrimitive(type);
+            var col = go.GetComponent<Collider>(); if (col) Destroy(col);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos; go.transform.localScale = scale;
+            go.GetComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = c };
+            return go.transform;
         }
 
         static Bounds Bounds(GameObject go)

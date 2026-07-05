@@ -77,6 +77,20 @@ namespace SUNBREAK.Combat
                 rangeM = 2.8f, falloff = Falloff.Flat, impulse = 7f, recoil = new Recoil(0, 0, 0, 1), magSize = 0,
                 wheelSlot = 7, sfx = "melee",
             },
+            ["bat"] = new WeaponSpec
+            {
+                id = "bat", name = "Baseball Bat", category = "melee", fireMode = FireMode.Melee, auto = false,
+                damage = 46f, rpm = 110f, reloadMs = 0f, pellets = 1, spreadDeg = 0f, adsSpreadMul = 1f,
+                rangeM = 3.1f, falloff = Falloff.Flat, impulse = 15f, recoil = new Recoil(0, 0, 0, 1), magSize = 0,
+                wheelSlot = 7, sfx = "melee",
+            },
+            ["knife"] = new WeaponSpec
+            {
+                id = "knife", name = "Knife", category = "melee", fireMode = FireMode.Melee, auto = false,
+                damage = 60f, rpm = 170f, reloadMs = 0f, pellets = 1, spreadDeg = 0f, adsSpreadMul = 1f,
+                rangeM = 2.4f, falloff = Falloff.Flat, impulse = 8f, recoil = new Recoil(0, 0, 0, 1), magSize = 0,
+                wheelSlot = 7, sfx = "melee",
+            },
             ["pistol_9mm"] = new WeaponSpec
             {
                 id = "pistol_9mm", name = "9mm Pistol", category = "handgun", fireMode = FireMode.Hitscan, auto = false,
