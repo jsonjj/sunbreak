@@ -11,6 +11,8 @@ namespace SUNBREAK.World
     public sealed class NavRoute : MonoBehaviour
     {
         public static NavRoute Instance { get; private set; }
+        /// <summary>A side-activity target (taxi drop-off / next race checkpoint), routed like a waypoint.</summary>
+        public static Vector3? ActivityWaypoint;
         public float spacing = 64f;
 
         public List<Vector3> Route { get; private set; }
@@ -43,6 +45,7 @@ namespace SUNBREAK.World
         static Vector3? TargetWaypoint()
         {
             if (UI.MapScreen.UserWaypoint.HasValue) return UI.MapScreen.UserWaypoint.Value;
+            if (ActivityWaypoint.HasValue) return ActivityWaypoint.Value;
             var ms = Missions.MissionSystem.Instance;
             if (ms != null && ms.HasWaypoint) return ms.WaypointPos;
             return null;

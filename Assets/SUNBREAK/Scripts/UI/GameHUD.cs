@@ -36,6 +36,10 @@ namespace SUNBREAK.UI
         Text _clockText, _promptText, _radioText;
         Image _missionPanel;
         Text _missionTitle, _missionObjective;
+        Text _activityText;
+        static string _activityMsg;
+        /// <summary>Set the on-screen side-activity status line (taxi timer, race checkpoints). Null hides it.</summary>
+        public static void SetActivity(string s) { _activityMsg = s; }
         Text _toastTitle, _toastSub;
         float _toastUntil;
         RawImage _vignette;
@@ -140,6 +144,14 @@ namespace SUNBREAK.UI
                     _missionObjective.text = missions.ObjectiveText +
                         (missions.HasWaypoint ? $"   ·   {Distance(missions.WaypointPos)} m" : "");
                 }
+            }
+
+            // Side-activity status line (taxi timer / race checkpoints).
+            if (_activityText != null)
+            {
+                bool on = !string.IsNullOrEmpty(_activityMsg);
+                if (_activityText.enabled != on) _activityText.enabled = on;
+                if (on) _activityText.text = _activityMsg;
             }
 
             // Interaction prompt (center-low).
@@ -429,6 +441,11 @@ namespace SUNBREAK.UI
             _missionObjective = Label(_missionPanel.transform, "", 17, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(18, -44), new Vector2(420, 34));
             _missionObjective.color = new Color(0.9f, 0.95f, 1f);
             _missionPanel.enabled = false; _missionTitle.enabled = false; _missionObjective.enabled = false;
+
+            // Side-activity status line (top-left, below the mission panel).
+            _activityText = Label(root, "", 20, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(30, -122), new Vector2(520, 30));
+            _activityText.color = new Color(0.6f, 1f, 0.8f); _activityText.fontStyle = FontStyle.Bold;
+            _activityText.enabled = false;
 
             // Interaction prompt (bottom-center, above the health bar)
             _promptText = Label(root, "", 24, TextAnchor.LowerCenter, new Vector2(0.5f, 0),
