@@ -4,6 +4,7 @@ using UnityEngine;
 using SUNBREAK.Combat;
 using SUNBREAK.Missions;
 using SUNBREAK.Player;
+using SUNBREAK.Save;
 using SUNBREAK.UI;
 
 namespace SUNBREAK.World
@@ -99,6 +100,15 @@ namespace SUNBREAK.World
             MissionCard.Fail("First Score", "You were wasted", null, null);
             yield return new WaitForSecondsRealtime(0.9f);
             yield return Grab("build_fail.png");
+
+            // Persistence round-trip self-check (the headless smoke log confirms full-state save/load).
+            HiddenPackage.FoundIds.Add(424242);
+            ActivityUtil.Completed = 5;
+            WeatherSystem.Instance?.Force(WeatherSystem.Weather.Rain);
+            GameSession.Instance?.SaveToSlot(3);
+            var back = SaveSystem.Read(3);
+            if (back != null)
+                Debug.Log($"SUNBREAK_SAVETEST: weather={back.weather} activities={back.activitiesDone} packages={back.foundPackages.Count} rep={back.missions.totalRep} minutes={back.gameMinutes:0} tutorial={back.tutorialDone}");
 
             Application.Quit();
         }

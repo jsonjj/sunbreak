@@ -411,6 +411,10 @@ namespace SUNBREAK.EditorTools.World
         static void BuildTraversal()
         {
             new GameObject("TraversalSites").AddComponent<TraversalSites>();
+            var gulls = new GameObject("Seagulls").AddComponent<Seagulls>();
+            gulls.center = new Vector3(-250f, 0f, 495f); // wheeling over the marina
+            var gulls2 = new GameObject("SeagullsPier").AddComponent<Seagulls>();
+            gulls2.center = new Vector3(95f, 0f, 520f); gulls2.count = 5; gulls2.radius = 55f; // Sunset Pier
             foreach (var d in TraversalSites.BoatDocks) MakeCraft(CraftKind.Boat, d, 20f);
             MakeCraft(CraftKind.Helicopter, TraversalSites.Helipad, 0f);
             MakeCraft(CraftKind.Plane, TraversalSites.RunwaySouth, 0f);
