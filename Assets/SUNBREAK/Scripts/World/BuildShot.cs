@@ -37,6 +37,9 @@ namespace SUNBREAK.World
             yield return new WaitForSecondsRealtime(1.8f);
             yield return Grab("build_shot2.png");  // rifle
 
+            // Minimap clarity: stand where several POI types cluster so the icons read distinctly.
+            yield return ShootMinimap();
+
             // Police "world comes alive" response — heli + SWAT + roadblock (captured early so it's
             // within the render window), then heat is cleared so the later shots stay clean.
             yield return ShootChase();
@@ -112,6 +115,30 @@ namespace SUNBREAK.World
             yield return new WaitForSecondsRealtime(0.9f);
             yield return Grab("build_fail.png");
 
+            // Wanted-clear self-check: raise 4★ (deploys cops/cars/heli/roadblocks), then Bust — the
+            // respawn must zero stars AND clear every deployed unit (headless log confirms it).
+            var ws = WantedSystem.Instance;
+            var pst = GameRefs.PlayerState;
+            if (ws != null && pst != null && GameRefs.Player != null)
+            {
+                var pcw = GameRefs.Player.GetComponent<PlayerController>();
+                if (pcw != null) pcw.Teleport(new Vector3(20f, 2f, 12f), 0f);
+                pst.Invulnerable = true;
+                ws.ForceStars(4);
+                // Deterministically deploy a few officers so the unit count is non-zero before the Bust.
+                Vector3 pp = GameRefs.Player.position, fwd = GameRefs.Player.forward; fwd.y = 0f; fwd.Normalize();
+                Vector3 right = Vector3.Cross(Vector3.up, fwd);
+                ws.SpawnFootCop(pp + fwd * 16f, ws.TierFor(4), 4);
+                ws.SpawnFootCop(pp - fwd * 16f, ws.TierFor(4), 4);
+                ws.SpawnFootCop(pp + right * 16f, ws.TierFor(4), 4);
+                yield return new WaitForSecondsRealtime(2.5f);
+                int starsBefore = ws.Stars, unitsBefore = ws.CopCount;
+                WastedBusted.Instance?.Bust();
+                yield return new WaitForSecondsRealtime(4.5f); // busted card + respawn
+                Debug.Log($"SUNBREAK_WANTEDCLEAR: starsBefore={starsBefore} unitsBefore={unitsBefore} starsAfter={ws.Stars} unitsAfter={ws.CopCount} searching={ws.Searching} resisting={ws.Resisting}");
+                pst.Invulnerable = false;
+            }
+
             // Persistence round-trip self-check (the headless smoke log confirms full-state save/load).
             HiddenPackage.FoundIds.Add(424242);
             ActivityUtil.Completed = 5;
@@ -167,6 +194,30 @@ namespace SUNBREAK.World
             pc.Teleport(spot, 0f);
             yield return new WaitForSecondsRealtime(1.4f); // let the follow camera settle
             yield return Grab("build_service.png");
+        }
+
+        /// <summary>Teleport to a POI-dense downtown spot so the minimap shows distinct type icons.</summary>
+        static IEnumerator ShootMinimap()
+        {
+            var pc = GameRefs.Player != null ? GameRefs.Player.GetComponent<PlayerController>() : null;
+            if (pc == null) yield break;
+            Vector3 spot = new Vector3(34f, 0f, -20f); // near bank / hospital / dealer / spawn car
+            if (Physics.Raycast(spot + Vector3.up * 140f, Vector3.down, out var hit, 260f, ~0, QueryTriggerInteraction.Ignore))
+                spot.y = hit.point.y + 1.6f;
+            pc.Teleport(spot, 20f);
+            yield return new WaitForSecondsRealtime(1.6f);
+            yield return Grab("build_minimap.png");
+
+            // Full map (M) — the clearest showcase of the per-POI icon + label scheme.
+            var map = FindFirstObjectByType<MapScreen>();
+            if (map != null)
+            {
+                map.DebugOpen(230f);
+                yield return new WaitForSecondsRealtime(1.0f);
+                yield return Grab("build_fullmap.png");
+                map.Close();
+                yield return new WaitForSecondsRealtime(0.4f);
+            }
         }
 
         /// <summary>Walk into an enterable building (dealership showroom) and capture the interior.</summary>

@@ -360,6 +360,11 @@ namespace SUNBREAK.EditorTools.World
             MakeCar(new Vector3(-54f, 0f, 74f), 0f);
             MakeCar(new Vector3(-54f, 0f, 66f), 0f);
 
+            // The player's OWNED car right by the spawn point — free to drive, "Your Car" blip.
+            var ownCar = new GameObject("PersonalCar").AddComponent<PersonalCar>();
+            ownCar.transform.position = Geography.PLAYER_SPAWN.position + new Vector3(-5f, 0f, 3f);
+            ownCar.yaw = Geography.PLAYER_SPAWN.yaw + 90f;
+
             // Living-service buildings. Hospital / Fuel / Safehouse are now walk-in INTERIORS; Verano
             // Customs stays a drive-in respray (you bring a vehicle to it).
             MakeEnterableShop("Vista General", ShopKind.Hospital, new Vector3(74f, 1f, -58f));       // hospital interior
@@ -378,24 +383,21 @@ namespace SUNBREAK.EditorTools.World
 
         static void BuildPointsOfInterest()
         {
-            // (label, x, z, colour) — static map blips so the minimap reads as a living city.
-            var pois = new (string label, float x, float z, Color c)[]
+            // (label, x, z, colour, icon) — static landmark blips so the map reads as a living city.
+            // The gun store / dealership / ATM / hospital / fuel / safehouse add their own icon blips.
+            var pois = new (string label, float x, float z, Color c, string icon)[]
             {
-                // Hospital / Fuel / Safehouse are now real ServiceBuildings (they add their own blips).
-                ("Ironsights Armory", 235f, 40f, new Color(1f, 0.4f, 0.3f)),
-                ("Verano Motors", -45f, 70f, new Color(0.4f, 0.7f, 1f)),
-                ("ATM / Bank", 40f, -35f, new Color(0.4f, 1f, 0.55f)),
-                ("Solaris Tower", 0f, -20f, new Color(0.8f, 0.8f, 0.9f)),
-                ("The Neon Mile", 315f, 30f, new Color(1f, 0.5f, 0.9f)),
-                ("Vista Galleria", 380f, 150f, new Color(1f, 0.8f, 0.4f)),
-                ("Estadio Sol", 250f, 265f, new Color(0.8f, 0.8f, 0.9f)),
-                ("Sunset Pier", 95f, 520f, new Color(0.9f, 0.7f, 0.5f)),
-                ("SVPD HQ", -74f, -32f, new Color(0.4f, 0.6f, 1f)),
+                ("Solaris Tower", 0f, -20f, new Color(0.8f, 0.8f, 0.9f), ""),
+                ("The Neon Mile", 315f, 30f, new Color(1f, 0.5f, 0.9f), ""),
+                ("Vista Galleria", 380f, 150f, new Color(1f, 0.8f, 0.4f), ""),
+                ("Estadio Sol", 250f, 265f, new Color(0.8f, 0.8f, 0.9f), ""),
+                ("Sunset Pier", 95f, 520f, new Color(0.9f, 0.7f, 0.5f), ""),
+                ("SVPD HQ", -74f, -32f, new Color(0.4f, 0.6f, 1f), "P"), // police HQ
             };
             foreach (var p in pois)
             {
                 var go = new GameObject("POI_" + p.label) { transform = { position = new Vector3(p.x, 1f, p.z) } };
-                Blip.Attach(go, BlipKind.Shop, p.c, p.label);
+                Blip.Attach(go, BlipKind.Shop, p.c, p.label, p.icon);
             }
         }
 

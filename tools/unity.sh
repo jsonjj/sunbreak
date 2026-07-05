@@ -81,7 +81,7 @@ _smoke() {
   mkdir -p "$LOGDIR/shots"
   local got=0 f pd
   for pd in "$pd1" "$pd2"; do
-    for f in build_shot.png build_shot2.png build_shot3.png build_boat.png build_heli.png build_plane.png build_service.png build_interior.png build_melee.png build_meleebat.png build_arrest.png build_pause.png build_settings.png build_chase.png build_rain.png build_night.png build_race.png build_activity.png build_fail.png; do
+    for f in build_shot.png build_shot2.png build_minimap.png build_fullmap.png build_shot3.png build_boat.png build_heli.png build_plane.png build_service.png build_interior.png build_melee.png build_meleebat.png build_arrest.png build_pause.png build_settings.png build_chase.png build_rain.png build_night.png build_race.png build_activity.png build_fail.png; do
       if [ -f "$pd/$f" ]; then cp "$pd/$f" "$LOGDIR/shots/$f"; got=1; fi
     done
   done
