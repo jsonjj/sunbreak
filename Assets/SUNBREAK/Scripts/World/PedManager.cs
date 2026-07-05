@@ -30,9 +30,34 @@ namespace SUNBREAK.World
             new Arch { walk = 1.1f,  run = 4.2f, health = 90,  jumpiness = 1.25f, weight = 0.13f, armMul = 0f },   // tourist
             new Arch { walk = 1.4f,  run = 5.4f, health = 130, jumpiness = 0.55f, weight = 0.07f, armMul = 4f, gangster = true }, // gangster
         };
+        public static PedManager Instance { get; private set; }
+
         readonly List<Ped> _pool = new();
         float _timer;
         bool _built;
+
+        void Awake() { Instance = this; }
+        void OnDestroy() { if (Instance == this) Instance = null; }
+
+        /// <summary>Spawn a scared, fleeing pedestrian at a point (e.g. a carjacked driver bailing).</summary>
+        public Ped SpawnScaredAt(Vector3 pos)
+        {
+            if (!_built) BuildPool();
+            foreach (var p in _pool)
+            {
+                if (p.Active) continue;
+                Vector3 dest = NavMesh.SamplePosition(pos, out var hit, 10f, NavMesh.AllAreas) ? hit.position : pos;
+                var go = p.gameObject;
+                go.SetActive(true);
+                if (go.TryGetComponent<NavMeshAgent>(out var agent)) { if (!agent.enabled) agent.enabled = true; agent.Warp(dest); }
+                else go.transform.position = dest;
+                if (go.TryGetComponent<Health>(out var hp)) hp.Init(100f, Faction.Civilian, Random.Range(200000, 2000000));
+                p.Activate(1.35f, 5.2f, 100f, 1.3f, false, null);
+                p.Panic(GameRefs.Player != null ? GameRefs.Player.position : pos);
+                return p;
+            }
+            return null;
+        }
 
         void BuildPool()
         {

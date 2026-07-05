@@ -22,10 +22,24 @@ namespace SUNBREAK.World
             new Color(0.61f, 0.17f, 0.17f), new Color(0.12f, 0.30f, 0.47f), new Color(0.23f, 0.42f, 0.32f),
         };
 
+        public static TrafficManager Instance { get; private set; }
+
         readonly List<TrafficCar> _pool = new();
         readonly List<bool> _active = new();
         float _timer;
         bool _built;
+
+        void Awake() { Instance = this; }
+        void OnDestroy() { if (Instance == this) Instance = null; }
+
+        /// <summary>Return a (carjacked) traffic car to the pool so it can respawn later.</summary>
+        public void Recycle(TrafficCar car)
+        {
+            int i = _pool.IndexOf(car);
+            if (i < 0) return;
+            _active[i] = false;
+            car.gameObject.SetActive(false);
+        }
 
         void BuildPool()
         {

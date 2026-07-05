@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using SUNBREAK.Cameras;
 using SUNBREAK.Player;
+using SUNBREAK.World;
 
 namespace SUNBREAK.Vehicles
 {
@@ -56,14 +57,40 @@ namespace SUNBREAK.Vehicles
                 float sq = (cp - me).sqrMagnitude;
                 if (sq < bestSq) { bestSq = sq; best = d; }
             }
-            if (best == null) return;
+            // Also consider carjacking a nearby occupied traffic car (whichever is closest wins).
+            TrafficCar bestCar = null;
+            float carSq = enterRange * enterRange;
+            var cars = TrafficCar.Active;
+            for (int i = 0; i < cars.Count; i++)
+            {
+                var tc = cars[i];
+                if (tc == null || !tc.Carjackable) continue;
+                var col = tc.GetComponent<Collider>();
+                Vector3 cp = col != null ? col.ClosestPoint(me) : tc.transform.position;
+                float sq = (cp - me).sqrMagnitude;
+                if (sq < carSq) { carSq = sq; bestCar = tc; }
+            }
 
-            _current = best;
+            if (bestCar != null && (best == null || carSq <= bestSq))
+            {
+                var jacked = bestCar.Carjack();
+                ThreatBus.Crime(transform.position, 2.0f); // carjacking in view is a crime
+                if (jacked != null) Enter(jacked);
+                return;
+            }
+
+            if (best == null) return;
+            Enter(best);
+        }
+
+        void Enter(IDrivable d)
+        {
+            _current = d;
             player.movementEnabled = false;
             if (characterController != null) characterController.enabled = false;
             if (playerVisual != null) playerVisual.SetActive(false);
-            best.ControlEnabled = true;
-            if (cam != null) cam.SetTarget(best.Transform, best.Transform, true, best.TrailHeading);
+            d.ControlEnabled = true;
+            if (cam != null) cam.SetTarget(d.Transform, d.Transform, true, d.TrailHeading);
         }
 
         void Exit()

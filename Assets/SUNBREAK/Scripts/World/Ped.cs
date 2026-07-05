@@ -35,6 +35,11 @@ namespace SUNBREAK.World
         float _fear, _stateT, _fireT, _deadAt;
         Vector3 _threat;
 
+        // Witnessing: a ped that SEES a crime (LOS to the player) flees, then reports it to raise
+        // wanted after a delay — unless it's killed or the player escapes first (GTA-style).
+        int _witnessStamp;
+        float _reportAt = -1f, _reportSeverity;
+
         public bool Active { get; private set; }
         public bool ReadyToRecycle => _state == PState.Dead && Time.time - _deadAt > RagdollLingerS;
 
@@ -51,6 +56,7 @@ namespace SUNBREAK.World
         {
             _walk = walk; _run = run; _jumpiness = jumpiness; _fighter = fighter; _weapon = weapon;
             _fear = 0f; _state = PState.Wander; _stateT = 0f; _fireT = 0f;
+            _witnessStamp = 0; _reportAt = -1f;
             Active = true;
             gameObject.SetActive(true);
             Ragdoll.Reset(gameObject);
@@ -66,6 +72,7 @@ namespace SUNBREAK.World
         public void Deactivate()
         {
             Active = false;
+            _reportAt = -1f;
             ClearWeapon();
             CrowdFactory.SetUnarmed(_animator);
             if (_agent != null && _agent.isActiveAndEnabled && _agent.isOnNavMesh) _agent.ResetPath();
@@ -106,6 +113,8 @@ namespace SUNBREAK.World
             float t = ThreatBus.Sample(transform.position, out var epi);
             if (t > 0f) { _fear = Mathf.Min(1f, _fear + t * _jumpiness * dt * 4f); _threat = epi; }
             _fear = Mathf.Max(0f, _fear - FearDecay * dt);
+
+            TryWitness();
 
             // Transition into flee/fight.
             if (_fear >= FleeThreshold && _state != PState.Flee && _state != PState.Fight)
@@ -202,6 +211,53 @@ namespace SUNBREAK.World
             else _fireT = 0.3f;
         }
 
+        // ── Witnessing a crime ────────────────────────────────────────────────
+        void TryWitness()
+        {
+            var player = GameRefs.Player;
+            if (player == null) return;
+
+            if (_reportAt < 0f)
+            {
+                // See an active crime with a clear line of sight → flee + schedule a report.
+                if (ThreatBus.LatestCrime(transform.position, out _, out float sev, out int stamp)
+                    && stamp != _witnessStamp && HasLosTo(player))
+                {
+                    _witnessStamp = stamp;
+                    _reportSeverity = sev;
+                    _reportAt = Time.time + Random.Range(3f, 6f);
+                    _fear = Mathf.Max(_fear, 0.6f);
+                    _threat = player.position;
+                }
+            }
+            else if (Time.time >= _reportAt)
+            {
+                // Report it — unless the player has escaped far by now.
+                if ((transform.position - player.position).sqrMagnitude < 150f * 150f)
+                    WantedSystem.Instance?.ReportWitness(_reportSeverity, player.position);
+                _reportAt = -1f;
+            }
+        }
+
+        bool HasLosTo(Transform player)
+        {
+            Vector3 eye = transform.position + Vector3.up * 1.5f;
+            Vector3 tgt = player.position + Vector3.up * 1.0f;
+            if ((tgt - eye).sqrMagnitude > 60f * 60f) return false;
+            return !Physics.Linecast(eye, tgt, out var h, ~0, QueryTriggerInteraction.Ignore)
+                   || h.collider.transform == player || h.collider.transform.IsChildOf(player)
+                   || h.collider.CompareTag("Player");
+        }
+
+        /// <summary>Force an immediate scared flee from a threat (e.g. a carjack ejection).</summary>
+        public void Panic(Vector3 threatPos)
+        {
+            if (!Active || _state == PState.Dead) return;
+            _fear = 1f; _threat = threatPos;
+            if (!_fighter) { _state = PState.Flee; _stateT = 0f; FleeStep(); }
+            else { _state = PState.Fight; _stateT = 0f; }
+        }
+
         void OnDamaged(DamageInfo info)
         {
             _fear = 1f;
@@ -212,6 +268,7 @@ namespace SUNBREAK.World
         {
             if (_state == PState.Dead) return;
             _state = PState.Dead; _deadAt = Time.time;
+            _reportAt = -1f; // a dead witness can't call it in
             _health.HideBar();
             Ragdoll.Topple(gameObject, _capsule, info.dir, info.impulse);
         }

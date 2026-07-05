@@ -25,7 +25,8 @@ namespace SUNBREAK.Combat
         readonly Dictionary<string, int> _mag = new();
         string _current = "pistol_9mm";
         float _nextFire, _reloadDone, _bloom;
-        bool _reloading;
+        float _lastFireCrimeT, _lastAimCrimeT;
+        bool _reloading, _wasAiming;
 
         InputAction _fire, _reload, _wheel, _scroll;
         InputAction[] _slots;
@@ -69,6 +70,15 @@ namespace SUNBREAK.Combat
             float dt = Time.unscaledDeltaTime;
             _bloom = Mathf.Max(0f, _bloom - 2.5f * dt);
 
+            // Drawing a gun near people scares them; if witnessed it's a (minor) crime.
+            bool aimingNow = _current != "fists" && cameraController != null && cameraController.Aiming;
+            if (aimingNow && !_wasAiming)
+            {
+                ThreatBus.Brandish(transform.position);
+                if (Time.time - _lastAimCrimeT > 2f) { ThreatBus.Crime(transform.position, 0.6f); _lastAimCrimeT = Time.time; }
+            }
+            _wasAiming = aimingNow;
+
             HandleWheel();
             if (WheelOpen) return; // time is slowed; no firing while choosing
             HandleSlotKeys();
@@ -104,7 +114,9 @@ namespace SUNBREAK.Combat
             Vector3 muzzle = _visuals != null ? _visuals.MuzzlePosition : transform.position + Vector3.up * 1.15f + transform.forward * 0.4f;
             if (_visuals != null) _visuals.OnFire(); else CombatFx.Instance?.Muzzle(muzzle, w.muzzle);
             CombatFx.Instance?.Sfx(w.sfx, muzzle);
-            ThreatBus.Gunshot(transform.position); // ped fear only; NOT wanted
+            ThreatBus.Gunshot(transform.position); // ped fear
+            // Firing in the open is a witnessable crime (debounced so auto-fire is one event).
+            if (Time.time - _lastFireCrimeT > 1.3f) { ThreatBus.Crime(transform.position, 1.2f); _lastFireCrimeT = Time.time; }
 
             if (w.fireMode == FireMode.Projectile) { FireProjectile(w, muzzle); ApplyRecoil(w, aiming); return; }
 
@@ -152,6 +164,7 @@ namespace SUNBREAK.Combat
             Vector3 dir = transform.forward;
             CombatFx.Instance?.Sfx("melee", origin);
             ThreatBus.Melee(transform.position);
+            ThreatBus.Crime(transform.position, 1.2f); // swinging at people in the open is witnessable
             var cols = Physics.OverlapSphere(origin + dir * (w.rangeM * 0.5f), w.rangeM * 0.6f, ~0, QueryTriggerInteraction.Ignore);
             foreach (var c in cols)
             {

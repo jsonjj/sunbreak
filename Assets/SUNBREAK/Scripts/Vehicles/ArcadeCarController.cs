@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using SUNBREAK.Combat;
+using SUNBREAK.World;
 
 namespace SUNBREAK.Vehicles
 {
@@ -137,6 +139,32 @@ namespace SUNBREAK.Vehicles
 
             ApplyAntiRollBar();
             ApplyAeroAndAssists(forwardSpeed, groundedCount, dt);
+
+            // Driving fast (while occupied) scatters nearby pedestrians (reckless-driving fear).
+            if (controlEnabled && Mathf.Abs(forwardSpeed) > 12f)
+            {
+                _threatPulseT -= dt;
+                if (_threatPulseT <= 0f) { ThreatBus.VehicleThreat(transform.position + transform.forward * 5f); _threatPulseT = 0.4f; }
+            }
+        }
+
+        float _threatPulseT;
+
+        void OnCollisionEnter(Collision c)
+        {
+            if (!controlEnabled || _rb == null) return; // only the player's driven car runs people over
+            float speed = _rb.linearVelocity.magnitude;
+            if (speed < 5f) return;
+            var d = c.collider.GetComponentInParent<IDamageable>();
+            if (d == null || d.IsDead) return;
+            if (d.Faction != Faction.Civilian && d.Faction != Faction.Police) return;
+            Vector3 pt = c.contactCount > 0 ? c.GetContact(0).point : transform.position;
+            d.ApplyDamage(new DamageInfo
+            {
+                amount = Mathf.Clamp(speed * 7f, 25f, 220f), point = pt,
+                dir = _rb.linearVelocity.normalized, impulse = speed, fromPlayer = true, attacker = gameObject,
+            });
+            ThreatBus.Crime(transform.position, 3.0f); // vehicular assault — witnessed
         }
 
         void UpdateSteering(float forwardSpeed, float topSpeed, float dt)

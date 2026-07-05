@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using SUNBREAK.Vehicles;
 
 namespace SUNBREAK.World
 {
@@ -20,6 +22,14 @@ namespace SUNBREAK.World
         float _spin;
         float _turnCooldown;
         Transform[] _wheels;
+        bool _carjacked;
+
+        /// <summary>Live occupied traffic cars, so the interactor can find one to carjack.</summary>
+        public static readonly List<TrafficCar> Active = new();
+        public bool Carjackable => isActiveAndEnabled && !_carjacked;
+
+        void OnEnable() { Active.Add(this); }
+        void OnDisable() { Active.Remove(this); }
 
         public void Init(Transform[] wheels, float spacing)
         {
@@ -66,9 +76,25 @@ namespace SUNBREAK.World
             foreach (Transform t in go.transform) SetLayer(t.gameObject);
         }
 
+        /// <summary>Carjack: eject a fleeing driver, recycle this traffic car, and hand back a real
+        /// drivable car spawned in its place (the player then enters it). Witnessed elsewhere.</summary>
+        public ArcadeCarController Carjack()
+        {
+            if (_carjacked) return null;
+            _carjacked = true;
+            Vector3 pos = transform.position;
+            float yaw = transform.eulerAngles.y;
+            Vector3 door = pos + transform.right * -1.9f + Vector3.up * 0.1f;
+            PedManager.Instance?.SpawnScaredAt(door);           // the driver bails and flees
+            TrafficManager.Instance?.Recycle(this);             // free this kinematic car back to the pool
+            var city = FindFirstObjectByType<CityGenerator>();
+            return city != null ? city.SpawnCar(new Vector3(pos.x, 0f, pos.z), yaw, null) : null;
+        }
+
         /// <summary>Place the car on a random road-grid lane near a start point.</summary>
         public void PlaceOnGrid(Vector3 near)
         {
+            _carjacked = false;
             _axis = Random.value < 0.5f ? 0 : 1;
             _sign = Random.value < 0.5f ? 1 : -1;
             float half = Geography.CITY_HALF;
