@@ -40,6 +40,9 @@ namespace SUNBREAK.Vehicles
         [Tooltip("Master enable — drop to false to park the car (e.g. when not occupied).")]
         public bool controlEnabled = true;
 
+        [Tooltip("The player's OWN car — entering/driving it is never a crime (distinct from carjacking).")]
+        public bool Owned;
+
         // Maps the abstract Rapier spring rate onto PhysX N/m. Tuned so the ported
         // stiffness values hold each preset at a natural ride height under gravity.
         const float SpringScale = 1000f;
