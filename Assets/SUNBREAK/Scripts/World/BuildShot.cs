@@ -68,6 +68,32 @@ namespace SUNBREAK.World
                 yield return new WaitForSecondsRealtime(0.4f);
             }
 
+            // Weather + day-night proof: a rainy street, then a night scene.
+            var weather = FindFirstObjectByType<WeatherSystem>();
+            var day = DayNightSystem.Instance;
+            if (day != null) day.SetTime(13f * 60f);
+            if (weather != null) weather.Force(WeatherSystem.Weather.Rain);
+            yield return new WaitForSeconds(3.5f);
+            yield return Grab("build_rain.png");
+            if (weather != null) weather.Force(WeatherSystem.Weather.Clear);
+            if (day != null) day.SetTime(1f * 60f);   // 01:00
+            yield return new WaitForSeconds(1.5f);
+            yield return Grab("build_night.png");
+            if (day != null) day.SetTime(9f * 60f);    // back to daylight
+
+            // Street race checkpoint ring.
+            var race = FindFirstObjectByType<StreetRace>();
+            if (race != null && GameRefs.Player != null)
+            {
+                race.Interact(GameRefs.Player.gameObject);
+                yield return new WaitForSeconds(0.5f);
+                if (NavRoute.ActivityWaypoint.HasValue)
+                {
+                    Vector3 cp = NavRoute.ActivityWaypoint.Value - new Vector3(0f, 0f, 11f);
+                    yield return ShootFrom(cp, 0f, "build_race.png");
+                }
+            }
+
             // SP-completeness proof: an activity marker, then the MISSION FAILED panel.
             yield return ShootFrom(new Vector3(120f, 0f, 111f), 0f, "build_activity.png");
             MissionCard.Fail("First Score", "You were wasted", null, null);

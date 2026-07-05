@@ -159,6 +159,7 @@ namespace SUNBREAK.EditorTools.World
 
             var dayNight = new GameObject("DayNight").AddComponent<DayNightSystem>();
             dayNight.sun = sun; dayNight.cityMat = cityMat; dayNight.propMat = propMat;
+            new GameObject("Weather").AddComponent<WeatherSystem>(); // clear↔overcast↔rain↔storm + wet grip
 
             new GameObject("BuildShot").AddComponent<BuildShot>(); // -sunbreakshot render verification
             new GameObject("NavRoute").AddComponent<NavRoute>().spacing = gen.roadSpacing; // A* GPS route
@@ -428,6 +429,12 @@ namespace SUNBREAK.EditorTools.World
             MakeActivity(ActivityKind.Bounty, new Vector3(120f, 1f, 120f));
             MakeActivity(ActivityKind.Rampage, new Vector3(-140f, 1f, -120f));
             MakeActivity(ActivityKind.Bounty, new Vector3(300f, 1f, -40f));
+
+            // Taxi/delivery jobs + street races (driving activities) on the road grid.
+            new GameObject("TaxiJob_A") { transform = { position = new Vector3(64f, 1f, -8f) } }.AddComponent<TaxiJob>().range = 4.5f;
+            new GameObject("TaxiJob_B") { transform = { position = new Vector3(-64f, 1f, 128f) } }.AddComponent<TaxiJob>().range = 4.5f;
+            new GameObject("StreetRace_A") { transform = { position = new Vector3(8f, 1f, 64f) } }.AddComponent<StreetRace>().range = 4.5f;
+            new GameObject("StreetRace_B") { transform = { position = new Vector3(256f, 1f, 8f) } }.AddComponent<StreetRace>().range = 4.5f;
 
             Vector3[] packages =
             {
