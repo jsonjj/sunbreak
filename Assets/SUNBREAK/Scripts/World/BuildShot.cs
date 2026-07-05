@@ -139,6 +139,22 @@ namespace SUNBREAK.World
                 pst.Invulnerable = false;
             }
 
+            // Car durability self-check: a car should shrug off 20 pistol rounds but die to one RPG.
+            var cityGen = FindFirstObjectByType<CityGenerator>();
+            if (cityGen != null)
+            {
+                var testCar = cityGen.SpawnCar(new Vector3(60f, 0f, 60f), 0f, null);
+                if (testCar != null && testCar.TryGetComponent<CarHealth>(out var ch))
+                {
+                    Vector3 at = testCar.transform.position + Vector3.up;
+                    for (int i = 0; i < 20; i++) ch.ApplyDamage(new DamageInfo { amount = 24f, kind = DamageKind.Bullet, point = at });
+                    bool alive20 = !ch.IsDead;
+                    ch.ApplyDamage(new DamageInfo { amount = 150f, kind = DamageKind.Explosive, point = at });
+                    bool deadRpg = ch.IsDead;
+                    Debug.Log($"SUNBREAK_CARDUR: aliveAfter20Pistol={alive20} deadAfter1RPG={deadRpg}");
+                }
+            }
+
             // Persistence round-trip self-check (the headless smoke log confirms full-state save/load).
             HiddenPackage.FoundIds.Add(424242);
             ActivityUtil.Completed = 5;
