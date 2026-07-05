@@ -29,12 +29,13 @@ namespace SUNBREAK.Combat
 
         readonly Dictionary<string, Entry> _map = new();
 
-        // Grip transforms tuned against the Mixamo right-hand bone (barrel = local +Z after rotation).
-        // One-handed pistols and two-handed long guns hold slightly differently.
-        static readonly Vector3 PistolPos = new Vector3(0.02f, -0.02f, 0.04f);
-        static readonly Vector3 PistolEuler = new Vector3(-90f, 90f, 0f);
-        static readonly Vector3 RiflePos = new Vector3(0.03f, -0.02f, 0.16f);
-        static readonly Vector3 RifleEuler = new Vector3(-90f, 90f, 0f);
+        // The barrel is model-local +Z. We aim it along the character's forward at attach time
+        // (see Attach), so these are only a small extra tilt + a hand-local position nudge.
+        // pos = offset inside the right hand; euler = tilt about the aimed-forward frame.
+        static readonly Vector3 PistolPos = new Vector3(0.01f, -0.02f, 0.03f);
+        static readonly Vector3 PistolEuler = new Vector3(6f, 0f, 0f);   // barrel a touch down
+        static readonly Vector3 RiflePos = new Vector3(0.02f, -0.03f, 0.06f);
+        static readonly Vector3 RifleEuler = new Vector3(4f, 0f, 0f);
 
         void Awake()
         {
@@ -94,9 +95,16 @@ namespace SUNBREAK.Combat
             float s = e.length / len;
             go.transform.localScale = Vector3.one * s;
 
-            // Grip pose in the Mixamo right hand (per-weapon).
+            // Aim the barrel (model +Z) along the character's forward, expressed in the hand bone's
+            // frame — so it points where the player faces regardless of the animated hand rotation
+            // (fixes the "gun sideways in hand" look). e.euler adds a small per-weapon tilt.
+            Transform charT = hand.GetComponentInParent<Animator>()?.transform;
+            Vector3 fwd = charT != null ? charT.forward : hand.forward;
+            Vector3 up = charT != null ? charT.up : Vector3.up;
+            Quaternion inv = Quaternion.Inverse(hand.rotation);
+            Quaternion look = Quaternion.LookRotation((inv * fwd).normalized, (inv * up).normalized);
             go.transform.localPosition = e.pos;
-            go.transform.localRotation = Quaternion.Euler(e.euler);
+            go.transform.localRotation = look * Quaternion.Euler(e.euler);
 
             // Muzzle at the front of the fitted model along its local barrel axis.
             b = Bounds(go);
