@@ -128,11 +128,13 @@ namespace SUNBREAK.World
             animator.SetBool("Armed", false);
         }
 
-        public Cop SpawnCop(Vector3 pos, string weapon, float accuracy, float health, int star)
+        public Cop SpawnCop(Vector3 pos, string weapon, float accuracy, float health, int star, bool swat = false)
         {
             var go = BuildHumanoid("Cop", Faction.Police, health, new Color(0.35f, 0.42f, 0.62f),
                 out var agent, out var hp, out var animator);
             if (!Place(go, agent, pos)) { Destroy(go); return null; }
+            // 4–5★ SWAT: the Ch15 model gets a dark tactical tint + a touch more presence.
+            if (swat) { Tint(go, new Color(0.27f, 0.29f, 0.35f)); go.transform.localScale = Vector3.one * 1.05f; }
             EquipWeapon(animator, weapon);
             var cop = go.AddComponent<Cop>();
             cop.Init(agent, hp, weapon, accuracy, star);

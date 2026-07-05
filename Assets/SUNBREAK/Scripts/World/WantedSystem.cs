@@ -31,8 +31,8 @@ namespace SUNBREAK.World
             { 1, new CopTier { count = 2, weapon = "pistol_9mm", accuracy = 0.32f, health = 100 } },
             { 2, new CopTier { count = 3, weapon = "pistol_9mm", accuracy = 0.42f, health = 110 } },
             { 3, new CopTier { count = 4, weapon = "smg_vector", accuracy = 0.5f, health = 120 } },
-            { 4, new CopTier { count = 6, weapon = "rifle_carbine", accuracy = 0.56f, health = 140 } },
-            { 5, new CopTier { count = 8, weapon = "rifle_carbine", accuracy = 0.64f, health = 170 } },
+            { 4, new CopTier { count = 6, weapon = "rifle_carbine", accuracy = 0.62f, health = 175 } }, // SWAT
+            { 5, new CopTier { count = 8, weapon = "rifle_carbine", accuracy = 0.72f, health = 220 } }, // SWAT
         };
         // Cop CARS per star (TIER_BUDGETS.cruisers), capped for a Mac hero budget.
         static readonly int[] CarBudget = { 0, 1, 2, 3, 4, 5 };
@@ -74,8 +74,10 @@ namespace SUNBREAK.World
         readonly HashSet<int> _distinct = new();
         readonly List<Cop> _cops = new();
         readonly List<CopCar> _cars = new();
+        readonly List<Roadblock> _roadblocks = new();
+        CopHeli _heli;
 
-        float _dispatchAcc, _cooldownTimer, _wantedSince, _lastFootSpawn, _lastCarSpawn;
+        float _dispatchAcc, _cooldownTimer, _wantedSince, _lastFootSpawn, _lastCarSpawn, _lastBlockT, _lastHeliT;
         int _prevStars;
 
         void Awake() { Instance = this; }
@@ -99,6 +101,19 @@ namespace SUNBREAK.World
             AddHeat(heat, floor);
             Lkp = pos;
         }
+
+        /// <summary>A witness who SAW a crime (but wasn't the victim) phones it in — raises heat by
+        /// severity; many witnesses stack. Reuses the same heat model as direct contact.</summary>
+        public void ReportWitness(float severity, Vector3 pos)
+        {
+            if (severity <= 0f) return;
+            int floor = severity >= 2.5f ? 3 : severity >= 1.2f ? 2 : 1;
+            AddHeat(severity, floor);
+            Lkp = pos;
+        }
+
+        /// <summary>Air unit relays the player's live position to keep ground units + LKP fresh.</summary>
+        public void RelayPosition(Vector3 pos) { Lkp = pos; }
 
         static int MinStarsForDistinct(int n) => n >= 8 ? 5 : n >= 5 ? 4 : n >= 3 ? 3 : n >= 2 ? 2 : n >= 1 ? 1 : 0;
 
@@ -137,6 +152,9 @@ namespace SUNBREAK.World
             _cops.Clear();
             foreach (var c in _cars) if (c != null) Destroy(c.gameObject);
             _cars.Clear();
+            foreach (var r in _roadblocks) if (r != null) Destroy(r.gameObject);
+            _roadblocks.Clear();
+            if (_heli != null) { Destroy(_heli.gameObject); _heli = null; }
         }
 
         void Update()
@@ -214,13 +232,42 @@ namespace SUNBREAK.World
                 foreach (var c in _cops) { if (c == null) continue; float d = (c.transform.position - pp).sqrMagnitude; if (d > fd) { fd = d; far = c; } }
                 if (far != null) { far.Despawn(); _cops.Remove(far); }
             }
+
+            // Air support (3★+): one police chopper orbits, spotlights, relays the LKP, and fires.
+            if (Stars >= 3 && _heli == null && Time.time - _lastHeliT > 8f) { _heli = CopHeli.Spawn(pp); _lastHeliT = Time.time; }
+            else if (Stars < 3 && _heli != null) { Destroy(_heli.gameObject); _heli = null; }
+
+            // Roadblocks (3★+): drop one (or two at 4★+) across a road ahead of the player periodically.
+            _roadblocks.RemoveAll(r => r == null);
+            int wantBlocks = Stars >= 4 ? 2 : 1;
+            if (Stars >= 3 && _roadblocks.Count < wantBlocks && Time.time - _lastBlockT > 12f)
+            {
+                var block = TrySpawnRoadblock(pp);
+                if (block != null) { _roadblocks.Add(block); _lastBlockT = Time.time; }
+            }
         }
 
         public Cop SpawnFootCop(Vector3 pos, CopTier tier, int star)
         {
-            var cop = crowd.SpawnCop(pos, tier.weapon, tier.accuracy, tier.health, star);
+            // 4–5★ escalates to SWAT: the Ch15 model gets a dark tactical look + the tougher stats.
+            var cop = crowd.SpawnCop(pos, tier.weapon, tier.accuracy, tier.health, star, star >= 4);
             if (cop != null) _cops.Add(cop);
             return cop;
+        }
+
+        Roadblock TrySpawnRoadblock(Vector3 pp)
+        {
+            if (city == null || player == null) return null;
+            Vector3 dir = player.forward; dir.y = 0f;
+            if (dir.sqrMagnitude < 0.1f) dir = Vector3.forward;
+            dir.Normalize();
+            float spacing = city.roadSpacing;
+            Vector3 ahead = pp + dir * 62f;
+            // Snap onto the nearest road grid line perpendicular to travel, on land.
+            if (Mathf.Abs(dir.x) >= Mathf.Abs(dir.z)) ahead.x = Mathf.Round(ahead.x / spacing) * spacing;
+            else ahead.z = Mathf.Round(ahead.z / spacing) * spacing;
+            if (Geography.IsWaterPadded(ahead.x, ahead.z, 6f) || Geography.DistrictAt(ahead.x, ahead.z) == null) return null;
+            return Roadblock.Spawn(city, ahead, dir);
         }
 
         CopCar SpawnCopCar(Vector3 pos)
