@@ -90,6 +90,10 @@ namespace SUNBREAK.World
         /// <summary>Force a weather state (verification / scripting).</summary>
         public void Force(Weather w) => Enter(w, instant: true);
 
+        /// <summary>Current state as an int (save) + restore.</summary>
+        public int StateIndex => (int)Current;
+        public void SetState(int i) => Enter((Weather)Mathf.Clamp(i, 0, 3), instant: true);
+
         void NextState()
         {
             // Weighted so clear/overcast dominate; storms are rare.

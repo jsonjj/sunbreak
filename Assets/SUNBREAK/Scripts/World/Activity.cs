@@ -78,7 +78,7 @@ namespace SUNBREAK.World
             }
             else
             {
-                Finish();
+                Finish(true);
             }
         }
 
@@ -94,17 +94,19 @@ namespace SUNBREAK.World
                 var e = MissionEnemy.Spawn(p, weapon);
                 if (e != null) _enemies.Add(e);
             }
-            if (_enemies.Count == 0) Finish(); // crowd not ready — bail cleanly
+            if (_enemies.Count == 0) Finish(false); // crowd not ready — bail cleanly, no reward
         }
 
-        void Finish()
+        void Finish(bool ok)
         {
             _running = false;
             _enemies.Clear();
+            _cooldownUntil = Time.time + 40f;
+            if (!ok) return;
+            ActivityUtil.Completed++;
             GameRefs.PlayerState?.AddCash(rewardCash);
             MissionSystem.Instance?.AddRep(rewardRep);
             GameHUD.Post(Title.ToUpperInvariant() + " COMPLETE", $"+${rewardCash:n0}   ·   +{rewardRep} rep");
-            _cooldownUntil = Time.time + 40f;
         }
     }
 }

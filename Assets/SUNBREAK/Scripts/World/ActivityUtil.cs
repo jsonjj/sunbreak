@@ -6,6 +6,9 @@ namespace SUNBREAK.World
     /// road-grid point picking, so they reuse the GPS/waypoint look the missions use.</summary>
     public static class ActivityUtil
     {
+        /// <summary>Total repeatable activities completed this run (a persisted stat).</summary>
+        public static int Completed;
+
         /// <summary>Spawn a tall coloured waypoint beam + minimap blip at a point.</summary>
         public static GameObject Beam(Vector3 pos, Color c, string label)
         {

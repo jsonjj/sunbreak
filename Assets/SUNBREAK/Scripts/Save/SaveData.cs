@@ -24,5 +24,11 @@ namespace SUNBREAK.Save
 
         public float px, py, pz, yaw;
         public float gameMinutes = 8 * 60f;
+
+        // ── Slice: full world-state persistence (defaults keep old saves backward-compatible) ──
+        public int weather = 0;                 // WeatherSystem.Weather index
+        public bool tutorialDone = false;       // first-run onboarding finished
+        public int activitiesDone = 0;          // repeatable-activity completion count (stat)
+        public List<int> foundPackages = new(); // collected hidden-package ids (position hashes)
     }
 }

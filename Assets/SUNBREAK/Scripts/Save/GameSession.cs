@@ -56,6 +56,12 @@ namespace SUNBREAK.Save
             d.px = p.x; d.py = p.y; d.pz = p.z;
             d.yaw = player != null ? player.LookYaw : 0f;
             if (Day != null) d.gameMinutes = Day.gameMinutes;
+
+            // Full world state (weather, activities, collectibles, tutorial). Rep is inside missions.
+            d.weather = WeatherSystem.Instance != null ? WeatherSystem.Instance.StateIndex : 0;
+            d.tutorialDone = PlayerPrefs.GetInt(Tutorial.DoneKey, 0) != 0;
+            d.activitiesDone = ActivityUtil.Completed;
+            d.foundPackages = HiddenPackage.FoundList();
             return d;
         }
 
@@ -64,9 +70,14 @@ namespace SUNBREAK.Save
             if (d == null) return;
             if (state != null) { state.LoadWallet(d.cash, d.bank); state.SetHealth(d.health); state.SetArmor(d.armor); }
             combat?.LoadLoadout(d.weapons, d.currentWeapon);
-            Missions?.Load(d.missions);
+            Missions?.Load(d.missions); // restores rep + re-applies rep perks + resumes active mission
             if (player != null) player.Teleport(new Vector3(d.px, d.py, d.pz), d.yaw);
             Day?.SetTime(d.gameMinutes);
+
+            WeatherSystem.Instance?.SetState(d.weather);
+            ActivityUtil.Completed = d.activitiesDone;
+            HiddenPackage.LoadFound(d.foundPackages);
+            if (d.tutorialDone && Tutorial.Instance != null) Tutorial.Instance.MarkDone();
         }
 
         public void SaveToSlot(int slot) => SaveSystem.Write(slot, Snapshot());

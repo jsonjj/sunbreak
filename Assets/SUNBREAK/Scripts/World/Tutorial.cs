@@ -15,7 +15,8 @@ namespace SUNBREAK.World
     /// </summary>
     public sealed class Tutorial : MonoBehaviour
     {
-        const string DoneKey = "sb_tutorial_done";
+        public const string DoneKey = "sb_tutorial_done";
+        public static Tutorial Instance { get; private set; }
 
         PlayerController _pc;
         PlayerCombat _combat;
@@ -27,9 +28,20 @@ namespace SUNBREAK.World
         Vector3 _startPos;
         bool _moved, _mapOpened, _sprinted, _wantedHintShown;
 
+        void Awake() { Instance = this; }
+        void OnDestroy() { if (Instance == this) Instance = null; }
+
         void Start()
         {
             if (PlayerPrefs.GetInt(DoneKey, 0) != 0) { enabled = false; return; }
+        }
+
+        /// <summary>Mark the tutorial complete (e.g. a loaded save had already finished it).</summary>
+        public void MarkDone()
+        {
+            PlayerPrefs.SetInt(DoneKey, 1); PlayerPrefs.Save();
+            GameHUD.SetActivity(null);
+            enabled = false;
         }
 
         void Update()

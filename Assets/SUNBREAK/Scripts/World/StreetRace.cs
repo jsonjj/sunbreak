@@ -110,6 +110,7 @@ namespace SUNBREAK.World
             GameHUD.SetActivity(null);
             if (ok)
             {
+                ActivityUtil.Completed++;
                 GameRefs.PlayerState?.AddCash(rewardCash);
                 MissionSystem.Instance?.AddRep(rewardRep);
                 GameHUD.Post("RACE WON", $"+${rewardCash:n0}   ·   +{rewardRep} rep");
