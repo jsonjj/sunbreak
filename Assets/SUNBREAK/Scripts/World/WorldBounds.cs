@@ -31,6 +31,8 @@ namespace SUNBREAK.World
             if (_timer < checkInterval) return;
             _timer = 0f;
 
+            if (EnterableShop.PlayerInside) return; // player is in an off-map interior on purpose
+
             Transform avatar = vehicle != null ? vehicle.ActiveAvatar : (player != null ? player.transform : null);
             if (avatar == null) return;
 

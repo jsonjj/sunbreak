@@ -23,6 +23,10 @@ namespace SUNBREAK.World
         /// <summary>All hospitals — the Wasted flow respawns at the nearest one.</summary>
         public static readonly List<ServiceBuilding> Hospitals = new();
 
+        /// <summary>Street-side respawn points for every hospital (ServiceBuilding OR enterable
+        /// hospital) so the Wasted flow always has a door to drop you at.</summary>
+        public static readonly List<Vector3> HospitalPoints = new();
+
         Transform _sign;
 
         public override string Prompt => kind switch
@@ -62,7 +66,7 @@ namespace SUNBREAK.World
             BuildBeacon(Tint);
             BuildSign(Tint, SignText);
             Blip.Attach(gameObject, BlipKind.Shop, Tint, SignText);
-            if (kind == ServiceKind.Hospital) Hospitals.Add(this);
+            if (kind == ServiceKind.Hospital) { Hospitals.Add(this); HospitalPoints.Add(transform.position); }
         }
 
         protected override void OnDisable()
@@ -110,15 +114,14 @@ namespace SUNBREAK.World
         /// <summary>Nearest hospital position for the Wasted respawn (falls back to canon spawn).</summary>
         public static Vector3 NearestHospital(Vector3 from)
         {
-            ServiceBuilding best = null;
+            Vector3 best = Geography.PLAYER_SPAWN.position;
             float bestSq = float.MaxValue;
-            foreach (var h in Hospitals)
+            foreach (var p in HospitalPoints)
             {
-                if (h == null) continue;
-                float sq = (h.transform.position - from).sqrMagnitude;
-                if (sq < bestSq) { bestSq = sq; best = h; }
+                float sq = (p - from).sqrMagnitude;
+                if (sq < bestSq) { bestSq = sq; best = p; }
             }
-            return best != null ? best.transform.position : Geography.PLAYER_SPAWN.position;
+            return best;
         }
 
         // ── Visuals ─────────────────────────────────────────────────────────────

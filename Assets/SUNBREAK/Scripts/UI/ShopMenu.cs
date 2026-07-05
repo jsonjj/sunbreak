@@ -20,6 +20,10 @@ namespace SUNBREAK.UI
         public static ShopMenu Instance { get; private set; }
         public bool IsOpen { get; private set; }
 
+        /// <summary>When set (e.g. buying inside a dealership interior), a purchased car is delivered
+        /// here (the dealership's street door) instead of at the player's off-map interior position.</summary>
+        public static Vector3? CarDeliveryPoint;
+
         struct Row { public string id; public string label; public int price; }
 
         Font _font;
@@ -74,6 +78,7 @@ namespace SUNBREAK.UI
             {
                 case ShopKind.GunStore:
                     Add("bat", "Baseball Bat", 300);
+                    Add("machete", "Machete", 650);
                     Add("pistol_9mm", "9mm Pistol", 900);
                     Add("smg_vector", "Compact SMG", 3200);
                     Add("shotgun_pump", "Pump Shotgun", 4800);
@@ -146,8 +151,10 @@ namespace SUNBREAK.UI
                 var city = FindFirstObjectByType<CityGenerator>();
                 if (city != null && GameRefs.Player != null)
                 {
-                    Vector3 p = GameRefs.Player.position + GameRefs.Player.forward * 5f;
-                    city.SpawnCar(new Vector3(p.x, 0f, p.z), GameRefs.Player.eulerAngles.y, null);
+                    Vector3 p = CarDeliveryPoint ?? (GameRefs.Player.position + GameRefs.Player.forward * 5f);
+                    float yaw = GameRefs.Player.eulerAngles.y;
+                    city.SpawnCar(new Vector3(p.x, 0f, p.z), yaw, null);
+                    if (CarDeliveryPoint.HasValue) GameHUD.Post("VERANO MOTORS", "Your car is waiting out front.");
                 }
             }
         }
