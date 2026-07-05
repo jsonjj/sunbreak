@@ -15,8 +15,17 @@ namespace SUNBREAK.Vehicles
     /// generation: WASD / arrows to drive, Space = handbrake. Camera-independent.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
-    public sealed class ArcadeCarController : MonoBehaviour
+    public sealed class ArcadeCarController : MonoBehaviour, IDrivable
     {
+        // ── IDrivable ───────────────────────────────────────────────────────────
+        public Transform Transform => transform;
+        public bool ControlEnabled { get => controlEnabled; set => controlEnabled = value; }
+        Collider _bodyCollider;
+        public Collider BodyCollider => _bodyCollider != null ? _bodyCollider : (_bodyCollider = GetComponent<Collider>());
+        public float ExitOffset => 2.4f;
+        public bool TrailHeading => false; // cars keep the free-orbit camera
+        public string VehicleName => "Car";
+
         [Tooltip("Handling profile (defaults to the ported Sedan). Set by the world generator.")]
         public VehicleConfig config = VehicleConfig.Sedan();
 
@@ -88,8 +97,8 @@ namespace SUNBREAK.Vehicles
             _reset.AddBinding("<Keyboard>/r");
         }
 
-        void OnEnable() { _throttle.Enable(); _steer.Enable(); _handbrake.Enable(); _reset.Enable(); }
-        void OnDisable() { _throttle.Disable(); _steer.Disable(); _handbrake.Disable(); _reset.Disable(); }
+        void OnEnable() { _throttle.Enable(); _steer.Enable(); _handbrake.Enable(); _reset.Enable(); Drivables.Register(this); }
+        void OnDisable() { _throttle.Disable(); _steer.Disable(); _handbrake.Disable(); _reset.Disable(); Drivables.Unregister(this); }
 
         void Update()
         {

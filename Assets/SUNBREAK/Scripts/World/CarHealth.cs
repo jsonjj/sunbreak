@@ -111,6 +111,8 @@ namespace SUNBREAK.World
             if (TryGetComponent<ArcadeCarController>(out var arcade)) arcade.controlEnabled = false;
             if (TryGetComponent<TrafficCar>(out var traffic)) traffic.enabled = false;
             if (TryGetComponent<CopCar>(out var cop)) cop.enabled = false;
+            if (TryGetComponent<BoatController>(out var boat)) boat.controlEnabled = false;
+            if (TryGetComponent<AircraftController>(out var air)) air.controlEnabled = false;
 
             if (_smoke != null) { var em = _smoke.emission; em.rateOverTime = 24f; var main = _smoke.main; main.startColor = new Color(0.08f, 0.08f, 0.08f, 0.75f); if (!_smoke.isPlaying) _smoke.Play(); }
             if (_fire != null) { _fire.enabled = true; _fire.intensity = 3.5f; }

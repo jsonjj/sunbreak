@@ -31,6 +31,8 @@ namespace SUNBREAK.Cameras
         InputAction _aim, _toggleFp;
         bool _firstPerson;
         bool _vehicleMode;
+        bool _trailHeading;
+        Transform _trailTarget;
         float _radius, _fov;
 
         public bool Aiming { get; private set; }
@@ -59,6 +61,10 @@ namespace SUNBREAK.Cameras
             if (thirdPersonCam != null) thirdPersonCam.Priority = fp ? 0 : 20;
 
             player.StrafeToLook = Aiming || fp;
+
+            // Chase cam trails the vehicle heading (boats/aircraft) — mouse can still free-look.
+            if (_vehicleMode && _trailHeading && !fp && _trailTarget != null)
+                player.TrailYaw(_trailTarget.eulerAngles.y, 1f - Mathf.Exp(-2.5f * Time.deltaTime));
 
             if (fp) DriveFirstPerson();
             else DriveThirdPerson();
@@ -99,10 +105,13 @@ namespace SUNBREAK.Cameras
             fpFov = tpFov + 10f;
         }
 
-        /// <summary>Point the third-person rig at a new follow/look target (player or vehicle).</summary>
-        public void SetTarget(Transform follow, Transform lookAt, bool vehicleMode)
+        /// <summary>Point the third-person rig at a new follow/look target (player or vehicle).
+        /// <paramref name="trailHeading"/> makes the chase cam trail the craft's heading (boats/air).</summary>
+        public void SetTarget(Transform follow, Transform lookAt, bool vehicleMode, bool trailHeading = false)
         {
             _vehicleMode = vehicleMode;
+            _trailHeading = trailHeading;
+            _trailTarget = vehicleMode ? follow : null;
             if (vehicleMode) _firstPerson = false;
             if (thirdPersonCam != null)
             {

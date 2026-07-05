@@ -21,7 +21,7 @@ namespace SUNBREAK.Vehicles
         public float enterRange = 4.5f;
 
         InputAction _interact;
-        ArcadeCarController _current;
+        IDrivable _current;
 
         void Awake()
         {
@@ -42,17 +42,19 @@ namespace SUNBREAK.Vehicles
 
         void TryEnter()
         {
-            ArcadeCarController best = null;
+            IDrivable best = null;
             float bestSq = enterRange * enterRange;
             Vector3 me = transform.position;
-            foreach (var car in FindObjectsByType<ArcadeCarController>(FindObjectsSortMode.None))
+            // Any registered drivable (car / boat / aircraft), measured to the nearest point on its body.
+            var all = Drivables.All;
+            for (int i = 0; i < all.Count; i++)
             {
-                // Measure to the NEAREST point on the car's body, so any car is enterable from beside
-                // it (not just tiny cars whose centre happens to be close). Works for every spawned car.
-                var col = car.GetComponent<Collider>();
-                Vector3 cp = col != null ? col.ClosestPoint(me) : car.transform.position;
+                var d = all[i];
+                if (d == null || d.Transform == null) continue;
+                var col = d.BodyCollider;
+                Vector3 cp = col != null ? col.ClosestPoint(me) : d.Transform.position;
                 float sq = (cp - me).sqrMagnitude;
-                if (sq < bestSq) { bestSq = sq; best = car; }
+                if (sq < bestSq) { bestSq = sq; best = d; }
             }
             if (best == null) return;
 
@@ -60,31 +62,33 @@ namespace SUNBREAK.Vehicles
             player.movementEnabled = false;
             if (characterController != null) characterController.enabled = false;
             if (playerVisual != null) playerVisual.SetActive(false);
-            best.controlEnabled = true;
-            if (cam != null) cam.SetTarget(best.transform, best.transform, true);
+            best.ControlEnabled = true;
+            if (cam != null) cam.SetTarget(best.Transform, best.Transform, true, best.TrailHeading);
         }
 
         void Exit()
         {
             if (_current == null) return;
-            _current.controlEnabled = false;
+            _current.ControlEnabled = false;
 
-            Vector3 side = _current.transform.right * -2.4f;
-            Vector3 exit = _current.transform.position + side + Vector3.up * 1.2f;
-            if (Physics.Raycast(exit + Vector3.up * 2f, Vector3.down, out var hit, 8f))
+            Transform t = _current.Transform;
+            Vector3 exit = t.position + t.right * -_current.ExitOffset + Vector3.up * 1.2f;
+            if (Physics.Raycast(exit + Vector3.up * 3f, Vector3.down, out var hit, 12f))
                 exit.y = hit.point.y + 1.1f;
             transform.position = exit;
 
             if (characterController != null) characterController.enabled = true;
             if (playerVisual != null) playerVisual.SetActive(true);
             player.movementEnabled = true;
-            if (cam != null) cam.SetTarget(onFootCameraTarget, onFootCameraTarget, false);
+            if (cam != null) cam.SetTarget(onFootCameraTarget, onFootCameraTarget, false, false);
             _current = null;
         }
 
         public bool IsDriving => _current != null;
-        public ArcadeCarController CurrentCar => _current;
-        /// <summary>The thing the world/camera should track right now (car if driving, else player).</summary>
-        public Transform ActiveAvatar => _current != null ? _current.transform : transform;
+        /// <summary>The current vehicle if it's a car (null for boats/aircraft) — kept for callers
+        /// like WorldBounds / respray that operate on the raycast car specifically.</summary>
+        public ArcadeCarController CurrentCar => _current as ArcadeCarController;
+        /// <summary>The thing the world/camera should track right now (vehicle if driving, else player).</summary>
+        public Transform ActiveAvatar => _current != null ? _current.Transform : transform;
     }
 }

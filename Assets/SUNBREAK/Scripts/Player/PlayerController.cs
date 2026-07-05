@@ -94,6 +94,14 @@ namespace SUNBREAK.Player
             LookYaw += dYaw;
         }
 
+        /// <summary>Ease the camera yaw toward a heading (chase cam trailing a boat/aircraft). Mouse
+        /// look still nudges it; this recenters behind the craft.</summary>
+        public void TrailYaw(float targetYaw, float t)
+        {
+            LookYaw = Mathf.LerpAngle(LookYaw, targetYaw, Mathf.Clamp01(t));
+            if (LookYaw > 180f) LookYaw -= 360f; else if (LookYaw < -180f) LookYaw += 360f;
+        }
+
         /// <summary>Place the player at a world position + heading (save/load, respawn). Toggles the
         /// CharacterController so the move happens even while it's active.</summary>
         public void Teleport(Vector3 pos, float yaw)
