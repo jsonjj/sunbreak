@@ -58,6 +58,15 @@ namespace SUNBREAK.World
             _ => "",
         };
 
+        string IconGlyph => kind switch
+        {
+            ServiceKind.Hospital => "+",
+            ServiceKind.Respray => "S",   // spray shop
+            ServiceKind.Safehouse => "H", // home
+            ServiceKind.Fuel => "F",
+            _ => "",
+        };
+
         void Start()
         {
             if (Physics.Raycast(transform.position + Vector3.up * 300f, Vector3.down, out var hit, 600f, ~0, QueryTriggerInteraction.Ignore))
@@ -65,7 +74,7 @@ namespace SUNBREAK.World
 
             BuildBeacon(Tint);
             BuildSign(Tint, SignText);
-            Blip.Attach(gameObject, BlipKind.Shop, Tint, SignText);
+            Blip.Attach(gameObject, BlipKind.Shop, Tint, SignText, IconGlyph);
             if (kind == ServiceKind.Hospital) { Hospitals.Add(this); HospitalPoints.Add(transform.position); }
         }
 

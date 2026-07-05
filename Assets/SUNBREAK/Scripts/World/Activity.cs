@@ -44,7 +44,7 @@ namespace SUNBREAK.World
             _beacon.transform.localPosition = new Vector3(0f, 6f, 0f);
             _beacon.GetComponent<MeshRenderer>().sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = Tint };
             _beacon.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            Blip.Attach(gameObject, BlipKind.Activity, Tint, Title);
+            Blip.Attach(gameObject, BlipKind.Activity, Tint, Title, "\u2605"); // ★
         }
 
         public override void Interact(GameObject player)

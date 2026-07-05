@@ -34,7 +34,7 @@ namespace SUNBREAK.World
             beacon.transform.localScale = new Vector3(0.45f, 6f, 0.45f);
             beacon.transform.localPosition = new Vector3(0f, 6f, 0f);
             var mr = beacon.GetComponent<MeshRenderer>(); mr.sharedMaterial = _beaconMat; mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            Blip.Attach(gameObject, BlipKind.Activity, new Color(1f, 0.85f, 0.2f), "Taxi");
+            Blip.Attach(gameObject, BlipKind.Activity, new Color(1f, 0.85f, 0.2f), "Taxi", "T");
         }
 
         public override void Interact(GameObject player)

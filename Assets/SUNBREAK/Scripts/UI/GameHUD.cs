@@ -57,6 +57,7 @@ namespace SUNBREAK.UI
         Text _wheelName;
         Transform _mapRoot;
         Image[] _blipDots;
+        Text[] _blipIcons;
         Image[] _routeSegs;
 
         /// <summary>Post a mission dialogue / reward toast (title + subtitle).</summary>
@@ -269,15 +270,29 @@ namespace SUNBREAK.UI
                     float dx = d.x / range, dz = d.z / range;
                     if (Mathf.Abs(dx) > 1.15f || Mathf.Abs(dz) > 1.15f) continue;
                     dx = Mathf.Clamp(dx, -1f, 1f); dz = Mathf.Clamp(dz, -1f, 1f);
-                    var dot = _blipDots[used++];
+                    int slot = used++;
+                    var dot = _blipDots[slot];
+                    var ico = _blipIcons[slot];
+                    bool hasIcon = !string.IsNullOrEmpty(b.icon);
                     dot.enabled = true;
                     dot.color = priority ? new Color(b.color.r, b.color.g, b.color.b, pulse) : b.color;
-                    float sz = priority ? 17f : 11f;
+                    float sz = priority ? 17f : (hasIcon ? 15f : 11f);
                     dot.rectTransform.sizeDelta = new Vector2(sz, sz);
-                    dot.rectTransform.anchoredPosition = new Vector2(dx * 100f, dz * 100f);
+                    Vector2 pos = new Vector2(dx * 100f, dz * 100f);
+                    dot.rectTransform.anchoredPosition = pos;
+                    // Icon glyph (dark for contrast on the bright dot) tells the POI type at a glance.
+                    ico.enabled = hasIcon;
+                    if (hasIcon)
+                    {
+                        ico.text = b.icon;
+                        ico.color = new Color(0.06f, 0.06f, 0.09f, priority ? pulse : 1f);
+                        ico.rectTransform.sizeDelta = new Vector2(sz + 4f, sz + 4f);
+                        ico.rectTransform.anchoredPosition = pos;
+                    }
                 }
             }
             for (int i = used; i < _blipDots.Length; i++) _blipDots[i].enabled = false;
+            for (int i = used; i < _blipIcons.Length; i++) _blipIcons[i].enabled = false;
         }
 
         void UpdateWheel()
@@ -407,6 +422,21 @@ namespace SUNBREAK.UI
                 drt.anchorMin = drt.anchorMax = new Vector2(0.5f, 0.5f);
                 drt.sizeDelta = new Vector2(11, 11);
                 _blipDots[i] = im;
+            }
+            // Per-POI icon glyphs drawn on top of the dots (distinct symbol per type).
+            _blipIcons = new Text[16];
+            for (int i = 0; i < _blipIcons.Length; i++)
+            {
+                var ig = new GameObject("BlipIcon", typeof(Text));
+                ig.transform.SetParent(_mapRoot, false);
+                var t = ig.GetComponent<Text>();
+                t.font = _font; t.fontSize = 12; t.fontStyle = FontStyle.Bold;
+                t.alignment = TextAnchor.MiddleCenter; t.color = new Color(0.06f, 0.06f, 0.09f);
+                t.horizontalOverflow = HorizontalWrapMode.Overflow; t.verticalOverflow = VerticalWrapMode.Overflow;
+                t.raycastTarget = false; t.enabled = false;
+                var irt = t.rectTransform; irt.anchorMin = irt.anchorMax = new Vector2(0.5f, 0.5f); irt.pivot = new Vector2(0.5f, 0.5f);
+                irt.sizeDelta = new Vector2(16, 16);
+                _blipIcons[i] = t;
             }
 
             // Player arrow — a dark backing arrow + a bright white arrow on top so it reads clearly

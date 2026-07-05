@@ -20,9 +20,10 @@ namespace SUNBREAK.UI
         RawImage _img;
         RectTransform _imgRt, _blipLayer;
         Image _playerDot;
-        Image[] _dots;
-        Image[] _routeSegs;
-        Text[] _labels;
+    Image[] _dots;
+    Text[] _dotIcons;
+    Image[] _routeSegs;
+    Text[] _labels;
         Font _font;
         InputAction _toggle, _click, _pan;
         bool _open;
@@ -122,6 +123,18 @@ namespace SUNBREAK.UI
             _cam.transform.SetPositionAndRotation(new Vector3(_center.x, 400f, _center.z), Quaternion.Euler(90f, 0f, 0f));
         }
 
+        /// <summary>Open the full map for a render capture (no overlay/timescale side effects).</summary>
+        public void DebugOpen(float ortho = 240f)
+        {
+            if (_canvas == null) Build();
+            _open = true;
+            _canvas.gameObject.SetActive(true);
+            _cam.enabled = true;
+            _ortho = ortho;
+            _center = GameRefs.Player != null ? GameRefs.Player.position : Vector3.zero;
+            PositionCamera();
+        }
+
         void SetWaypointFromClick()
         {
             var m = Mouse.current;
@@ -176,23 +189,31 @@ namespace SUNBREAK.UI
                 float v = (b.transform.position.z - _center.z) / (2f * hHalf) + 0.5f;
                 if (u < 0f || u > 1f || v < 0f || v > 1f) continue;
                 bool mission = b.kind == BlipKind.Mission || b.kind == BlipKind.Waypoint;
-                var dot = _dots[used++];
+                int slot = used++;
+                var dot = _dots[slot];
                 var pos = new Vector2((u - 0.5f) * size.x, (v - 0.5f) * size.y);
                 dot.enabled = true;
                 dot.color = mission ? new Color(b.color.r, b.color.g, b.color.b, pulse) : b.color;
-                dot.rectTransform.sizeDelta = mission ? new Vector2(20, 20) : new Vector2(12, 12);
+                bool hasIcon = !string.IsNullOrEmpty(b.icon);
+                float sz = mission ? 20f : (hasIcon ? 17f : 12f);
+                dot.rectTransform.sizeDelta = new Vector2(sz, sz);
                 dot.rectTransform.anchoredPosition = pos;
-                // Label named points of interest + missions.
-                if (!string.IsNullOrEmpty(b.label) && (b.kind == BlipKind.Shop || b.kind == BlipKind.Mission) && lbl < _labels.Length)
+                // Icon glyph on the dot (matches the minimap so types read consistently).
+                var ico = _dotIcons[slot];
+                ico.enabled = hasIcon;
+                if (hasIcon) { ico.text = b.icon; ico.rectTransform.anchoredPosition = pos; }
+                // Label named points of interest, missions + activities.
+                if (!string.IsNullOrEmpty(b.label) && (b.kind == BlipKind.Shop || b.kind == BlipKind.Mission || b.kind == BlipKind.Activity) && lbl < _labels.Length)
                 {
                     var t = _labels[lbl++];
                     t.enabled = true;
                     t.text = b.label;
                     t.color = mission ? new Color(1f, 0.9f, 0.5f) : new Color(1f, 1f, 1f, 0.85f);
-                    t.rectTransform.anchoredPosition = pos + new Vector2(11f, 0f);
+                    t.rectTransform.anchoredPosition = pos + new Vector2(sz * 0.5f + 4f, 0f);
                 }
             }
             for (int i = used; i < _dots.Length; i++) _dots[i].enabled = false;
+            for (int i = used; i < _dotIcons.Length; i++) _dotIcons[i].enabled = false;
             for (int i = lbl; i < _labels.Length; i++) _labels[i].enabled = false;
 
             if (GameRefs.Player != null)
@@ -265,6 +286,18 @@ namespace SUNBREAK.UI
                 var im = d.GetComponent<Image>(); im.enabled = false;
                 var rt = im.rectTransform; rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.sizeDelta = new Vector2(12, 12);
                 _dots[i] = im;
+            }
+            _dotIcons = new Text[80];
+            for (int i = 0; i < _dotIcons.Length; i++)
+            {
+                var ig = new GameObject("dotIcon", typeof(Text));
+                ig.transform.SetParent(_blipLayer, false);
+                var t = ig.GetComponent<Text>();
+                t.font = _font; t.fontSize = 13; t.fontStyle = FontStyle.Bold; t.alignment = TextAnchor.MiddleCenter;
+                t.color = new Color(0.05f, 0.05f, 0.08f); t.raycastTarget = false; t.enabled = false;
+                t.horizontalOverflow = HorizontalWrapMode.Overflow; t.verticalOverflow = VerticalWrapMode.Overflow;
+                var rt = t.rectTransform; rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f); rt.pivot = new Vector2(0.5f, 0.5f); rt.sizeDelta = new Vector2(18, 18);
+                _dotIcons[i] = t;
             }
             _labels = new Text[48];
             for (int i = 0; i < _labels.Length; i++)

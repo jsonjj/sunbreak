@@ -38,8 +38,10 @@ namespace SUNBREAK.World
                 ShopKind.CarDealer => new Color(0.4f, 0.7f, 1f),
                 _ => new Color(0.4f, 1f, 0.55f),
             };
+            string icon = kind switch { ShopKind.GunStore => "G", ShopKind.CarDealer => "C", _ => "$" };
+            string lbl = kind switch { ShopKind.GunStore => "Gun Store", ShopKind.CarDealer => "Dealership", _ => "ATM / Bank" };
             BuildBeacon(c);
-            Blip.Attach(gameObject, BlipKind.Shop, c, Prompt);
+            Blip.Attach(gameObject, BlipKind.Shop, c, lbl, icon);
         }
 
         void BuildBeacon(Color c)

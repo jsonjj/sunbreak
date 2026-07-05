@@ -48,6 +48,15 @@ namespace SUNBREAK.World
             _ => label.ToUpperInvariant(),
         };
 
+        string Icon => safehouse ? "H" : kind switch
+        {
+            ShopKind.GunStore => "G",
+            ShopKind.Hospital => "+",
+            ShopKind.Convenience => "F",
+            ShopKind.CarDealer => "C",
+            _ => "",
+        };
+
         void Start()
         {
             if (Physics.Raycast(transform.position + Vector3.up * 300f, Vector3.down, out var hit, 600f, ~0, QueryTriggerInteraction.Ignore))
@@ -59,7 +68,7 @@ namespace SUNBREAK.World
             var c = Accent;
             BuildBeacon(c);
             BuildSign(c, SignText);
-            Blip.Attach(gameObject, BlipKind.Shop, c, SignText);
+            Blip.Attach(gameObject, BlipKind.Shop, c, SignText, Icon);
 
             // Enterable hospitals are valid Wasted respawn points.
             if (!safehouse && kind == ShopKind.Hospital) ServiceBuilding.HospitalPoints.Add(_exteriorReturn);

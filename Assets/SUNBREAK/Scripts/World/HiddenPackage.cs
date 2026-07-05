@@ -56,7 +56,7 @@ namespace SUNBREAK.World
             box.name = "box"; box.transform.SetParent(_marker.transform, false);
             box.transform.localScale = new Vector3(0.4f, 0.32f, 0.4f);
             box.GetComponent<MeshRenderer>().sharedMaterial = _mat;
-            Blip.Attach(gameObject, BlipKind.Activity, new Color(0.9f, 0.75f, 0.2f), "Package");
+            Blip.Attach(gameObject, BlipKind.Activity, new Color(0.9f, 0.75f, 0.2f), "Package", "?");
             ApplyFound(); // already collected in a loaded save?
         }
 

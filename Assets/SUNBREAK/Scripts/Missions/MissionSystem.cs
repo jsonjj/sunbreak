@@ -92,7 +92,7 @@ namespace SUNBREAK.Missions
             var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { color = new Color(1f, 0.82f, 0.28f) };
             var r = _giverBeacon.GetComponent<MeshRenderer>();
             r.sharedMaterial = mat; r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            Blip.Attach(_giverGo, BlipKind.Mission, new Color(1f, 0.82f, 0.28f), "Mission");
+            Blip.Attach(_giverGo, BlipKind.Mission, new Color(1f, 0.82f, 0.28f), "Mission", "!");
             _giverGo.SetActive(false);
         }
 
