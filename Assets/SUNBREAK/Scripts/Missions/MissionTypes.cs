@@ -41,6 +41,8 @@ namespace SUNBREAK.Missions
         public string reference;   // EnterVehicle vehicle ref / Eliminate enemy ref / Collect prop ref
         public float seconds;      // Survive
         public bool waypoint = true;
+        /// <summary>Optional stage time limit (s); mission FAILS if it expires. 0 = none.</summary>
+        public float timeLimit;
     }
 
     public sealed class MissionStage
@@ -49,6 +51,8 @@ namespace SUNBREAK.Missions
         public readonly List<MissionFx> onEnter = new();
         public readonly List<MissionFx> onComplete = new();
         public MissionObjective objective;
+        /// <summary>Optional escort: a spawned mission-vehicle ref that must survive this stage.</summary>
+        public string escortRef;
     }
 
     /// <summary>A canon mission: a giver (lead), a linear stage list, and rewards. <c>next</c> unlocks

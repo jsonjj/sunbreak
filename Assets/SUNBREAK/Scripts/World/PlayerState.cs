@@ -27,6 +27,8 @@ namespace SUNBREAK.World
         public event Action Changed;
         /// <summary>Raised the frame the player's health hits 0 (WastedBusted handles the death flow).</summary>
         public event Action Died;
+        /// <summary>Raised when the player takes damage (post-armor amount) — drives hit feedback.</summary>
+        public event Action<float> Damaged;
 
         void Awake() { GameRefs.Player = transform; GameRefs.PlayerState = this; }
         void OnDestroy() { if (GameRefs.PlayerState == this) { GameRefs.Player = null; GameRefs.PlayerState = null; } }
@@ -68,6 +70,7 @@ namespace SUNBREAK.World
             }
             health = Mathf.Clamp(health - amount, 0f, maxHealth);
             Changed?.Invoke();
+            if (amount > 0f) Damaged?.Invoke(amount);
             if (health <= 0f) { IsDead = true; Died?.Invoke(); }
         }
 
@@ -140,5 +143,18 @@ namespace SUNBREAK.World
 
         /// <summary>Restore armor from a save.</summary>
         public void SetArmor(float a) { armor = Mathf.Clamp(a, 0f, maxArmor); Changed?.Invoke(); }
+
+        float _repHealthBonus;
+        /// <summary>Rep perk: raise max health by a rep-tier bonus (and grant the new headroom).</summary>
+        public void SetRepHealthBonus(float bonus)
+        {
+            float delta = bonus - _repHealthBonus;
+            if (Mathf.Approximately(delta, 0f)) return;
+            _repHealthBonus = bonus;
+            maxHealth = Mathf.Max(1f, maxHealth + delta);
+            if (delta > 0f) health = Mathf.Min(maxHealth, health + delta);
+            else health = Mathf.Min(health, maxHealth);
+            Changed?.Invoke();
+        }
     }
 }

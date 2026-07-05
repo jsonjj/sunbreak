@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using SUNBREAK.Combat;
@@ -24,6 +25,9 @@ namespace SUNBREAK.Missions
         MissionDef _active;
         int _stageIndex;
         bool _built;
+        bool _failing;
+        float _stageStart;
+        PlayerState _state;
 
         // objective progress
         float _surviveUntil;
@@ -39,6 +43,8 @@ namespace SUNBREAK.Missions
         MissionDef _shownGiver;
 
         public int TotalRep { get; private set; }
+        /// <summary>Award reputation (side activities / collectibles) + refresh rep perks.</summary>
+        public void AddRep(int rep) { if (rep <= 0) return; TotalRep += rep; ApplyRepPerks(); }
         public bool HasActive => _active != null;
         public string ActiveTitle => _active?.title;
         public string ObjectiveText { get; private set; }
@@ -49,7 +55,11 @@ namespace SUNBREAK.Missions
         public MissionDef AvailableMission => _active != null ? null : NextAvailable();
 
         void Awake() { Instance = this; }
-        void OnDestroy() { if (Instance == this) Instance = null; }
+        void OnDestroy()
+        {
+            if (_state != null) _state.Died -= OnPlayerDied;
+            if (Instance == this) Instance = null;
+        }
 
         void EnsureBuilt()
         {
@@ -60,8 +70,13 @@ namespace SUNBREAK.Missions
             _defs = MissionCatalog.Build();
             _vehicle = player.GetComponent<VehicleInteraction>();
             _combat = player.GetComponent<PlayerCombat>();
+            _state = GameRefs.PlayerState;
+            if (_state != null) _state.Died += OnPlayerDied; // Wasted mid-mission → fail (not silent reset)
             BuildGiver();
         }
+
+        // Rep perk hook — recomputed whenever rep changes (see MakeRepMatter in ApplyRepPerks).
+        void OnPlayerDied() { if (_active != null && !_failing) Fail("You were wasted", 2.8f); }
 
         // ── Giver marker (one at a time, at the current available mission) ────────
         void BuildGiver()
@@ -115,8 +130,8 @@ namespace SUNBREAK.Missions
         {
             var d = AvailableMission;
             if (d == null) return;
-            _active = d; _stageIndex = -1;
-            GameHUD.Post($"{d.giver}", d.title.ToUpperInvariant());
+            _active = d; _stageIndex = -1; _failing = false;
+            MissionCard.Intro(d.title, $"Lead: {d.giver}");
             AdvanceStage();
         }
 
@@ -129,6 +144,7 @@ namespace SUNBREAK.Missions
 
             var stage = _active.stages[_stageIndex];
             _collected = 0;
+            _stageStart = Time.time;
             foreach (var fx in stage.onEnter) RunFx(fx);
             var o = stage.objective;
             if (o != null && o.kind == ObjectiveKind.Survive) _surviveUntil = Time.time + o.seconds;
@@ -151,9 +167,10 @@ namespace SUNBREAK.Missions
             if (d.rewardRep > 0) TotalRep += d.rewardRep;
             if (!string.IsNullOrEmpty(d.rewardWeapon)) _combat?.Pickup(d.rewardWeapon);
             _completed.Add(d.id);
-            GameHUD.Post("MISSION COMPLETE",
-                $"{d.title}  ·  +${d.rewardCash:n0}" + (d.rewardRep > 0 ? $"  ·  +{d.rewardRep} rep" : ""));
-            _active = null; _stageIndex = -1;
+            if (d.rewardRep > 0) ApplyRepPerks();
+            MissionCard.Complete("Mission Passed",
+                $"{d.title}   ·   +${d.rewardCash:n0}" + (d.rewardRep > 0 ? $"   ·   +{d.rewardRep} REP" : ""));
+            _active = null; _stageIndex = -1; _failing = false;
             ObjectiveText = null;
             ClearWaypoint();
             ClearStageSpawns();
@@ -212,9 +229,20 @@ namespace SUNBREAK.Missions
         {
             EnsureBuilt();
             if (_giverGo != null) UpdateGiver();
-            if (_active == null) return;
+            if (_active == null || _failing) return;
 
-            var o = _active.stages[_stageIndex].objective;
+            var stage = _active.stages[_stageIndex];
+            // Fail conditions: stage time limit, or a required escort vehicle destroyed.
+            if (stage.objective != null && stage.objective.timeLimit > 0f && Time.time - _stageStart > stage.objective.timeLimit)
+            { Fail("Out of time", 0.4f); return; }
+            if (!string.IsNullOrEmpty(stage.escortRef))
+            {
+                bool lost = !_vehicles.TryGetValue(stage.escortRef, out var esc) || esc == null
+                            || (esc.TryGetComponent<CarHealth>(out var ch) && ch.IsDead);
+                if (lost) { Fail("The vehicle was destroyed", 0.4f); return; }
+            }
+
+            var o = stage.objective;
             if (o == null) { CompleteStage(); return; }
 
             bool done = false;
@@ -309,6 +337,56 @@ namespace SUNBREAK.Missions
             return best;
         }
 
+        // ── Fail / retry / abort (checkpoints = per stage) ───────────────────────
+        void Fail(string reason, float delay)
+        {
+            if (_active == null || _failing) return;
+            _failing = true;
+            ClearStageSpawns();
+            ClearWaypoint();
+            StartCoroutine(ShowFail(reason, delay));
+        }
+
+        IEnumerator ShowFail(string reason, float delay)
+        {
+            yield return new WaitForSecondsRealtime(delay);
+            MissionCard.Fail(_active != null ? _active.title : "", reason, RetryStage, AbortMission);
+        }
+
+        void RetryStage()
+        {
+            _failing = false;
+            if (_active == null) return;
+            ClearStageSpawns();
+            _stageIndex--;      // re-enter the SAME stage (its onEnter respawns the checkpoint)
+            AdvanceStage();
+            GameHUD.Post("CHECKPOINT", "Retrying \u2014 " + _active.title);
+        }
+
+        void AbortMission()
+        {
+            _failing = false;
+            string t = _active != null ? _active.title : "";
+            _active = null; _stageIndex = -1;
+            ObjectiveText = null;
+            ClearStageSpawns(); ClearWaypoint();
+            GameHUD.Post("MISSION ABORTED", t);
+            UpdateGiver();
+        }
+
+        /// <summary>Rep perk (P1.6 lite): rep tiers grant bonus max health so rep finally matters.</summary>
+        int _lastRepBonus = -1;
+        void ApplyRepPerks()
+        {
+            if (_state == null) _state = GameRefs.PlayerState;
+            if (_state == null) return;
+            int bonus = TotalRep >= 20 ? 50 : TotalRep >= 10 ? 25 : TotalRep >= 5 ? 10 : 0;
+            _state.SetRepHealthBonus(bonus);
+            if (_lastRepBonus >= 0 && bonus > _lastRepBonus)
+                GameHUD.Post("REP PERK", $"Reputation {TotalRep} \u2014 max health +{bonus}");
+            _lastRepBonus = bonus;
+        }
+
         void ClearStageSpawns()
         {
             _enemies.Clear();
@@ -373,9 +451,24 @@ namespace SUNBREAK.Missions
             _completed.Clear();
             if (s.completed != null) foreach (var id in s.completed) _completed.Add(id);
             TotalRep = s.totalRep;
-            // Abandon any in-progress mission on load (spawns aren't persisted); the giver re-offers it.
-            _active = null; _stageIndex = -1;
+            ApplyRepPerks();
+            _failing = false;
             ClearStageSpawns(); ClearWaypoint();
+
+            // Restore an in-progress mission by re-entering its saved stage (re-runs onEnter to
+            // respawn the checkpoint) — Load must NOT silently abandon an active mission.
+            _active = null; _stageIndex = -1;
+            if (!string.IsNullOrEmpty(s.activeId) && _defs != null)
+            {
+                var def = _defs.Find(d => d.id == s.activeId);
+                if (def != null)
+                {
+                    _active = def;
+                    _stageIndex = Mathf.Clamp(s.stageIndex, 0, def.stages.Count - 1) - 1;
+                    AdvanceStage();
+                    GameHUD.Post("MISSION RESUMED", def.title);
+                }
+            }
             UpdateGiver();
         }
     }
