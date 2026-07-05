@@ -188,11 +188,14 @@ namespace SUNBREAK.EditorTools.World
             new GameObject("ShopMenu").AddComponent<ShopMenu>();
             new GameObject("PauseMenu").AddComponent<PauseMenu>();
             new GameObject("MapScreen").AddComponent<MapScreen>();
+            new GameObject("MissionCard").AddComponent<MissionCard>();
+            new GameObject("Tutorial").AddComponent<Tutorial>();
             var missions = new GameObject("MissionSystem").AddComponent<Missions.MissionSystem>();
             var session = new GameObject("GameSession").AddComponent<Save.GameSession>();
             session.state = state; session.player = player; session.combat = combat;
             BuildEconomy();
             BuildTraversal();
+            BuildActivities();
 
             // 7c) Audio — bus + ambient bed, footsteps, car radio (engine audio is per-car).
             new GameObject("GameAudio").AddComponent<Audio.GameAudio>();
@@ -301,6 +304,7 @@ namespace SUNBREAK.EditorTools.World
             camData.renderPostProcessing = true;
             camData.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             camGo.AddComponent<CinemachineBrain>();
+            camGo.AddComponent<SUNBREAK.Cameras.CameraShake>(); // trauma shake after the brain
             camGo.transform.position = camTarget.position + new Vector3(2f, 2f, -6f);
 
             var tpGo = new GameObject("CM ThirdPerson");
@@ -416,6 +420,32 @@ namespace SUNBREAK.EditorTools.World
             var go = new GameObject("CraftSpawn_" + kind) { transform = { position = new Vector3(pos.x, 1f, pos.z) } };
             var s = go.AddComponent<CraftSpawner>();
             s.kind = kind; s.yaw = yaw;
+        }
+
+        // ── Side activities (map icons) + hidden collectibles ───────────────────────────────────
+        static void BuildActivities()
+        {
+            MakeActivity(ActivityKind.Bounty, new Vector3(120f, 1f, 120f));
+            MakeActivity(ActivityKind.Rampage, new Vector3(-140f, 1f, -120f));
+            MakeActivity(ActivityKind.Bounty, new Vector3(300f, 1f, -40f));
+
+            Vector3[] packages =
+            {
+                new Vector3(30f, 1f, 44f), new Vector3(-64f, 1f, 22f), new Vector3(182f, 1f, -30f),
+                new Vector3(-206f, 1f, 84f), new Vector3(252f, 1f, 182f), new Vector3(-40f, 1f, -96f),
+            };
+            foreach (var p in packages)
+            {
+                var go = new GameObject("Package") { transform = { position = p } };
+                go.AddComponent<HiddenPackage>();
+            }
+        }
+
+        static void MakeActivity(ActivityKind kind, Vector3 pos)
+        {
+            var go = new GameObject("Activity_" + kind) { transform = { position = pos } };
+            var a = go.AddComponent<Activity>();
+            a.kind = kind; a.range = 5f;
         }
 
         static void MakeService(ServiceKind kind, Vector3 pos)

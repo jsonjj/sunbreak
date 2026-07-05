@@ -68,6 +68,12 @@ namespace SUNBREAK.World
                 yield return new WaitForSecondsRealtime(0.4f);
             }
 
+            // SP-completeness proof: an activity marker, then the MISSION FAILED panel.
+            yield return ShootFrom(new Vector3(120f, 0f, 111f), 0f, "build_activity.png");
+            MissionCard.Fail("First Score", "You were wasted", null, null);
+            yield return new WaitForSecondsRealtime(0.9f);
+            yield return Grab("build_fail.png");
+
             Application.Quit();
         }
 
