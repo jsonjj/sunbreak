@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -32,6 +33,9 @@ namespace SUNBREAK.Combat
         InputAction[] _slots;
         Vector2 _wheelAim;
         WeaponVisuals _visuals;
+        MeleeAnimator _melee;
+        int _comboStep;     // unarmed combo: 0 punchL → 1 punchR → 2 kick → 3 dropkick → reset
+        float _lastMelee;   // combo resets after a pause
 
         public bool WheelOpen { get; private set; }
         public int WheelSelection { get; private set; }
@@ -46,6 +50,7 @@ namespace SUNBREAK.Combat
         {
             if (controller == null) controller = GetComponent<PlayerController>();
             _visuals = GetComponent<WeaponVisuals>();
+            _melee = GetComponent<MeleeAnimator>();
             foreach (var id in _owned) _mag[id] = Weapons.Get(id).magSize;
 
             _fire = new InputAction("Fire", InputActionType.Value, "<Mouse>/leftButton");
@@ -118,6 +123,9 @@ namespace SUNBREAK.Combat
             // Firing in the open is a witnessable crime (debounced so auto-fire is one event).
             if (Time.time - _lastFireCrimeT > 1.3f) { ThreatBus.Crime(transform.position, 1.2f); _lastFireCrimeT = Time.time; }
 
+            // Firing a gun is treated as resisting arrest — police draw + return fire.
+            WantedSystem.Instance?.ReportResist();
+
             if (w.fireMode == FireMode.Projectile) { FireProjectile(w, muzzle); ApplyRecoil(w, aiming); return; }
 
             // Hitscan (+ pellets).
@@ -162,26 +170,66 @@ namespace SUNBREAK.Combat
 
         void Melee(WeaponSpec w)
         {
-            Vector3 origin = transform.position + Vector3.up * 1.0f;
-            Vector3 dir = transform.forward;
-            CombatFx.Instance?.Sfx("melee", origin);
+            CombatFx.Instance?.Sfx("melee", transform.position + Vector3.up * 1.0f);
             ThreatBus.Melee(transform.position);
             ThreatBus.Crime(transform.position, 1.2f); // swinging at people in the open is witnessable
-            var cols = Physics.OverlapSphere(origin + dir * (w.rangeM * 0.5f), w.rangeM * 0.6f, ~0, QueryTriggerInteraction.Ignore);
+
+            // Play the fitting animation (real clip if present); the hit lands at the swing apex.
+            var (move, dmgMul, delay) = MeleeChoreo(w.id);
+            _melee?.Play(move);
+            StartCoroutine(MeleeStrike(w, dmgMul, delay));
+        }
+
+        /// <summary>Pick the animation + damage scaling + strike delay for this swing. Bat AND machete
+        /// share the bat swing; fists chain a combo punchL → punchR → kick → dropkick (finisher), which
+        /// resets after a short pause.</summary>
+        (MeleeAnimator.Move move, float dmgMul, float delay) MeleeChoreo(string id)
+        {
+            if (id == "bat" || id == "knife" || id == "machete")
+                return (MeleeAnimator.Move.Swing, 1f, 0.16f);
+
+            if (Time.time - _lastMelee > 1.2f) _comboStep = 0; // paused → restart the combo
+            _lastMelee = Time.time;
+            int step = _comboStep;
+            _comboStep = (_comboStep + 1) % 4;
+            return step switch
+            {
+                0 => (MeleeAnimator.Move.PunchL, 1.0f, 0.14f),
+                1 => (MeleeAnimator.Move.PunchR, 1.0f, 0.14f),
+                2 => (MeleeAnimator.Move.Kick, 1.35f, 0.20f),
+                _ => (MeleeAnimator.Move.DropKick, 1.9f, 0.30f), // finisher
+            };
+        }
+
+        IEnumerator MeleeStrike(WeaponSpec w, float dmgMul, float delay)
+        {
+            yield return new WaitForSecondsRealtime(delay); // land on the visible strike, not the wind-up
+            Vector3 origin = transform.position + Vector3.up * 1.0f;
+            Vector3 dir = transform.forward; dir.y = 0f;
+            if (dir.sqrMagnitude < 0.001f) dir = Vector3.forward; else dir.Normalize();
+
+            // Hit the nearest target inside a forward arc (cone), not a bare sphere.
+            var cols = Physics.OverlapSphere(origin + dir * (w.rangeM * 0.5f), w.rangeM * 0.65f, ~0, QueryTriggerInteraction.Ignore);
+            IDamageable best = null; float bestSq = float.MaxValue; Vector3 bestPt = origin;
             foreach (var c in cols)
             {
                 if (c.transform == transform || c.transform.IsChildOf(transform)) continue;
                 var d = c.GetComponentInParent<IDamageable>();
-                if (d != null && !d.IsDead && (d.Faction == Faction.Civilian || d.Faction == Faction.Police))
+                if (d == null || d.IsDead || (d.Faction != Faction.Civilian && d.Faction != Faction.Police)) continue;
+                Vector3 pt = c.ClosestPoint(origin);
+                Vector3 to = pt - origin; to.y = 0f;
+                if (to.sqrMagnitude > 0.01f && Vector3.Dot(dir, to.normalized) < 0.35f) continue; // ~110° arc
+                float sq = to.sqrMagnitude;
+                if (sq < bestSq) { bestSq = sq; best = d; bestPt = pt; }
+            }
+            if (best != null)
+            {
+                best.ApplyDamage(new DamageInfo
                 {
-                    d.ApplyDamage(new DamageInfo
-                    {
-                        amount = w.damage, point = c.ClosestPoint(origin), dir = dir, impulse = w.impulse, fromPlayer = true, attacker = gameObject,
-                    });
-                    GameHUD.Hitmarker();
-                    CameraShake.Add(0.12f);
-                    break; // one target per swing
-                }
+                    amount = w.damage * dmgMul, point = bestPt, dir = dir, impulse = w.impulse * dmgMul, fromPlayer = true, attacker = gameObject,
+                });
+                GameHUD.Hitmarker();
+                CameraShake.Add(0.12f + 0.08f * dmgMul);
             }
         }
 
@@ -325,10 +373,11 @@ namespace SUNBREAK.Combat
         {
             slot = Mathf.Clamp(slot, 0, Weapons.WheelOrder.Length - 1);
             string id = Weapons.WheelOrder[slot];
-            // The melee slot upgrades to the best owned melee weapon (knife > bat > fists).
+            // The melee slot upgrades to the best owned melee weapon (machete > knife > bat > fists).
             if (id == "fists")
             {
-                if (_owned.Contains("knife")) id = "knife";
+                if (_owned.Contains("machete")) id = "machete";
+                else if (_owned.Contains("knife")) id = "knife";
                 else if (_owned.Contains("bat")) id = "bat";
             }
             if (!_owned.Contains(id)) return;

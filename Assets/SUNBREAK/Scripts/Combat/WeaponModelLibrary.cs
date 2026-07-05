@@ -56,7 +56,7 @@ namespace SUNBREAK.Combat
         }
 
         // Procedural melee weapons (no kit prefab) — built in-hand on Attach.
-        static readonly HashSet<string> Melee = new() { "bat", "knife" };
+        static readonly HashSet<string> Melee = new() { "bat", "knife", "machete" };
 
         public int WeaponTypeFor(string id) => _map.TryGetValue(id, out var e) ? e.weaponType : 0;
         public bool Has(string id) => _map.ContainsKey(id) || Melee.Contains(id);
@@ -131,6 +131,13 @@ namespace SUNBREAK.Combat
             {
                 Prim(root.transform, PrimitiveType.Cube, new Vector3(0f, 0f, 0.15f), new Vector3(0.02f, 0.02f, 0.22f), new Color(0.78f, 0.8f, 0.84f));
                 Prim(root.transform, PrimitiveType.Cube, Vector3.zero, new Vector3(0.03f, 0.03f, 0.08f), new Color(0.14f, 0.12f, 0.11f));
+            }
+            else if (id == "machete")
+            {
+                // Long tapered steel blade + a short dark grip + a guard.
+                Prim(root.transform, PrimitiveType.Cube, new Vector3(0.015f, 0f, 0.34f), new Vector3(0.05f, 0.02f, 0.5f), new Color(0.82f, 0.84f, 0.88f));
+                Prim(root.transform, PrimitiveType.Cube, new Vector3(0f, 0f, 0.06f), new Vector3(0.08f, 0.04f, 0.04f), new Color(0.1f, 0.1f, 0.11f));
+                Prim(root.transform, PrimitiveType.Cube, Vector3.zero, new Vector3(0.035f, 0.035f, 0.11f), new Color(0.16f, 0.12f, 0.09f));
             }
             else // bat
             {

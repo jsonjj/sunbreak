@@ -14,6 +14,7 @@ namespace SUNBREAK.Combat
 
         static readonly int ArmedHash = Animator.StringToHash("Armed");
         static readonly int WeaponTypeHash = Animator.StringToHash("WeaponType");
+        static readonly int MeleeTypeHash = Animator.StringToHash("MeleeType");
         static readonly int FireHash = Animator.StringToHash("Fire");
         static readonly int ReloadHash = Animator.StringToHash("Reload");
 
@@ -40,6 +41,9 @@ namespace SUNBREAK.Combat
                 int wt = WeaponModelLibrary.Instance != null ? WeaponModelLibrary.Instance.WeaponTypeFor(id) : 0;
                 animator.SetInteger(WeaponTypeHash, wt);
                 animator.SetBool(ArmedHash, wt != 0);
+                // Melee weapons (bat/knife/machete) report WeaponType 0 but drive the bat idle stance.
+                bool meleeArmed = id != "fists" && Weapons.Get(id).category == "melee";
+                animator.SetInteger(MeleeTypeHash, meleeArmed ? 1 : 0);
             }
         }
 

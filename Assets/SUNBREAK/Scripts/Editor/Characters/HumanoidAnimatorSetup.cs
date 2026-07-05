@@ -159,6 +159,7 @@ namespace SUNBREAK.EditorTools.Characters
             controller.AddParameter("Jump", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("Armed", AnimatorControllerParameterType.Bool);
             controller.AddParameter("WeaponType", AnimatorControllerParameterType.Int); // 0 unarmed,1 pistol,2 rifle
+            controller.AddParameter("MeleeType", AnimatorControllerParameterType.Int);  // 0 fists, 1 bat/machete
             controller.AddParameter("Fire", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("Reload", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("Die", AnimatorControllerParameterType.Trigger);
@@ -232,6 +233,31 @@ namespace SUNBREAK.EditorTools.Characters
                 anyDeath.hasExitTime = false; anyDeath.duration = 0.05f; anyDeath.canTransitionToSelf = false;
             }
 
+            // ── Melee stance + combo one-shots + car enter/exit (driven by code CrossFade) ──
+            AnimationClip C(string role) => clips.TryGetValue(role, out var c) ? c : null;
+
+            // Bat/machete idle stance — routed to whenever a melee weapon is out (WeaponType 0 + MeleeType 1).
+            var batMove = sm.AddState("BatMove");
+            batMove.motion = MoveTree(controller, "BatMove", C("bat_idle") ?? idle, walk ?? idle, run ?? idle);
+            var uToBat = unarmed.AddTransition(batMove);
+            uToBat.AddCondition(AnimatorConditionMode.Equals, 1, "MeleeType");
+            uToBat.AddCondition(AnimatorConditionMode.Equals, 0, "WeaponType");
+            uToBat.hasExitTime = false; uToBat.duration = 0.15f;
+            var batToU = batMove.AddTransition(unarmed);
+            batToU.AddCondition(AnimatorConditionMode.Equals, 0, "MeleeType");
+            batToU.hasExitTime = false; batToU.duration = 0.15f;
+            var batToP = batMove.AddTransition(pistol); batToP.AddCondition(AnimatorConditionMode.Equals, 1, "WeaponType"); batToP.hasExitTime = false; batToP.duration = 0.15f;
+            var batToR = batMove.AddTransition(rifle); batToR.AddCondition(AnimatorConditionMode.Equals, 2, "WeaponType"); batToR.hasExitTime = false; batToR.duration = 0.15f;
+
+            // One-shot attack + car clips — entered from code, each blends back on exit time.
+            AttackState(sm, "PunchL", C("punch_l") ?? idle, unarmed, 0.72f);
+            AttackState(sm, "PunchR", C("punch_r") ?? idle, unarmed, 0.72f);
+            AttackState(sm, "Kick", C("kick") ?? idle, unarmed, 0.72f);
+            AttackState(sm, "DropKick", C("dropkick") ?? idle, unarmed, 0.8f);
+            AttackState(sm, "BatHit", C("bat_hit") ?? idle, batMove, 0.62f);
+            AttackState(sm, "EnterCar", C("enter_car") ?? idle, unarmed, 0.72f);
+            AttackState(sm, "ExitCar", C("exit_car") ?? idle, unarmed, 0.72f);
+
             EditorUtility.SetDirty(controller);
             return controller;
         }
@@ -241,6 +267,16 @@ namespace SUNBREAK.EditorTools.Characters
             var t = from.AddTransition(to);
             t.AddCondition(AnimatorConditionMode.Equals, weaponType, "WeaponType");
             t.hasExitTime = false; t.duration = 0.15f;
+        }
+
+        /// <summary>A one-shot state (attack / car anim) that blends back to <paramref name="ret"/>
+        /// after <paramref name="exitTime"/> of the clip. Entered from code via Animator.CrossFade.</summary>
+        static void AttackState(AnimatorStateMachine sm, string name, Motion clip, AnimatorState ret, float exitTime)
+        {
+            var s = sm.AddState(name);
+            s.motion = clip;
+            var t = s.AddTransition(ret);
+            t.hasExitTime = true; t.exitTime = exitTime; t.duration = 0.12f;
         }
 
         static BlendTree MoveTree(AnimatorController c, string name, Motion idle, Motion walk, Motion run)
@@ -265,7 +301,9 @@ namespace SUNBREAK.EditorTools.Characters
                    $"pistol idle/run={Have("pistol_idle")}/{Have("pistol_run")}; " +
                    $"rifle idle/run={Have("rifle_idle")}/{Have("rifle_run")}; " +
                    $"fire={Have("fire")}; reload={Have("reload")}; death={Have("death")}. " +
-                   "Optional polish still missing: pistol-specific fire, per-weapon (shotgun/smg/sniper/rpg) fire, ADS/aim pose.";
+                   $"melee punchL/punchR/kick/dropkick={Have("punch_l")}/{Have("punch_r")}/{Have("kick")}/{Have("dropkick")}; " +
+                   $"bat idle/hit={Have("bat_idle")}/{Have("bat_hit")}; car enter/exit={Have("enter_car")}/{Have("exit_car")}. " +
+                   "Optional polish still missing: machete-specific slash, pistol-specific fire, ADS/aim pose.";
         }
 
         /// <summary>
@@ -379,19 +417,28 @@ namespace SUNBREAK.EditorTools.Characters
         }
 
         static bool LoopRole(string role) =>
-            role is "idle" or "walk" or "run" or "pistol_idle" or "pistol_run" or "rifle_idle" or "rifle_run";
+            role is "idle" or "walk" or "run" or "pistol_idle" or "pistol_run" or "rifle_idle" or "rifle_run" or "bat_idle";
 
         static bool IsAnimName(string n) =>
             n.Contains("idle") || n.Contains("walk") || n.Contains("run") || n.Contains("jog") || n.Contains("sprint") ||
             n.Contains("jump") || n.Contains("fire") || n.Contains("firing") || n.Contains("hit") || n.Contains("death") ||
             n.Contains("kneel") || n.Contains("put away") || n.Contains("stomach") || n.Contains("reaction") ||
-            n.Contains("pistol") || n.Contains("rifle") || n.Contains("shot") || n.Contains("aim");
+            n.Contains("pistol") || n.Contains("rifle") || n.Contains("shot") || n.Contains("aim") ||
+            n.Contains("punch") || n.Contains("kick") || n.Contains("drop") || n.Contains("baseball") ||
+            n.Contains("mma") || n.Contains("entering") || n.Contains("exiting");
 
         /// <summary>Map a filename to an animation role (weapon-specific first, then plain locomotion).</summary>
         static string RoleFor(string n)
         {
             if (n.Contains("reload")) return "reload";
             if (n == "death" || n.Contains("dying")) return "death";
+            // New melee combo + car clips (match specific names before generic locomotion).
+            if (n.Contains("drop")) return "dropkick";                                  // "Drop Kick"
+            if (n.Contains("kick")) return "kick";                                       // "Mma Kick"
+            if (n.Contains("punching")) return n.Contains("(1)") ? "punch_l" : "punch_r"; // two arms
+            if (n.Contains("baseball")) return n.Contains("idle") ? "bat_idle" : "bat_hit";
+            if (n.Contains("entering")) return "enter_car";
+            if (n.Contains("exiting")) return "exit_car";
             if (n.Contains("pistol") && n.Contains("idle")) return "pistol_idle";
             if (n.Contains("pistol") && n.Contains("run")) return "pistol_run";
             if (n.Contains("rifle") && n.Contains("idle")) return "rifle_idle";

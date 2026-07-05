@@ -121,6 +121,7 @@ namespace SUNBREAK.EditorTools.World
             vehicle.characterController = player.GetComponent<CharacterController>();
             vehicle.playerVisual = characterVisual;
             vehicle.onFootCameraTarget = camTarget;
+            vehicle.playerAnimator = characterVisual != null ? characterVisual.GetComponentInChildren<Animator>() : null;
 
             // 7) Crime loop — combat VFX, crowd factory, wanted/police, peds, traffic, NavMesh.
             new GameObject("CombatFx").AddComponent<CombatFx>();
@@ -179,6 +180,10 @@ namespace SUNBREAK.EditorTools.World
             var weaponVisuals = player.gameObject.AddComponent<WeaponVisuals>();
             weaponVisuals.combat = combat;
             weaponVisuals.animator = characterVisual != null ? characterVisual.GetComponentInChildren<Animator>() : null;
+
+            // Procedural melee animation (punch / kick / bat swing / blade slash).
+            var meleeAnim = player.gameObject.AddComponent<Combat.MeleeAnimator>();
+            meleeAnim.animator = weaponVisuals.animator;
 
             var pickup = new GameObject("WeaponPickup").AddComponent<WeaponPickup>();
             pickup.transform.position = Geography.PLAYER_SPAWN.position + new Vector3(3f, 1f, 3f);
@@ -336,10 +341,10 @@ namespace SUNBREAK.EditorTools.World
         // ── Acquisition points + POI blips (canon coords from the web integration.ts) ─────────────
         static void BuildEconomy()
         {
-            // Acquisition interactables at their canon district coordinates.
-            MakeEnterableShop("Ironsights Armory", ShopKind.GunStore, new Vector3(235f, 1f, 40f)); // Costa Dorada (enterable)
-            MakeShop("Verano Motors", ShopKind.CarDealer, new Vector3(-45f, 1f, 70f));    // Miracle Row
-            MakeShop("ATM / Bank", ShopKind.Bank, new Vector3(40f, 1f, -35f));            // downtown
+            // Acquisition interactables at their canon district coordinates (all walk-in interiors).
+            MakeEnterableShop("Ironsights Armory", ShopKind.GunStore, new Vector3(235f, 1f, 40f)); // Costa Dorada
+            MakeEnterableShop("Verano Motors", ShopKind.CarDealer, new Vector3(-45f, 1f, 70f));     // Miracle Row (showroom)
+            MakeShop("ATM / Bank", ShopKind.Bank, new Vector3(40f, 1f, -35f));            // downtown (24h ATM, no interior)
 
             // Walk-over cash pickups near spawn (canon integration.ts drops).
             MakeCash(new Vector3(6f, 1f, 12f), 400);
@@ -355,11 +360,12 @@ namespace SUNBREAK.EditorTools.World
             MakeCar(new Vector3(-54f, 0f, 74f), 0f);
             MakeCar(new Vector3(-54f, 0f, 66f), 0f);
 
-            // Living-service buildings — real usable functions with signage (canon POI coords).
-            MakeService(ServiceKind.Hospital, new Vector3(74f, 1f, -58f));    // Vista General
-            MakeService(ServiceKind.Respray, new Vector3(-118f, 1f, 44f));    // Verano Customs (respray/lose wanted)
-            MakeService(ServiceKind.Safehouse, new Vector3(-300f, 1f, -250f));// Safehouse (save)
-            MakeService(ServiceKind.Fuel, new Vector3(196f, 1f, 58f));        // Fuel & Go (armor/snacks)
+            // Living-service buildings. Hospital / Fuel / Safehouse are now walk-in INTERIORS; Verano
+            // Customs stays a drive-in respray (you bring a vehicle to it).
+            MakeEnterableShop("Vista General", ShopKind.Hospital, new Vector3(74f, 1f, -58f));       // hospital interior
+            MakeService(ServiceKind.Respray, new Vector3(-118f, 1f, 44f));                            // Verano Customs (drive-in respray)
+            MakeEnterableShop("Safehouse", ShopKind.GunStore, new Vector3(-300f, 1f, -250f), true);   // safehouse interior (save)
+            MakeEnterableShop("Fuel & Go", ShopKind.Convenience, new Vector3(196f, 1f, 58f));         // convenience interior
 
             // Health + armor pickups (clone of the cash-pickup loop) near key spots.
             MakeSupply(new Vector3(10f, 1f, -6f), SupplyKind.Medkit, 25f);
@@ -400,11 +406,11 @@ namespace SUNBREAK.EditorTools.World
             shop.kind = kind; shop.range = 4.5f;
         }
 
-        static void MakeEnterableShop(string name, ShopKind kind, Vector3 pos)
+        static void MakeEnterableShop(string name, ShopKind kind, Vector3 pos, bool safehouse = false)
         {
             var go = new GameObject(name) { transform = { position = pos } };
             var shop = go.AddComponent<EnterableShop>();
-            shop.kind = kind; shop.label = name; shop.range = 4.5f;
+            shop.kind = kind; shop.label = name; shop.safehouse = safehouse; shop.range = 4.5f;
         }
 
         // ── Traversal: airport + marina made real, + boat/heli/plane spawns ──────────────────────
