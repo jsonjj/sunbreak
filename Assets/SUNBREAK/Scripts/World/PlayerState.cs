@@ -52,9 +52,12 @@ namespace SUNBREAK.World
             }
         }
 
+        /// <summary>Capture/verification only — ignore incoming damage (used by BuildShot chase shot).</summary>
+        public bool Invulnerable { get; set; }
+
         public void Damage(float amount)
         {
-            if (IsDead || amount <= 0f) return;
+            if (IsDead || amount <= 0f || Invulnerable) return;
             _lastDamageT = Time.time;
             // Armor absorbs first (75% of the hit while it lasts), then health takes the rest.
             if (armor > 0f)

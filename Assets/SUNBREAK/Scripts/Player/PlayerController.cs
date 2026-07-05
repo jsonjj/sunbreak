@@ -94,6 +94,13 @@ namespace SUNBREAK.Player
             LookYaw += dYaw;
         }
 
+        /// <summary>Directly set the look angles (used by the capture tool to frame the sky/heli).</summary>
+        public void SetLook(float yaw, float pitch)
+        {
+            LookYaw = yaw;
+            LookPitch = Mathf.Clamp(pitch, minPitch, maxPitch);
+        }
+
         /// <summary>Ease the camera yaw toward a heading (chase cam trailing a boat/aircraft). Mouse
         /// look still nudges it; this recenters behind the craft.</summary>
         public void TrailYaw(float targetYaw, float t)

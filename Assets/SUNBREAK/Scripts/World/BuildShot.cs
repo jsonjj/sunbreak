@@ -35,6 +35,11 @@ namespace SUNBREAK.World
             yield return new WaitForSeconds(1.8f);
             yield return Grab("build_shot2.png");  // rifle
 
+            // Police "world comes alive" response — heli + SWAT + roadblock (captured early so it's
+            // within the render window), then heat is cleared so the later shots stay clean.
+            yield return ShootChase();
+            WantedSystem.Instance?.ForceStars(0);
+
             // Line up every character model in front of the player to prove none render green/white.
             SpawnLineup();
             yield return new WaitForSeconds(1.2f);
@@ -64,6 +69,24 @@ namespace SUNBREAK.World
             }
 
             Application.Quit();
+        }
+
+        static IEnumerator ShootChase()
+        {
+            var ws = WantedSystem.Instance;
+            var pc = GameRefs.Player != null ? GameRefs.Player.GetComponent<PlayerController>() : null;
+            if (ws == null || pc == null) yield break;
+            // Stand on the big flat airfield apron for a clear view of the aerial + ground response.
+            Vector3 spot = new Vector3(408f, 0f, 300f);
+            if (Physics.Raycast(new Vector3(spot.x, 140f, spot.z), Vector3.down, out var hit, 260f, ~0, QueryTriggerInteraction.Ignore))
+                spot.y = hit.point.y + 1.5f;
+            pc.Teleport(spot, 0f);
+            var st = GameRefs.PlayerState;
+            if (st != null) st.Invulnerable = true; // survive the shot without dying
+            ws.ForceStars(4); // SWAT + helicopter + roadblocks
+            yield return new WaitForSeconds(9f); // response time + units close in
+            yield return Grab("build_chase.png");
+            if (st != null) st.Invulnerable = false;
         }
 
         /// <summary>Teleport the player to a ground-snapped viewpoint, face a heading, capture.</summary>
