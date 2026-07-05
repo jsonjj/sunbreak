@@ -40,6 +40,12 @@ namespace SUNBREAK.World
             yield return new WaitForSeconds(1.2f);
             yield return Grab("build_shot3.png");  // NPC material audit
 
+            // Traversal craft — boat on the water, heli + plane at the airfield (offset so the
+            // player doesn't occlude the craft directly ahead).
+            yield return ShootFrom(new Vector3(-250f, 0f, 424f), 0f, "build_boat.png");
+            yield return ShootFrom(new Vector3(386f, 0f, 276f), 38f, "build_heli.png");
+            yield return ShootFrom(new Vector3(330f, 0f, 250f), 48f, "build_plane.png");
+
             // Service building signage (teleport to the hospital + look at it).
             yield return ShootService();
 
@@ -58,6 +64,19 @@ namespace SUNBREAK.World
             }
 
             Application.Quit();
+        }
+
+        /// <summary>Teleport the player to a ground-snapped viewpoint, face a heading, capture.</summary>
+        static IEnumerator ShootFrom(Vector3 xz, float yaw, string name)
+        {
+            var pc = GameRefs.Player != null ? GameRefs.Player.GetComponent<PlayerController>() : null;
+            if (pc == null) yield break;
+            float y = 2f;
+            if (Physics.Raycast(new Vector3(xz.x, 140f, xz.z), Vector3.down, out var hit, 260f, ~0, QueryTriggerInteraction.Ignore))
+                y = hit.point.y + 1.6f;
+            pc.Teleport(new Vector3(xz.x, y, xz.z), yaw);
+            yield return new WaitForSeconds(1.5f); // let the follow camera settle
+            yield return Grab(name);
         }
 
         static IEnumerator ShootService()

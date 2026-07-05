@@ -68,12 +68,12 @@ _smoke() {
   # persistentDataPath uses the (uncustomized) URP-template bundle id; also check DefaultCompany.
   local pd1="$HOME/Library/Application Support/com.Unity-Technologies.com.unity.template.urp-blank"
   local pd2="$HOME/Library/Application Support/DefaultCompany/sunbreak-unity"
-  rm -f "$pd1"/build_shot*.png "$pd2"/build_shot*.png
+  rm -f "$pd1"/build_*.png "$pd2"/build_*.png
   echo "[smoke] pass 2: graphics render + build screenshot ..."
   # NOT -batchmode so a real GPU/window renders (batchmode players use a null device → no shot).
   "$appbin" -logFile "$glog" -sunbreakshot >/dev/null 2>&1 &
   local gpid=$! j=0
-  while [ "$j" -lt 30 ]; do
+  while [ "$j" -lt 45 ]; do
     if ! kill -0 "$gpid" 2>/dev/null; then break; fi
     sleep 1; j=$((j + 1))
   done
@@ -81,7 +81,7 @@ _smoke() {
   mkdir -p "$LOGDIR/shots"
   local got=0 f pd
   for pd in "$pd1" "$pd2"; do
-    for f in build_shot.png build_shot2.png build_shot3.png build_service.png build_pause.png build_settings.png; do
+    for f in build_shot.png build_shot2.png build_shot3.png build_boat.png build_heli.png build_plane.png build_service.png build_pause.png build_settings.png; do
       if [ -f "$pd/$f" ]; then cp "$pd/$f" "$LOGDIR/shots/$f"; got=1; fi
     done
   done
