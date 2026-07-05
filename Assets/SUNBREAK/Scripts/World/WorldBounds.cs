@@ -22,16 +22,8 @@ namespace SUNBREAK.World
 
         float _timer;
 
-        void OnEnable() { if (state != null) state.Died += OnPlayerDied; }
-        void OnDisable() { if (state != null) state.Died -= OnPlayerDied; }
-
-        void OnPlayerDied()
-        {
-            // Death → respawn at spawn, full heal, wanted cleared (mirrors the web build).
-            RespawnPlayerOnFoot();
-            if (wanted != null) wanted.Clear();
-            if (state != null) state.Revive();
-        }
+        // Death now routes through WastedBusted (WASTED/BUSTED card + hospital respawn + fee).
+        // WorldBounds only recovers the avatar if it falls out of the world / past the extent.
 
         void Update()
         {

@@ -211,10 +211,14 @@ namespace SUNBREAK.EditorTools.World
             hud.interactor = player.GetComponent<PlayerInteractor>();
             hud.missions = missions; hud.dayNight = dayNight; hud.radio = radio;
 
-            // 9) World bounds (respawn on fall/out-of-bounds + on death; clears wanted).
+            // 9) World bounds (recover the avatar if it falls out of the world / past the extent).
             var boundsGo = new GameObject("World Bounds");
             var bounds = boundsGo.AddComponent<WorldBounds>();
             bounds.player = player; bounds.vehicle = vehicle; bounds.state = state; bounds.wanted = wanted;
+
+            // 9b) WASTED / BUSTED death + arrest flow (fade card → nearest-hospital respawn + fee).
+            var wb = new GameObject("WastedBusted").AddComponent<WastedBusted>();
+            wb.player = player; wb.state = state; wb.wanted = wanted;
 
             // NOTE: the city is intentionally NOT generated into the saved scene — it is built
             // at runtime (CityGenerator.Awake) and by the capture tool, so the .unity file stays
@@ -345,6 +349,18 @@ namespace SUNBREAK.EditorTools.World
             MakeCar(new Vector3(-54f, 0f, 74f), 0f);
             MakeCar(new Vector3(-54f, 0f, 66f), 0f);
 
+            // Living-service buildings — real usable functions with signage (canon POI coords).
+            MakeService(ServiceKind.Hospital, new Vector3(74f, 1f, -58f));    // Vista General
+            MakeService(ServiceKind.Respray, new Vector3(-118f, 1f, 44f));    // Verano Customs (respray/lose wanted)
+            MakeService(ServiceKind.Safehouse, new Vector3(-300f, 1f, -250f));// Safehouse (save)
+            MakeService(ServiceKind.Fuel, new Vector3(196f, 1f, 58f));        // Fuel & Go (armor/snacks)
+
+            // Health + armor pickups (clone of the cash-pickup loop) near key spots.
+            MakeSupply(new Vector3(10f, 1f, -6f), SupplyKind.Medkit, 25f);
+            MakeSupply(new Vector3(70f, 1f, -52f), SupplyKind.Medkit, 50f);   // by the hospital
+            MakeSupply(new Vector3(-16f, 1f, 8f), SupplyKind.Armor, 50f);
+            MakeSupply(new Vector3(230f, 1f, 46f), SupplyKind.Armor, 50f);    // by the armory
+
             BuildPointsOfInterest();
         }
 
@@ -353,18 +369,16 @@ namespace SUNBREAK.EditorTools.World
             // (label, x, z, colour) — static map blips so the minimap reads as a living city.
             var pois = new (string label, float x, float z, Color c)[]
             {
+                // Hospital / Fuel / Safehouse are now real ServiceBuildings (they add their own blips).
                 ("Ironsights Armory", 235f, 40f, new Color(1f, 0.4f, 0.3f)),
                 ("Verano Motors", -45f, 70f, new Color(0.4f, 0.7f, 1f)),
-                ("Safehouse", -300f, -250f, new Color(0.5f, 0.9f, 0.6f)),
                 ("ATM / Bank", 40f, -35f, new Color(0.4f, 1f, 0.55f)),
                 ("Solaris Tower", 0f, -20f, new Color(0.8f, 0.8f, 0.9f)),
                 ("The Neon Mile", 315f, 30f, new Color(1f, 0.5f, 0.9f)),
                 ("Vista Galleria", 380f, 150f, new Color(1f, 0.8f, 0.4f)),
                 ("Estadio Sol", 250f, 265f, new Color(0.8f, 0.8f, 0.9f)),
                 ("Sunset Pier", 95f, 520f, new Color(0.9f, 0.7f, 0.5f)),
-                ("Vista General (Hospital)", 74f, -58f, new Color(1f, 0.35f, 0.4f)),
                 ("SVPD HQ", -74f, -32f, new Color(0.4f, 0.6f, 1f)),
-                ("Fuel", 196f, 58f, new Color(1f, 0.9f, 0.5f)),
             };
             foreach (var p in pois)
             {
@@ -385,6 +399,20 @@ namespace SUNBREAK.EditorTools.World
             var go = new GameObject(name) { transform = { position = pos } };
             var shop = go.AddComponent<EnterableShop>();
             shop.kind = kind; shop.label = name; shop.range = 4.5f;
+        }
+
+        static void MakeService(ServiceKind kind, Vector3 pos)
+        {
+            var go = new GameObject("Service_" + kind) { transform = { position = pos } };
+            var svc = go.AddComponent<ServiceBuilding>();
+            svc.kind = kind; svc.range = 5f;
+        }
+
+        static void MakeSupply(Vector3 pos, SupplyKind kind, float amount)
+        {
+            var go = new GameObject((kind == SupplyKind.Medkit ? "Medkit" : "Armor") + "Pickup") { transform = { position = pos } };
+            var s = go.AddComponent<SupplyPickup>();
+            s.kind = kind; s.amount = amount;
         }
 
         static void MakeCash(Vector3 pos, int amount)
@@ -498,9 +526,16 @@ namespace SUNBREAK.EditorTools.World
 
         static void SetAsFirstBuildScene(string scenePath)
         {
-            var scenes = new List<EditorBuildSettingsScene> { new EditorBuildSettingsScene(scenePath, true) };
+            // Keep MainMenu as the enabled BOOT scene whenever it exists, with Island enabled right
+            // after it. A disabled/missing MainMenu is the classic "black screen on Quit to Menu"
+            // (SceneManager.LoadScene fails), so never drop it just because we regenerated Island.
+            string menuPath = SUNBREAK.EditorTools.MainMenuSceneBuilder.MenuScenePath;
+            bool hasMenu = System.IO.File.Exists(menuPath);
+            var scenes = new List<EditorBuildSettingsScene>();
+            if (hasMenu) scenes.Add(new EditorBuildSettingsScene(menuPath, true));
+            scenes.Add(new EditorBuildSettingsScene(scenePath, true));
             foreach (var s in EditorBuildSettings.scenes)
-                if (s.path != scenePath) scenes.Add(new EditorBuildSettingsScene(s.path, false));
+                if (s.path != scenePath && s.path != menuPath) scenes.Add(new EditorBuildSettingsScene(s.path, false));
             EditorBuildSettings.scenes = scenes.ToArray();
         }
     }

@@ -37,6 +37,18 @@ namespace SUNBREAK.World
             if (_cur <= 0f) Explode(info.point);
         }
 
+        /// <summary>Repair to full + clear damage FX (respray / customs). Revives a wreck too.</summary>
+        public void Repair()
+        {
+            _dead = false;
+            _cur = max;
+            if (_smoke != null && _smoke.isPlaying) _smoke.Stop();
+            if (_fire != null) _fire.enabled = false;
+            foreach (var r in GetComponentsInChildren<MeshRenderer>()) r.SetPropertyBlock(null); // restore paint
+            if (TryGetComponent<ArcadeCarController>(out var arcade)) arcade.controlEnabled = true;
+            if (TryGetComponent<TrafficCar>(out var traffic)) traffic.enabled = true;
+        }
+
         void OnCollisionEnter(Collision c)
         {
             if (_dead) return;

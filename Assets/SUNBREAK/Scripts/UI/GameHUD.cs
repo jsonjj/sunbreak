@@ -30,7 +30,7 @@ namespace SUNBREAK.UI
         public static GameHUD Instance { get; private set; }
 
         Font _font;
-        Image _healthFill;
+        Image _healthFill, _armorFill, _armorBg;
         Text _cashText, _speedText, _hintText, _starsText, _weaponText, _reticle;
         Text _clockText, _promptText, _radioText;
         Image _missionPanel;
@@ -246,6 +246,12 @@ namespace SUNBREAK.UI
         void Refresh()
         {
             if (_healthFill != null) _healthFill.fillAmount = state.Health01;
+            if (_armorBg != null)
+            {
+                bool armored = state.Armor > 0.5f;
+                if (_armorBg.gameObject.activeSelf != armored) _armorBg.gameObject.SetActive(armored);
+                if (armored && _armorFill != null) _armorFill.fillAmount = state.Armor01;
+            }
             if (_cashText != null) _cashText.text = $"$ {state.Cash:n0}";
         }
 
@@ -274,6 +280,19 @@ namespace SUNBREAK.UI
             hpFillRt.pivot = new Vector2(0f, 0.5f);
             hpFillRt.anchoredPosition = new Vector2(3, 0);
             Label(hpBg.transform, "HEALTH", 12, TextAnchor.MiddleLeft, new Vector2(0, 0.5f), new Vector2(8, 0), new Vector2(120, 22));
+
+            // Armor bar (just above health; shown only when armored)
+            _armorBg = Panel(root, new Vector2(0, 0), new Vector2(0, 0), new Vector2(30, 64),
+                new Vector2(320, 22), new Color(0f, 0f, 0f, 0.5f));
+            _armorFill = Panel(_armorBg.transform, new Vector2(0, 0.5f), new Vector2(0, 0.5f), new Vector2(3, 0),
+                new Vector2(314, 16), new Color(0.4f, 0.6f, 1f, 0.95f));
+            _armorFill.type = Image.Type.Filled;
+            _armorFill.fillMethod = Image.FillMethod.Horizontal;
+            _armorFill.fillOrigin = 0;
+            _armorFill.rectTransform.pivot = new Vector2(0f, 0.5f);
+            _armorFill.rectTransform.anchoredPosition = new Vector2(3, 0);
+            Label(_armorBg.transform, "ARMOR", 12, TextAnchor.MiddleLeft, new Vector2(0, 0.5f), new Vector2(8, 0), new Vector2(120, 22));
+            _armorBg.gameObject.SetActive(false);
 
             // Cash (top-left, above health)
             _cashText = Label(root, "$ 500", 26, TextAnchor.LowerLeft, new Vector2(0, 0),

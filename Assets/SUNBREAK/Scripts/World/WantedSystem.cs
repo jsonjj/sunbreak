@@ -50,6 +50,26 @@ namespace SUNBREAK.World
         public Vector3 Lkp { get; private set; }
         public int CopCount => _cops.Count;
 
+        /// <summary>True while any pursuing officer has eyes on the player — the respray/customs shop
+        /// only clears wanted when this is false (mirrors Pay 'n' Spray "out of sight").</summary>
+        public bool PoliceHaveSight
+        {
+            get
+            {
+                if (Stars == 0) return false;
+                Vector3 pp = player ? player.position : Vector3.zero;
+                foreach (var c in _cops)
+                {
+                    if (c == null || c.Removed) continue;
+                    if (c.HasLos && Time.time - c.LastSeen < 2f) return true;
+                    if ((c.transform.position - pp).sqrMagnitude <= 22f * 22f) return true;
+                }
+                foreach (var v in _cars)
+                    if (v != null && (v.transform.position - pp).sqrMagnitude <= 45f * 45f) return true;
+                return false;
+            }
+        }
+
         readonly Dictionary<int, float> _lastHitAt = new();
         readonly HashSet<int> _distinct = new();
         readonly List<Cop> _cops = new();

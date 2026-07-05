@@ -12,11 +12,20 @@ namespace SUNBREAK.World
     {
         [SerializeField] float maxHealth = 100f;
         [SerializeField] float health = 100f;
+        [SerializeField] float maxArmor = 100f;
+        [SerializeField] float armor = 0f;
         [SerializeField] int cash = 500;
         [SerializeField] int bank = 0;
 
+        [Header("Out-of-combat regen (GTA-style)")]
+        [SerializeField] float regenTo = 0.45f;      // regen health up to this fraction
+        [SerializeField] float regenRate = 8f;       // hp per second
+        [SerializeField] float regenDelay = 5f;      // seconds out of combat before regen starts
+
+        float _lastDamageT = -999f;
+
         public event Action Changed;
-        /// <summary>Raised the frame the player's health hits 0 (WorldBounds respawns + clears wanted).</summary>
+        /// <summary>Raised the frame the player's health hits 0 (WastedBusted handles the death flow).</summary>
         public event Action Died;
 
         void Awake() { GameRefs.Player = transform; GameRefs.PlayerState = this; }
@@ -25,12 +34,35 @@ namespace SUNBREAK.World
         public float MaxHealth => maxHealth;
         public float Health => health;
         public float Health01 => maxHealth > 0f ? Mathf.Clamp01(health / maxHealth) : 0f;
+        public float MaxArmor => maxArmor;
+        public float Armor => armor;
+        public float Armor01 => maxArmor > 0f ? Mathf.Clamp01(armor / maxArmor) : 0f;
         public int Cash => cash;
         public bool IsDead { get; private set; }
+        public bool InCombat => Time.time - _lastDamageT < regenDelay;
+
+        void Update()
+        {
+            if (IsDead) return;
+            // Regenerate health to a threshold once out of combat (so encounters aren't a death spiral).
+            if (Time.time - _lastDamageT >= regenDelay && health < maxHealth * regenTo)
+            {
+                health = Mathf.Min(maxHealth * regenTo, health + regenRate * Time.deltaTime);
+                Changed?.Invoke();
+            }
+        }
 
         public void Damage(float amount)
         {
-            if (IsDead) return;
+            if (IsDead || amount <= 0f) return;
+            _lastDamageT = Time.time;
+            // Armor absorbs first (75% of the hit while it lasts), then health takes the rest.
+            if (armor > 0f)
+            {
+                float toArmor = Mathf.Min(armor, amount * 0.75f);
+                armor -= toArmor;
+                amount -= toArmor;
+            }
             health = Mathf.Clamp(health - amount, 0f, maxHealth);
             Changed?.Invoke();
             if (health <= 0f) { IsDead = true; Died?.Invoke(); }
@@ -38,7 +70,22 @@ namespace SUNBREAK.World
 
         public void Heal(float amount)
         {
+            if (amount <= 0f) return;
             health = Mathf.Clamp(health + amount, 0f, maxHealth);
+            Changed?.Invoke();
+        }
+
+        public void AddArmor(float amount)
+        {
+            if (amount <= 0f) return;
+            armor = Mathf.Clamp(armor + amount, 0f, maxArmor);
+            Changed?.Invoke();
+        }
+
+        /// <summary>Refill health to full (hospital / medkit / respawn).</summary>
+        public void FullHeal()
+        {
+            health = maxHealth;
             Changed?.Invoke();
         }
 
@@ -47,6 +94,7 @@ namespace SUNBREAK.World
         {
             IsDead = false;
             health = maxHealth;
+            _lastDamageT = -999f;
             Changed?.Invoke();
         }
 
@@ -86,5 +134,8 @@ namespace SUNBREAK.World
 
         /// <summary>Restore health from a save.</summary>
         public void SetHealth(float h) { health = Mathf.Clamp(h, 0f, maxHealth); IsDead = health <= 0f; Changed?.Invoke(); }
+
+        /// <summary>Restore armor from a save.</summary>
+        public void SetArmor(float a) { armor = Mathf.Clamp(a, 0f, maxArmor); Changed?.Invoke(); }
     }
 }

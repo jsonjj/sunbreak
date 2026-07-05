@@ -3,6 +3,7 @@ using UnityEngine;
 using SUNBREAK.Combat;
 using SUNBREAK.Missions;
 using SUNBREAK.Player;
+using SUNBREAK.UI;
 using SUNBREAK.World;
 
 namespace SUNBREAK.Save
@@ -40,12 +41,15 @@ namespace SUNBREAK.Save
                 Restore(d);
             }
             SaveSystem.NewGame = false;
+
+            Overlay.Reset();
+            Settings.Apply(); // volume / sensitivity / invert-Y / FOV / brightness from PlayerPrefs
         }
 
         public SaveData Snapshot()
         {
             var d = new SaveData();
-            if (state != null) { d.cash = state.Cash; d.bank = state.Bank; d.health = state.Health; }
+            if (state != null) { d.cash = state.Cash; d.bank = state.Bank; d.health = state.Health; d.armor = state.Armor; }
             if (combat != null) { d.weapons = combat.OwnedList(); d.currentWeapon = combat.CurrentId; }
             if (Missions != null) d.missions = Missions.Save();
             Vector3 p = player != null ? player.transform.position : (GameRefs.Player != null ? GameRefs.Player.position : Vector3.zero);
@@ -58,7 +62,7 @@ namespace SUNBREAK.Save
         public void Restore(SaveData d)
         {
             if (d == null) return;
-            if (state != null) { state.LoadWallet(d.cash, d.bank); state.SetHealth(d.health); }
+            if (state != null) { state.LoadWallet(d.cash, d.bank); state.SetHealth(d.health); state.SetArmor(d.armor); }
             combat?.LoadLoadout(d.weapons, d.currentWeapon);
             Missions?.Load(d.missions);
             if (player != null) player.Teleport(new Vector3(d.px, d.py, d.pz), d.yaw);

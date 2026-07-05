@@ -15,6 +15,7 @@ namespace SUNBREAK.Save
         public int cash = 500;
         public int bank = 0;
         public float health = 100f;
+        public float armor = 0f;
 
         public List<string> weapons = new();
         public string currentWeapon = "pistol_9mm";

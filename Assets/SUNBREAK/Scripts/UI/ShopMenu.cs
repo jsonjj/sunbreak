@@ -7,7 +7,7 @@ using SUNBREAK.World;
 
 namespace SUNBREAK.UI
 {
-    public enum ShopKind { GunStore, CarDealer, Bank }
+    public enum ShopKind { GunStore, CarDealer, Bank, Hospital, Convenience }
 
     /// <summary>
     /// A code-built shop panel (gun store / car dealership / bank). Opening pauses time; number
@@ -28,13 +28,11 @@ namespace SUNBREAK.UI
         Text[] _rows;
         readonly List<Row> _items = new();
         ShopKind _kind;
-        InputAction _close;
         InputAction[] _keys;
 
         void Awake()
         {
             Instance = this;
-            _close = new InputAction("ShopClose", InputActionType.Button, "<Keyboard>/escape");
             _keys = new InputAction[9];
             for (int i = 0; i < 9; i++) _keys[i] = new InputAction("Buy" + i, InputActionType.Button, "<Keyboard>/" + (i + 1));
         }
@@ -42,11 +40,11 @@ namespace SUNBREAK.UI
 
         public void Open(ShopKind kind)
         {
+            if (!Overlay.TryOpen(Overlay.Kind.Shop, Close)) return; // another overlay owns the screen
             _kind = kind;
             BuildItems();
             if (_canvas == null) BuildUI();
             _canvas.gameObject.SetActive(true);
-            _close.Enable();
             foreach (var k in _keys) k.Enable();
             Time.timeScale = 0f;
             IsOpen = true;
@@ -55,8 +53,8 @@ namespace SUNBREAK.UI
 
         public void Close()
         {
+            Overlay.MarkClosed(Overlay.Kind.Shop); // Esc authority = PauseMenu; this frees the slot
             if (_canvas != null) _canvas.gameObject.SetActive(false);
-            _close.Disable();
             foreach (var k in _keys) k.Disable();
             Time.timeScale = 1f;
             IsOpen = false;
@@ -65,7 +63,6 @@ namespace SUNBREAK.UI
         void Update()
         {
             if (!IsOpen) return;
-            if (_close.WasPressedThisFrame()) { Close(); return; }
             for (int i = 0; i < _items.Count && i < 9; i++)
                 if (_keys[i].WasPressedThisFrame()) { Buy(i); Refresh(); }
         }
@@ -94,6 +91,16 @@ namespace SUNBREAK.UI
                     Add("deposit", "Deposit all cash", 0);
                     Add("withdraw", "Withdraw all savings", 0);
                     break;
+                case ShopKind.Hospital:
+                    Add("heal_full", "Full Health", 250);
+                    Add("medkit", "Medkit  (+50 HP)", 120);
+                    Add("armor_full", "Body Armor  (100)", 500);
+                    break;
+                case ShopKind.Convenience:
+                    Add("snack", "Snack  (+25 HP)", 40);
+                    Add("soda", "Energy Drink  (+40 HP)", 70);
+                    Add("armor_small", "Light Vest  (+50 Armor)", 260);
+                    break;
             }
         }
 
@@ -108,6 +115,23 @@ namespace SUNBREAK.UI
             {
                 if (row.id == "deposit") state.Deposit(state.Cash);
                 else state.Withdraw(state.Bank);
+                return;
+            }
+            if (_kind == ShopKind.Hospital || _kind == ShopKind.Convenience)
+            {
+                bool healItem = row.id != "armor_full" && row.id != "armor_small";
+                if (healItem && state.Health >= state.MaxHealth) return;      // already full
+                if (!healItem && state.Armor >= state.MaxArmor) return;       // already full
+                if (!state.Spend(row.price)) return;                          // can't afford
+                switch (row.id)
+                {
+                    case "heal_full": state.FullHeal(); break;
+                    case "medkit": state.Heal(50f); break;
+                    case "snack": state.Heal(25f); break;
+                    case "soda": state.Heal(40f); break;
+                    case "armor_full": state.AddArmor(100f); break;
+                    case "armor_small": state.AddArmor(50f); break;
+                }
                 return;
             }
             if (!state.Spend(row.price)) return; // can't afford
@@ -164,6 +188,8 @@ namespace SUNBREAK.UI
             {
                 ShopKind.GunStore => $"PALMETTO ARMS   ·   Cash ${state?.Cash:n0}",
                 ShopKind.CarDealer => $"VERANO MOTORS   ·   Cash ${state?.Cash:n0}",
+                ShopKind.Hospital => $"VISTA GENERAL   ·   Cash ${state?.Cash:n0}   ·   HP {Mathf.RoundToInt(state?.Health ?? 0)}/{Mathf.RoundToInt(state?.MaxHealth ?? 0)}",
+                ShopKind.Convenience => $"FUEL & GO   ·   Cash ${state?.Cash:n0}   ·   Armor {Mathf.RoundToInt(state?.Armor ?? 0)}",
                 _ => $"BANK   ·   Cash ${state?.Cash:n0}   Savings ${state?.Bank:n0}",
             };
             for (int i = 0; i < _rows.Length; i++)

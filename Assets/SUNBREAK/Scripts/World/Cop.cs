@@ -76,6 +76,9 @@ namespace SUNBREAK.World
             if (face.sqrMagnitude > 0.01f) transform.rotation = Quaternion.Slerp(transform.rotation,
                 Quaternion.LookRotation(face), 1f - Mathf.Exp(-8f * dt));
 
+            // Arrest: right on top of an unarmed or nearly-downed player → BUSTED, not a firefight.
+            if (dist < 2.6f && CanArrest(state)) { WastedBusted.Instance?.Bust(); return; }
+
             // Shoot to kill.
             _fireT -= dt;
             if (_fireT <= 0f && HasLos && dist < 60f)
@@ -83,6 +86,15 @@ namespace SUNBREAK.World
                 bool fired = NpcGun.FireAt(gameObject, player, state, _weapon, _accuracy);
                 _fireT = fired ? FireInterval : 0.35f;
             }
+        }
+
+        static bool CanArrest(PlayerState st)
+        {
+            if (st == null || st.IsDead) return false;
+            var pc = GameRefs.Player != null ? GameRefs.Player.GetComponent<PlayerCombat>() : null;
+            bool unarmed = pc != null && pc.CurrentId == "fists";
+            bool downed = st.Health01 < 0.18f;
+            return unarmed || downed;
         }
 
         void OnDied(DamageInfo info)
