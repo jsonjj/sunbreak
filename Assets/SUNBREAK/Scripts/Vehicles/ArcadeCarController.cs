@@ -228,7 +228,7 @@ namespace SUNBREAK.Vehicles
             // grip to drive even when the springs are barely loaded (arcade forgiveness).
             float minLoad = cornerMass * 9.81f * 0.8f;
             float load = Mathf.Max(springForce, minLoad);
-            float frictionCircle = w.frictionSlip * load;
+            float frictionCircle = w.frictionSlip * load * WeatherSystem.GripMultiplier; // wet roads = less grip
 
             // ── Lateral grip (cancel sideways slip up to the friction budget) ──
             float lateralVel = Vector3.Dot(right, contactVel);
