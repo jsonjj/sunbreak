@@ -27,6 +27,7 @@ namespace SUNBREAK.World
         {
             yield return new WaitForSecondsRealtime(6f); // let city gen + NPC spawn + weapon attach settle
             Debug.Log("SUNBREAK_STAGE: start");
+            yield return WalkAroundIsLegalCheck(); // wanted must stay 0 while just moving with a weapon
             MissionSystem.Instance?.StartAvailable(); // show the mission HUD panel in the proof shots
             yield return new WaitForSecondsRealtime(0.4f);
             yield return Grab("build_shot.png");   // pistol (default loadout)
@@ -210,6 +211,49 @@ namespace SUNBREAK.World
             pc.Teleport(spot, 0f);
             yield return new WaitForSecondsRealtime(1.4f); // let the follow camera settle
             yield return Grab("build_service.png");
+        }
+
+        /// <summary>Self-check: idling/walking/aiming/driving with a weapon equipped for ~15s must NOT
+        /// raise wanted; then a real crime (hitting a civilian) MUST raise it.</summary>
+        static IEnumerator WalkAroundIsLegalCheck()
+        {
+            var ws = WantedSystem.Instance;
+            var pl = GameRefs.Player;
+            if (ws == null || pl == null) yield break;
+            ws.ForceStars(0);
+            var cb = pl.GetComponent<PlayerCombat>();
+            cb?.Pickup("pistol_9mm"); // weapon equipped + visible in hand
+
+            // ~15s of "just existing" near peds: simulate aiming (Brandish) + driving (VehicleThreat).
+            bool spiked = false;
+            for (float t = 0f; t < 15f; t += 0.5f)
+            {
+                ThreatBus.Brandish(pl.position);        // aiming a gun — panic only, not a crime
+                ThreatBus.VehicleThreat(pl.position);   // reckless/owned-car driving — fear only
+                if (ws.Stars > 0) spiked = true;
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+            int idleStars = ws.Stars;
+
+            // Now commit a real crime: hit a civilian as the player → wanted must rise.
+            int crimeStars = idleStars;
+            var crowd = CrowdFactory.Instance;
+            if (crowd != null)
+            {
+                Vector3 fwd = pl.forward; fwd.y = 0f; fwd.Normalize();
+                var victim = crowd.BuildHumanoid("WalkTestPed", Faction.Civilian, 100f, CrowdFactory.RandomCivilianTint(), out _, out var hp, out _);
+                if (victim != null && hp != null)
+                {
+                    victim.transform.position = pl.position + fwd * 3f;
+                    yield return null;
+                    hp.ApplyDamage(new DamageInfo { amount = 40f, point = victim.transform.position, dir = fwd, impulse = 5f, fromPlayer = true });
+                    yield return new WaitForSecondsRealtime(0.5f);
+                    crimeStars = ws.Stars;
+                    Destroy(victim);
+                }
+            }
+            Debug.Log($"SUNBREAK_WALKTEST: idleStars={idleStars} spikedWhileIdle={spiked} crimeStars={crimeStars}");
+            ws.ForceStars(0); // clean slate for the rest of the capture run
         }
 
         /// <summary>Teleport to a POI-dense downtown spot so the minimap shows distinct type icons.</summary>
