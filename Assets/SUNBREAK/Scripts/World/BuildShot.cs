@@ -25,15 +25,16 @@ namespace SUNBREAK.World
 
         IEnumerator Run()
         {
-            yield return new WaitForSeconds(6f); // let city gen + NPC spawn + weapon attach settle
+            yield return new WaitForSecondsRealtime(6f); // let city gen + NPC spawn + weapon attach settle
+            Debug.Log("SUNBREAK_STAGE: start");
             MissionSystem.Instance?.StartAvailable(); // show the mission HUD panel in the proof shots
-            yield return new WaitForSeconds(0.4f);
+            yield return new WaitForSecondsRealtime(0.4f);
             yield return Grab("build_shot.png");   // pistol (default loadout)
 
             // Swap to a rifle so grip can be verified for both weapon classes.
             var combat = GameRefs.Player != null ? GameRefs.Player.GetComponent<PlayerCombat>() : null;
             combat?.Pickup("rifle_carbine");
-            yield return new WaitForSeconds(1.8f);
+            yield return new WaitForSecondsRealtime(1.8f);
             yield return Grab("build_shot2.png");  // rifle
 
             // Police "world comes alive" response — heli + SWAT + roadblock (captured early so it's
@@ -43,7 +44,7 @@ namespace SUNBREAK.World
 
             // Line up every character model in front of the player to prove none render green/white.
             SpawnLineup();
-            yield return new WaitForSeconds(1.2f);
+            yield return new WaitForSecondsRealtime(1.2f);
             yield return Grab("build_shot3.png");  // NPC material audit
 
             // Traversal craft — boat on the water, heli + plane at the airfield (offset so the
@@ -53,7 +54,17 @@ namespace SUNBREAK.World
             yield return ShootFrom(new Vector3(330f, 0f, 250f), 48f, "build_plane.png");
 
             // Service building signage (teleport to the hospital + look at it).
+            Debug.Log("SUNBREAK_STAGE: service");
             yield return ShootService();
+
+            // New this slice: a walk-in interior, a melee attack, and an arrest attempt.
+            Debug.Log("SUNBREAK_STAGE: interior");
+            yield return ShootInterior();
+            Debug.Log("SUNBREAK_STAGE: melee");
+            yield return ShootMelee();
+            Debug.Log("SUNBREAK_STAGE: arrest");
+            yield return ShootArrest();
+            Debug.Log("SUNBREAK_STAGE: post-arrest");
 
             // Pause menu + settings (real UI render proof).
             var pause = FindFirstObjectByType<PauseMenu>();
@@ -74,11 +85,11 @@ namespace SUNBREAK.World
             var day = DayNightSystem.Instance;
             if (day != null) day.SetTime(13f * 60f);
             if (weather != null) weather.Force(WeatherSystem.Weather.Rain);
-            yield return new WaitForSeconds(3.5f);
+            yield return new WaitForSecondsRealtime(3.5f);
             yield return Grab("build_rain.png");
             if (weather != null) weather.Force(WeatherSystem.Weather.Clear);
             if (day != null) day.SetTime(1f * 60f);   // 01:00
-            yield return new WaitForSeconds(1.5f);
+            yield return new WaitForSecondsRealtime(1.5f);
             yield return Grab("build_night.png");
             if (day != null) day.SetTime(9f * 60f);    // back to daylight
 
@@ -87,7 +98,7 @@ namespace SUNBREAK.World
             if (race != null && GameRefs.Player != null)
             {
                 race.Interact(GameRefs.Player.gameObject);
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSecondsRealtime(0.5f);
                 if (NavRoute.ActivityWaypoint.HasValue)
                 {
                     Vector3 cp = NavRoute.ActivityWaypoint.Value - new Vector3(0f, 0f, 11f);
@@ -126,7 +137,7 @@ namespace SUNBREAK.World
             var st = GameRefs.PlayerState;
             if (st != null) st.Invulnerable = true; // survive the shot without dying
             ws.ForceStars(4); // SWAT + helicopter + roadblocks
-            yield return new WaitForSeconds(9f); // response time + units close in
+            yield return new WaitForSecondsRealtime(9f); // response time + units close in
             yield return Grab("build_chase.png");
             if (st != null) st.Invulnerable = false;
         }
@@ -140,7 +151,7 @@ namespace SUNBREAK.World
             if (Physics.Raycast(new Vector3(xz.x, 140f, xz.z), Vector3.down, out var hit, 260f, ~0, QueryTriggerInteraction.Ignore))
                 y = hit.point.y + 1.6f;
             pc.Teleport(new Vector3(xz.x, y, xz.z), yaw);
-            yield return new WaitForSeconds(1.5f); // let the follow camera settle
+            yield return new WaitForSecondsRealtime(1.5f); // let the follow camera settle
             yield return Grab(name);
         }
 
@@ -154,8 +165,104 @@ namespace SUNBREAK.World
             if (Physics.Raycast(spot + Vector3.up * 60f, Vector3.down, out var hit, 120f, ~0, QueryTriggerInteraction.Ignore))
                 spot.y = hit.point.y + 1.2f;
             pc.Teleport(spot, 0f);
-            yield return new WaitForSeconds(1.4f); // let the follow camera settle
+            yield return new WaitForSecondsRealtime(1.4f); // let the follow camera settle
             yield return Grab("build_service.png");
+        }
+
+        /// <summary>Walk into an enterable building (dealership showroom) and capture the interior.</summary>
+        static IEnumerator ShootInterior()
+        {
+            var player = GameRefs.Player;
+            if (player == null) yield break;
+            EnterableShop dealership = null;
+            foreach (var s in FindObjectsByType<EnterableShop>(FindObjectsSortMode.None))
+                if (!s.safehouse && s.kind == UI.ShopKind.CarDealer) { dealership = s; break; }
+            if (dealership == null) yield break;
+            dealership.Interact(player.gameObject);
+            yield return new WaitForSecondsRealtime(1.6f); // teleport in + camera settle
+            yield return Grab("build_interior.png");
+            dealership.ExitToStreet();
+            yield return new WaitForSecondsRealtime(0.6f);
+        }
+
+        /// <summary>Show the unarmed combo (advancing to the kick) and the shared bat/machete swing.</summary>
+        static IEnumerator ShootMelee()
+        {
+            var player = GameRefs.Player;
+            var combat = player != null ? player.GetComponent<PlayerCombat>() : null;
+            var melee = player != null ? player.GetComponent<MeleeAnimator>() : null;
+            var pc = player != null ? player.GetComponent<PlayerController>() : null;
+            if (player == null || combat == null || melee == null || pc == null) yield break;
+
+            // Move to a clean, open spot (the airfield apron) so nothing occludes the pose.
+            Vector3 spot = new Vector3(408f, 0f, 300f);
+            if (Physics.Raycast(spot + Vector3.up * 140f, Vector3.down, out var hit, 260f, ~0, QueryTriggerInteraction.Ignore))
+                spot.y = hit.point.y + 1.2f;
+            pc.Teleport(spot, 20f);
+            yield return new WaitForSecondsRealtime(0.5f);
+
+            // Unarmed combo: punchL → punchR → kick, captured mid-kick.
+            combat.Pickup("fists");
+            yield return new WaitForSecondsRealtime(0.3f);
+            SpawnDummyInFront(2.2f);
+            yield return new WaitForSecondsRealtime(0.2f);
+            melee.Play(MeleeAnimator.Move.PunchL); yield return new WaitForSecondsRealtime(0.34f);
+            melee.Play(MeleeAnimator.Move.PunchR); yield return new WaitForSecondsRealtime(0.34f);
+            melee.Play(MeleeAnimator.Move.Kick); yield return new WaitForSecondsRealtime(0.2f);
+            yield return Grab("build_melee.png");
+
+            // Machete equipped (shares the baseball stance + swing).
+            combat.Pickup("machete");
+            yield return new WaitForSecondsRealtime(0.7f);
+            melee.Play(MeleeAnimator.Move.Swing);
+            yield return new WaitForSecondsRealtime(0.2f);
+            yield return Grab("build_meleebat.png");
+            combat.Pickup("pistol_9mm");
+        }
+
+        /// <summary>Force 1★ + an approaching (holstered) officer, showing the surrender prompt.</summary>
+        static IEnumerator ShootArrest()
+        {
+            var ws = WantedSystem.Instance;
+            var player = GameRefs.Player;
+            var pc = player != null ? player.GetComponent<PlayerController>() : null;
+            var crowd = CrowdFactory.Instance;
+            if (ws == null || player == null || pc == null || crowd == null) yield break;
+
+            Vector3 spot = new Vector3(20f, 0f, 12f);
+            if (Physics.Raycast(spot + Vector3.up * 60f, Vector3.down, out var hit, 120f, ~0, QueryTriggerInteraction.Ignore))
+                spot.y = hit.point.y + 1.2f;
+            pc.Teleport(spot, 0f);
+            var st = GameRefs.PlayerState; if (st != null) st.Invulnerable = true;
+            yield return new WaitForSecondsRealtime(0.4f);
+
+            ws.ForceStars(1); // 1★ = arrest posture (guns holstered)
+            Vector3 fwd = player.forward; fwd.y = 0f; fwd.Normalize();
+            // Spawn a TRACKED officer (in the wanted system) so the arrest/surrender prompt drives itself.
+            ws.SpawnFootCop(player.position + fwd * 12f, ws.TierFor(1), 1);
+            yield return new WaitForSecondsRealtime(1.3f); // officer closes in, still non-lethal
+            yield return Grab("build_arrest.png");
+            ws.ForceStars(0);
+            GameHUD.SetAlert(null);
+            if (st != null) st.Invulnerable = false;
+        }
+
+        static void SpawnDummyInFront(float dist)
+        {
+            var crowd = CrowdFactory.Instance;
+            var player = GameRefs.Player;
+            if (crowd == null || player == null || crowd.roster == null || crowd.roster.Length == 0) return;
+            var model = crowd.roster[0];
+            if (model == null) return;
+            var go = Instantiate(model);
+            var b = Bounds(go);
+            float h = Mathf.Max(0.01f, b.size.y);
+            go.transform.localScale = Vector3.one * (1.8f / h);
+            Vector3 fwd = player.forward; fwd.y = 0f; fwd.Normalize();
+            Vector3 pos = player.position + fwd * dist;
+            go.transform.position = new Vector3(pos.x, player.position.y - 0.9f, pos.z);
+            go.transform.rotation = Quaternion.LookRotation(-fwd);
+            CrowdFactory.ApplyMaterial(go, crowd.rosterMaterials != null && crowd.rosterMaterials.Length > 0 ? crowd.rosterMaterials[0] : null);
         }
 
         /// <summary>Capture at end-of-frame, then wait for the async file write to flush BEFORE any
