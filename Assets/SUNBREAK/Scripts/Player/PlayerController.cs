@@ -29,6 +29,7 @@ namespace SUNBREAK.Player
         [Header("Look")]
         [Tooltip("Degrees of yaw/pitch per pixel of mouse delta.")]
         public float mouseSensitivity = 0.12f;
+        public bool invertY = false;
         public float minPitch = -35f;
         public float maxPitch = 70f;
         public bool lockCursor = true;
@@ -136,7 +137,8 @@ namespace SUNBREAK.Player
             // ── Look (mouse delta is per-frame pixels → scale straight to degrees) ──
             Vector2 look = _look.ReadValue<Vector2>();
             LookYaw += look.x * mouseSensitivity;
-            LookPitch = Mathf.Clamp(LookPitch - look.y * mouseSensitivity, minPitch, maxPitch);
+            float pitchDelta = look.y * mouseSensitivity * (invertY ? 1f : -1f);
+            LookPitch = Mathf.Clamp(LookPitch + pitchDelta, minPitch, maxPitch);
             if (LookYaw > 180f) LookYaw -= 360f;
             else if (LookYaw < -180f) LookYaw += 360f;
 

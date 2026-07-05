@@ -92,19 +92,28 @@ namespace SUNBREAK.UI
         void Toggle()
         {
             if (_canvas == null) Build();
-            _open = !_open;
-            _canvas.gameObject.SetActive(_open);
-            _cam.enabled = _open;
-            Time.timeScale = _open ? 0f : 1f;
-            Cursor.lockState = _open ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = _open;
-            if (_open)
-            {
-                _click.Enable(); _pan.Enable();
-                _center = GameRefs.Player != null ? GameRefs.Player.position : Vector3.zero;
-                PositionCamera();
-            }
-            else { _click.Disable(); _pan.Disable(); }
+            if (_open) { Close(); return; }
+            if (!Overlay.TryOpen(Overlay.Kind.Map, Close)) return; // another overlay owns the screen
+            _open = true;
+            _canvas.gameObject.SetActive(true);
+            _cam.enabled = true;
+            Time.timeScale = 0f;
+            Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+            _click.Enable(); _pan.Enable();
+            _center = GameRefs.Player != null ? GameRefs.Player.position : Vector3.zero;
+            PositionCamera();
+        }
+
+        /// <summary>Close the map (also the Esc-priority closer registered with <see cref="Overlay"/>).</summary>
+        public void Close()
+        {
+            Overlay.MarkClosed(Overlay.Kind.Map);
+            _open = false;
+            if (_canvas != null) _canvas.gameObject.SetActive(false);
+            if (_cam != null) _cam.enabled = false;
+            Time.timeScale = 1f;
+            Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
+            _click.Disable(); _pan.Disable();
         }
 
         void PositionCamera()

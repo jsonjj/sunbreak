@@ -91,6 +91,14 @@ namespace SUNBREAK.Cameras
             var lens = firstPersonCam.Lens; lens.FieldOfView = fpFov; firstPersonCam.Lens = lens;
         }
 
+        /// <summary>Set the base field-of-view from the settings menu; aim + first-person scale off it.</summary>
+        public void ApplyFov(float baseFov)
+        {
+            tpFov = Mathf.Clamp(baseFov, 40f, 75f);
+            aimFov = Mathf.Max(30f, tpFov - 14f);
+            fpFov = tpFov + 10f;
+        }
+
         /// <summary>Point the third-person rig at a new follow/look target (player or vehicle).</summary>
         public void SetTarget(Transform follow, Transform lookAt, bool vehicleMode)
         {

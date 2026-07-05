@@ -17,16 +17,23 @@ namespace SUNBREAK.UI
     {
         public string worldScene = "Island";
 
+        static bool _booted; // guard so batch/-sunbreakshot auto-start fires ONCE, not on every return
+
         Font _font;
+        GameObject _menuRoot;
+        SettingsPanel _settings;
 
         void Start()
         {
             Time.timeScale = 1f;
             Cursor.visible = true;
             Cursor.lockState = CursorLockMode.None;
+            Overlay.Reset();
+            Settings.Apply();
 
-            // Auto-start into the world for the headless smoke + the build-render screenshot pass.
-            if (Application.isBatchMode || HasArg("-sunbreakshot")) { StartNewGame(); return; }
+            // Auto-start into the world for the headless smoke + the build-render screenshot pass —
+            // but only the first time, so Quit-to-Menu returns to a real menu instead of re-looping.
+            if ((Application.isBatchMode || HasArg("-sunbreakshot")) && !_booted) { _booted = true; StartNewGame(); return; }
 
             EnsureEventSystem();
             EnsureCamera();
@@ -75,8 +82,20 @@ namespace SUNBREAK.UI
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             go.AddComponent<GraphicRaycaster>();
-            Populate(go.transform, Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+
+            _menuRoot = new GameObject("MenuRoot", typeof(RectTransform));
+            _menuRoot.transform.SetParent(go.transform, false);
+            var mrt = (RectTransform)_menuRoot.transform;
+            mrt.anchorMin = Vector2.zero; mrt.anchorMax = Vector2.one; mrt.offsetMin = Vector2.zero; mrt.offsetMax = Vector2.zero;
+
+            Populate(_menuRoot.transform, Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
+
+            _settings = SettingsPanel.Create(go.transform, _font, CloseSettings);
+            _settings.gameObject.SetActive(false);
         }
+
+        void OpenSettings() { if (_settings == null) return; _menuRoot.SetActive(false); _settings.gameObject.SetActive(true); _settings.Refresh(); }
+        void CloseSettings() { if (_settings == null) return; _settings.gameObject.SetActive(false); _menuRoot.SetActive(true); }
 
         /// <summary>Build the menu widgets into a canvas. Public so the capture tool can render the
         /// menu into a camera-space canvas for a screenshot.</summary>
@@ -116,7 +135,8 @@ namespace SUNBREAK.UI
                 var b = Button(label, new Vector2(0, y - i * 84), go.transform, () => LoadSlot(slot));
                 if (!has) b.interactable = false;
             }
-            Button("QUIT", new Vector2(0, y - (SaveSystem.Slots + 1) * 84), go.transform, Quit);
+            Button("SETTINGS", new Vector2(0, y - (SaveSystem.Slots + 1) * 84), go.transform, OpenSettings);
+            Button("QUIT TO DESKTOP", new Vector2(0, y - (SaveSystem.Slots + 2) * 84), go.transform, Quit);
 
             Text(Controls.OneLine,
                 18, FontStyle.Normal, new Color(1f, 1f, 1f, 0.55f), TextAnchor.LowerCenter,

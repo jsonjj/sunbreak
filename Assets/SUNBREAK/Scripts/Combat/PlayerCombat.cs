@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using SUNBREAK.Cameras;
 using SUNBREAK.Player;
+using SUNBREAK.UI;
 using SUNBREAK.World;
 
 namespace SUNBREAK.Combat
@@ -227,6 +228,7 @@ namespace SUNBREAK.Combat
         {
             if (_wheel.WasPressedThisFrame())
             {
+                if (!Overlay.TryOpen(Overlay.Kind.Wheel, CancelWheel)) return; // another overlay owns the screen
                 WheelOpen = true; Time.timeScale = 0.15f;
                 int cur = Mathf.Max(0, System.Array.IndexOf(Weapons.WheelOrder, _current));
                 WheelSelection = cur;
@@ -252,8 +254,17 @@ namespace SUNBREAK.Combat
             if (!_wheel.IsPressed())
             {
                 WheelOpen = false; Time.timeScale = 1f;
+                Overlay.MarkClosed(Overlay.Kind.Wheel);
                 EquipSlot(WheelSelection);
             }
+        }
+
+        /// <summary>Esc-priority closer: drop the wheel without committing a selection.</summary>
+        void CancelWheel()
+        {
+            Overlay.MarkClosed(Overlay.Kind.Wheel);
+            WheelOpen = false;
+            if (Time.timeScale < 1f) Time.timeScale = 1f;
         }
 
         int SlotFromAim()
