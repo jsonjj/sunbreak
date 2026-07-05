@@ -34,6 +34,21 @@ namespace SUNBREAK.World
         public int Hour => Mathf.FloorToInt(Mathf.Repeat(gameMinutes, GameMinutesPerDay) / 60f) % 24;
         public string Clock => $"{Hour:00}:{Mathf.FloorToInt(Mathf.Repeat(gameMinutes, 60f)):00}";
 
+        /// <summary>Retail hours (06:00–21:00) — the gun store + dealership close outside these.</summary>
+        public static bool BusinessHours => Instance == null || (Instance.Hour >= 6 && Instance.Hour < 21);
+
+        /// <summary>Crowd/traffic density scale by time — busy daytime, sparse in the dead of night.</summary>
+        public static float DensityFactor
+        {
+            get
+            {
+                if (Instance == null) return 1f;
+                int h = Instance.Hour;
+                if (h >= 1 && h < 5) return 0.4f;   // 01:00–05:00 dead
+                return IsNight ? 0.62f : 1f;         // evening/night vs day
+            }
+        }
+
         void Awake()
         {
             Instance = this;

@@ -94,8 +94,9 @@ namespace SUNBREAK.World
                 active++;
             }
 
+            int liveCap = Mathf.Max(3, Mathf.RoundToInt(cap * DayNightSystem.DensityFactor)); // sparser at night
             int budget = spawnPerTick;
-            for (int i = 0; i < _pool.Count && active < cap && budget > 0; i++)
+            for (int i = 0; i < _pool.Count && active < liveCap && budget > 0; i++)
             {
                 var p = _pool[i];
                 if (p.Active) continue;

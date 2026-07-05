@@ -78,7 +78,8 @@ namespace SUNBREAK.World
                 live++;
             }
 
-            for (int i = 0; i < _pool.Count && live < cap; i++)
+            int liveCap = Mathf.Max(2, Mathf.RoundToInt(cap * DayNightSystem.DensityFactor)); // sparser at night
+            for (int i = 0; i < _pool.Count && live < liveCap; i++)
             {
                 if (_active[i]) continue;
                 float ang = Random.value * Mathf.PI * 2f;

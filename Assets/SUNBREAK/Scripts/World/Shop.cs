@@ -9,16 +9,23 @@ namespace SUNBREAK.World
     {
         public ShopKind kind = ShopKind.GunStore;
 
+        // Gun store + dealership keep retail hours; the ATM/bank is 24h.
+        bool ClosedNow => (kind == ShopKind.GunStore || kind == ShopKind.CarDealer) && !DayNightSystem.BusinessHours;
+
         public override string Prompt => kind switch
         {
-            ShopKind.GunStore => "Press E — Gun Store",
-            ShopKind.CarDealer => "Press E — Car Dealership",
+            ShopKind.GunStore => ClosedNow ? "Gun Store — Closed (06:00–21:00)" : "Press E — Gun Store",
+            ShopKind.CarDealer => ClosedNow ? "Car Dealership — Closed (06:00–21:00)" : "Press E — Car Dealership",
             _ => "Press E — Bank / ATM",
         };
 
         public override bool Available => ShopMenu.Instance == null || !ShopMenu.Instance.IsOpen;
 
-        public override void Interact(GameObject player) => ShopMenu.Instance?.Open(kind);
+        public override void Interact(GameObject player)
+        {
+            if (ClosedNow) { SUNBREAK.UI.GameHUD.Post("CLOSED", "Open 06:00–21:00. Come back in daylight."); return; }
+            ShopMenu.Instance?.Open(kind);
+        }
 
         void Start()
         {
