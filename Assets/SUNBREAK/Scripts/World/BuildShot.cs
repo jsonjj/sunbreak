@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using SUNBREAK.Combat;
 using SUNBREAK.Missions;
+using SUNBREAK.Player;
+using SUNBREAK.UI;
 
 namespace SUNBREAK.World
 {
@@ -25,23 +27,62 @@ namespace SUNBREAK.World
             yield return new WaitForSeconds(6f); // let city gen + NPC spawn + weapon attach settle
             MissionSystem.Instance?.StartAvailable(); // show the mission HUD panel in the proof shots
             yield return new WaitForSeconds(0.4f);
-            Shot("build_shot.png");              // pistol (default loadout)
+            yield return Grab("build_shot.png");   // pistol (default loadout)
 
             // Swap to a rifle so grip can be verified for both weapon classes.
-            yield return new WaitForSeconds(0.7f);
             var combat = GameRefs.Player != null ? GameRefs.Player.GetComponent<PlayerCombat>() : null;
             combat?.Pickup("rifle_carbine");
             yield return new WaitForSeconds(1.8f);
-            Shot("build_shot2.png");             // rifle
+            yield return Grab("build_shot2.png");  // rifle
 
             // Line up every character model in front of the player to prove none render green/white.
-            yield return new WaitForSeconds(0.5f);
             SpawnLineup();
             yield return new WaitForSeconds(1.2f);
-            Shot("build_shot3.png");             // NPC material audit
+            yield return Grab("build_shot3.png");  // NPC material audit
 
-            yield return new WaitForSeconds(1.5f);
+            // Service building signage (teleport to the hospital + look at it).
+            yield return ShootService();
+
+            // Pause menu + settings (real UI render proof).
+            var pause = FindFirstObjectByType<PauseMenu>();
+            if (pause != null)
+            {
+                pause.DebugOpen(false);
+                yield return new WaitForSecondsRealtime(0.8f);
+                yield return Grab("build_pause.png");
+                pause.DebugOpen(true);           // settings tab
+                yield return new WaitForSecondsRealtime(0.8f);
+                yield return Grab("build_settings.png");
+                pause.Close();
+                yield return new WaitForSecondsRealtime(0.4f);
+            }
+
             Application.Quit();
+        }
+
+        static IEnumerator ShootService()
+        {
+            var player = GameRefs.Player;
+            var pc = player != null ? player.GetComponent<PlayerController>() : null;
+            if (pc == null) yield break;
+            Vector3 hosp = ServiceBuilding.NearestHospital(player.position);
+            Vector3 spot = hosp - new Vector3(0f, 0f, 11f); // stand south, face +Z toward the signage
+            if (Physics.Raycast(spot + Vector3.up * 60f, Vector3.down, out var hit, 120f, ~0, QueryTriggerInteraction.Ignore))
+                spot.y = hit.point.y + 1.2f;
+            pc.Teleport(spot, 0f);
+            yield return new WaitForSeconds(1.4f); // let the follow camera settle
+            yield return Grab("build_service.png");
+        }
+
+        /// <summary>Capture at end-of-frame, then wait for the async file write to flush BEFORE any
+        /// state change — otherwise ScreenCapture's lag binds the file to the next screen.</summary>
+        static IEnumerator Grab(string name)
+        {
+            yield return new WaitForEndOfFrame();
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath, name), 1);
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForEndOfFrame();
+            yield return new WaitForSecondsRealtime(0.6f);
         }
 
         static void SpawnLineup()
@@ -82,11 +123,6 @@ namespace SUNBREAK.World
             Bounds b = rs[0].bounds;
             for (int i = 1; i < rs.Length; i++) b.Encapsulate(rs[i].bounds);
             return b;
-        }
-
-        static void Shot(string name)
-        {
-            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath, name), 1);
         }
     }
 }

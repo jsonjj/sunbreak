@@ -73,7 +73,7 @@ _smoke() {
   # NOT -batchmode so a real GPU/window renders (batchmode players use a null device → no shot).
   "$appbin" -logFile "$glog" -sunbreakshot >/dev/null 2>&1 &
   local gpid=$! j=0
-  while [ "$j" -lt 20 ]; do
+  while [ "$j" -lt 30 ]; do
     if ! kill -0 "$gpid" 2>/dev/null; then break; fi
     sleep 1; j=$((j + 1))
   done
@@ -81,7 +81,7 @@ _smoke() {
   mkdir -p "$LOGDIR/shots"
   local got=0 f pd
   for pd in "$pd1" "$pd2"; do
-    for f in build_shot.png build_shot2.png build_shot3.png; do
+    for f in build_shot.png build_shot2.png build_shot3.png build_service.png build_pause.png build_settings.png; do
       if [ -f "$pd/$f" ]; then cp "$pd/$f" "$LOGDIR/shots/$f"; got=1; fi
     done
   done
