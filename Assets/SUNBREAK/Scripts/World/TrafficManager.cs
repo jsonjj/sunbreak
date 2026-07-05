@@ -13,8 +13,8 @@ namespace SUNBREAK.World
         public CityGenerator city;
 
         [Header("Tuning")]
-        public int cap = 14;
-        public float spawnInner = 55f, spawnOuter = 130f, despawn = 210f, spawnHz = 3f;
+        public int cap = 30;
+        public float spawnInner = 40f, spawnOuter = 150f, despawn = 230f, spawnHz = 5f;
 
         static readonly Color[] Palette =
         {

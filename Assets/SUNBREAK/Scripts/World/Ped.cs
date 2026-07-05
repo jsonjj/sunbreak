@@ -135,9 +135,10 @@ namespace SUNBREAK.World
         void TickWander()
         {
             if (_agent == null || !_agent.isOnNavMesh) return;
+            // Walk purposefully to a destination; only occasionally pause (no rapid state flipping).
             if (!_agent.pathPending && _agent.remainingDistance <= ArriveR)
             {
-                if (Random.value < 0.22f) { _state = PState.Idle; _stateT = Random.Range(1f, 4f); _agent.isStopped = true; }
+                if (Random.value < 0.1f) { _state = PState.Idle; _stateT = Random.Range(2.5f, 5.5f); _agent.isStopped = true; }
                 else NewWanderTarget();
             }
         }
@@ -146,7 +147,11 @@ namespace SUNBREAK.World
         {
             if (_agent == null || !_agent.isOnNavMesh) return;
             _agent.isStopped = false;
-            if (RandomPoint(transform.position, 16f, out var p)) _agent.SetDestination(p);
+            // Farther targets → longer, purposeful walks along the sidewalks (fewer jittery re-picks).
+            for (int attempt = 0; attempt < 3; attempt++)
+                if (RandomPoint(transform.position, 34f, out var p) && (p - transform.position).sqrMagnitude > 36f)
+                { _agent.SetDestination(p); return; }
+            if (RandomPoint(transform.position, 18f, out var q)) _agent.SetDestination(q);
         }
 
         void TickFlee(float dt)

@@ -17,10 +17,10 @@ namespace SUNBREAK.World
         public CrowdFactory crowd;
 
         [Header("Tuning")]
-        public int cap = 24;            // hard cap on live peds (skinned rigs are heavy)
-        public float spawnMinR = 32f, spawnMaxR = 68f, cullR = 122f;
-        public float spawnHz = 4f;
-        public int spawnPerTick = 4;
+        public int cap = 40;            // hard cap on live peds (skinned rigs; pooled + culled)
+        public float spawnMinR = 26f, spawnMaxR = 80f, cullR = 135f;
+        public float spawnHz = 5f;
+        public int spawnPerTick = 6;
 
         struct Arch { public float walk, run, health, jumpiness, weight, armMul; public bool gangster; }
         static readonly Arch[] Archetypes =
